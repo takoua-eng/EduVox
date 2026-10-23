@@ -1,0 +1,53 @@
+{% extends layout_path %}
+{% load static %}
+
+{% block title %}Vérification en deux étapes - EduVox{% endblock %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}">
+{% endblock page_css %}
+
+{% block content %}
+<div class="position-relative">
+  <div class="authentication-wrapper authentication-basic container-p-y p-4 p-sm-0">
+    <div class="authentication-inner py-6">
+      <div class="card p-md-7 p-1">
+        <div class="card-body mt-1">
+
+          {% if mode == "recuperation" or request.GET.mode == "recuperation" %}
+            <h4 class="mb-1">Code de récupération 🔑</h4>
+            <p class="mb-5">Saisissez l'un de vos codes de récupération (ex. 3F2A9B-1C7D0E).</p>
+            {% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+            <form method="post" class="mb-5">
+              {% csrf_token %}
+              <input type="hidden" name="mode" value="recuperation" />
+              <div class="form-floating form-floating-outline mb-5">
+                <input type="text" name="code" id="code" class="form-control text-uppercase" placeholder="Code" autocomplete="off" required autofocus />
+                <label for="code">Code de récupération</label>
+              </div>
+              <button class="btn btn-primary d-grid w-100" type="submit">Vérifier</button>
+            </form>
+            <p class="text-center mb-0"><a href="{% url 'connexion-2fa' %}">Utiliser plutôt l'application</a></p>
+
+          {% else %}
+            <h4 class="mb-1">Vérification en deux étapes 📱</h4>
+            <p class="mb-5">Ouvrez votre application d'authentification et saisissez le code à 6 chiffres.</p>
+            {% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+            <form method="post" class="mb-5">
+              {% csrf_token %}
+              <input type="hidden" name="mode" value="application" />
+              <input type="text" name="code" class="form-control text-center fs-4 mb-5" style="letter-spacing: 8px;"
+                     inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="000000" autocomplete="one-time-code" required autofocus />
+              <button class="btn btn-primary d-grid w-100" type="submit">Vérifier</button>
+            </form>
+            <p class="text-center mb-0"><a href="?mode=recuperation">Téléphone perdu ? Utiliser un code de récupération</a></p>
+          {% endif %}
+
+          <p class="text-center mt-3 mb-0 small"><a href="{% url 'connexion' %}">Annuler</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

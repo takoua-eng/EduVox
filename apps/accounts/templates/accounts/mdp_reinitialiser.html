@@ -1,0 +1,55 @@
+{% extends layout_path %}
+{% load static %}
+
+{% block title %}Nouveau mot de passe - EduVox{% endblock %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}">
+{% endblock page_css %}
+
+{% block content %}
+<div class="position-relative">
+  <div class="authentication-wrapper authentication-basic container-p-y p-4 p-sm-0">
+    <div class="authentication-inner py-6">
+      <div class="card p-md-7 p-1">
+        <div class="card-body mt-1">
+
+          {% if validlink %}
+            <h4 class="mb-1">Nouveau mot de passe 🔑</h4>
+            <p class="mb-5">Choisissez votre nouveau mot de passe.</p>
+
+            <form method="post" class="mb-5" novalidate>
+              {% csrf_token %}
+              <div class="form-floating form-floating-outline mb-5">
+                <input type="password" class="form-control {% if form.new_password1.errors %}is-invalid{% endif %}"
+                       id="id_new_password1" name="new_password1" placeholder="Nouveau mot de passe" autofocus />
+                <label for="id_new_password1">Nouveau mot de passe</label>
+                {% for error in form.new_password1.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="form-floating form-floating-outline mb-5">
+                <input type="password" class="form-control {% if form.new_password2.errors %}is-invalid{% endif %}"
+                       id="id_new_password2" name="new_password2" placeholder="Confirmation" />
+                <label for="id_new_password2">Confirmer le mot de passe</label>
+                {% for error in form.new_password2.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+              <button class="btn btn-primary d-grid w-100" type="submit">Enregistrer</button>
+            </form>
+
+          {% else %}
+            <div class="text-center">
+              <div class="avatar avatar-xl mx-auto mb-4">
+                <span class="avatar-initial rounded-circle bg-label-danger"><i class="icon-base ri ri-error-warning-line icon-32px"></i></span>
+              </div>
+              <h4 class="mb-2">Lien invalide ou expiré</h4>
+              <p class="mb-5">Ce lien a déjà été utilisé ou a expiré. Faites une nouvelle demande.</p>
+              <a href="{% url 'mdp-oublie' %}" class="btn btn-primary w-100">Nouvelle demande</a>
+            </div>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,31 @@
+{% extends layout_path %}
+{% load static %}
+
+{% block title %}E-mail envoyé - EduVox{% endblock %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}">
+{% endblock page_css %}
+
+{% block content %}
+<div class="position-relative">
+  <div class="authentication-wrapper authentication-basic container-p-y p-4 p-sm-0">
+    <div class="authentication-inner py-6">
+      <div class="card p-md-7 p-1">
+        <div class="card-body mt-1 text-center">
+          <div class="avatar avatar-xl mx-auto mb-4">
+            <span class="avatar-initial rounded-circle bg-label-success"><i class="icon-base ri ri-mail-send-line icon-32px"></i></span>
+          </div>
+          <h4 class="mb-2">Vérifiez votre boîte mail 📩</h4>
+          <p class="mb-5">
+            Si un compte existe avec cette adresse, vous allez recevoir un lien pour réinitialiser votre mot de passe.
+            Le lien est valable 1 heure. Pensez à regarder dans vos spams.
+          </p>
+          <a href="{% url 'connexion' %}" class="btn btn-primary w-100">Retour à la connexion</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,35 @@
+{% extends layout_path %}
+{% load static %}
+
+{% block title %}Renvoyer la confirmation - EduVox{% endblock %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}">
+{% endblock page_css %}
+
+{% block content %}
+<div class="position-relative">
+  <div class="authentication-wrapper authentication-basic container-p-y p-4 p-sm-0">
+    <div class="authentication-inner py-6">
+      <div class="card p-md-7 p-1">
+        <div class="card-body mt-1">
+          <h4 class="mb-1">Renvoyer l'e-mail de confirmation</h4>
+          <p class="mb-5">Saisissez l'adresse utilisée lors de l'inscription.</p>
+          <form method="post" class="mb-5">
+            {% csrf_token %}
+            <div class="form-floating form-floating-outline mb-5">
+              <input type="email" class="form-control" id="email" name="email" placeholder="E-mail" required autofocus />
+              <label for="email">E-mail</label>
+            </div>
+            <button class="btn btn-primary d-grid w-100" type="submit">Renvoyer</button>
+          </form>
+          <div class="text-center">
+            <a href="{% url 'connexion' %}">Retour à la connexion</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

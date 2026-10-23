@@ -1,0 +1,85 @@
+<aside id="layout-menu" class="layout-menu menu-vertical menu">
+
+  <div class="app-brand demo">
+    <a href="{% url 'index' %}" class="app-brand-link">
+      <span class="app-brand-logo demo me-1">
+        {% include 'partials/logo.html' %}
+      </span>
+    </a>
+  </div>
+
+  <div class="menu-inner-shadow"></div>
+
+  <ul class="menu-inner py-1">
+
+    <!-- Tableau de bord -->
+    <li class="menu-item {% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+      <a href="{% url 'index' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-home-smile-line"></i>
+        <div class="text-truncate">Tableau de bord</div>
+      </a>
+    </li>
+
+    <!-- Apprentissage (modules de l'équipe) -->
+    <li class="menu-header mt-7">
+      <span class="menu-header-text">Apprentissage</span>
+    </li>
+
+    {% comment %} Module 2 : Cours (à activer quand la page existe)
+    <li class="menu-item">
+      <a href="{% url 'liste-cours' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-book-open-line"></i>
+        <div class="text-truncate">Mes cours</div>
+      </a>
+    </li>
+    {% endcomment %}
+
+    {% comment %} Module 3 : Quiz
+    <li class="menu-item">
+      <a href="{% url 'liste-quiz' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-question-answer-line"></i>
+        <div class="text-truncate">Quiz</div>
+      </a>
+    </li>
+    {% endcomment %}
+
+    {% comment %} Module 4 : Assistant vocal
+    <li class="menu-item">
+      <a href="{% url 'assistant' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-mic-line"></i>
+        <div class="text-truncate">Assistant vocal</div>
+      </a>
+    </li>
+    {% endcomment %}
+
+    {% comment %} Module 5 : Présence
+    <li class="menu-item">
+      <a href="{% url 'presence' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-user-follow-line"></i>
+        <div class="text-truncate">Présence</div>
+      </a>
+    </li>
+    {% endcomment %}
+
+    <!-- Administration (visible seulement par l'admin) -->
+    <!-- Administration : visible seulement avec la permission -->
+    {% if perms.accounts.gerer_utilisateurs %}
+    <li class="menu-header mt-7">
+      <span class="menu-header-text">Administration</span>
+    </li>
+    <li class="menu-item {% if 'utilisateur' in request.resolver_match.url_name %}active{% endif %}">
+      <a href="{% url 'liste-utilisateurs' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-group-line"></i>
+        <div class="text-truncate">Utilisateurs</div>
+      </a>
+    </li>
+    <li class="menu-item {% if request.resolver_match.url_name == 'roles-permissions' %}active{% endif %}">
+      <a href="{% url 'roles-permissions' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-shield-keyhole-line"></i>
+        <div class="text-truncate">Rôles et permissions</div>
+      </a>
+    </li>
+    {% endif %}
+
+  </ul>
+</aside>

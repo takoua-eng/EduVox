@@ -1,0 +1,56 @@
+{% extends layout_path %}
+
+{% block title %}Codes de récupération - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card">
+      <h5 class="card-header">Vos codes de récupération</h5>
+      <div class="card-body">
+        <div class="alert alert-warning">
+          <strong>Notez ces codes maintenant :</strong> ils ne seront plus jamais affichés.
+          Chaque code permet de vous connecter <strong>une seule fois</strong> si vous perdez votre téléphone.
+        </div>
+
+        <div class="row g-3 my-4" id="listeCodes">
+          {% for code in codes %}
+            <div class="col-6">
+              <code class="d-block p-3 bg-label-secondary rounded text-center fs-6">{{ code }}</code>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="d-flex flex-wrap gap-3">
+          <button type="button" class="btn btn-outline-primary" id="copierCodes">
+            <i class="icon-base ri ri-file-copy-line me-1"></i> Copier
+          </button>
+          <button type="button" class="btn btn-outline-primary" id="telechargerCodes">
+            <i class="icon-base ri ri-download-2-line me-1"></i> Télécharger (.txt)
+          </button>
+          <a href="{% url 'mon-profil' %}" class="btn btn-primary ms-auto">J'ai noté mes codes</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const texteCodes = "Codes de récupération EduVox ({{ request.user.username }})\n\n" +
+    [{% for code in codes %}"{{ code }}"{% if not forloop.last %}, {% endif %}{% endfor %}].join("\n");
+
+  document.getElementById("copierCodes").addEventListener("click", function () {
+    navigator.clipboard.writeText(texteCodes);
+    this.innerHTML = '<i class="icon-base ri ri-check-line me-1"></i> Copié !';
+  });
+
+  document.getElementById("telechargerCodes").addEventListener("click", function () {
+    const lien = document.createElement("a");
+    lien.href = URL.createObjectURL(new Blob([texteCodes], { type: "text/plain" }));
+    lien.download = "eduvox-codes-recuperation.txt";
+    lien.click();
+  });
+</script>
+{% endblock content %}

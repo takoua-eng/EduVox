@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap');
+
+:root, [data-bs-theme=light] {
+  --bs-primary: #7C3AED;
+  --bs-primary-rgb: 124, 58, 237;
+  --bs-link-color: #7C3AED;
+  --bs-link-color-rgb: 124, 58, 237;
+  --bs-success: #10B981;
+  --bs-info: #06B6D4;
+  --bs-warning: #F59E0B;
+  --bs-danger: #EF4444;
+}
+
+h1, h2, h3, h4, h5, .app-brand-text {
+  font-family: 'Poppins', sans-serif;
+}

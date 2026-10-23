@@ -1,0 +1,165 @@
+{% extends layout_path %}
+
+{% block title %}Utilisateurs - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<!-- Statistiques -->
+<div class="row g-6 mb-6">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Total</p><h4 class="mb-0">{{ stat_total }}</h4></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-group-line icon-24px"></i></span></div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Étudiants</p><h4 class="mb-0">{{ stat_etudiants }}</h4></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-graduation-cap-line icon-24px"></i></span></div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Enseignants</p><h4 class="mb-0">{{ stat_enseignants }}</h4></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-presentation-line icon-24px"></i></span></div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Comptes inactifs</p><h4 class="mb-0">{{ stat_inactifs }}</h4></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-user-forbid-line icon-24px"></i></span></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card">
+  <!-- En-tête + filtres -->
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-4">
+    <h5 class="mb-0">Liste des utilisateurs</h5>
+    <a href="{% url 'ajouter-utilisateur' %}" class="btn btn-primary">
+      <i class="icon-base ri ri-user-add-line me-1"></i> Ajouter
+    </a>
+  </div>
+  <div class="card-body pt-0">
+    <form method="get" class="row g-4">
+      <div class="col-md-5">
+        <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Rechercher (nom, e-mail…)" />
+      </div>
+      <div class="col-md-3">
+        <select name="role" class="form-select">
+          <option value="">Tous les rôles</option>
+          {% for value, label in roles %}
+            <option value="{{ value }}" {% if role_choisi == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="statut" class="form-select">
+          <option value="">Tous</option>
+          <option value="actif" {% if statut_choisi == 'actif' %}selected{% endif %}>Actifs</option>
+          <option value="inactif" {% if statut_choisi == 'inactif' %}selected{% endif %}>Inactifs</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-outline-primary">Filtrer</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tableau -->
+  <div class="table-responsive text-nowrap">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Utilisateur</th>
+          <th>Rôle</th>
+          <th>Inscrit le</th>
+          <th>Statut</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in utilisateurs %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center">
+              <div class="avatar avatar-sm me-3">
+                {% include "partials/avatar.html" with utilisateur=u %}
+              </div>
+              <div>
+                <strong>{{ u.get_full_name|default:u.username }}</strong><br />
+                <small class="text-body-secondary">{{ u.email }}</small>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge rounded-pill {% if u.role == 'ADMIN' %}bg-label-danger{% elif u.role == 'ENSEIGNANT' %}bg-label-success{% else %}bg-label-info{% endif %}">
+              {{ u.get_role_display }}
+            </span>
+          </td>
+          <td>{{ u.date_inscription|date:"d/m/Y" }}</td>
+          <td>
+            {% if u.is_active %}<span class="badge bg-label-success">Actif</span>
+            {% else %}<span class="badge bg-label-secondary">Inactif</span>{% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-1">
+              <a href="{% url 'modifier-utilisateur' u.pk %}" class="btn btn-sm btn-icon btn-text-secondary" title="Modifier">
+                <i class="icon-base ri ri-edit-box-line icon-20px"></i>
+              </a>
+              {% if u != request.user %}
+              <form method="post" action="{% url 'activer-utilisateur' u.pk %}"
+                    {% if u.is_active %}
+                      data-confirm="{{ u.get_full_name|default:u.username }} ne pourra plus se connecter tant que son compte sera désactivé."
+                      data-confirm-titre="Désactiver ce compte ?"
+                      data-confirm-bouton="Désactiver"
+                      data-confirm-type="warning"
+                    {% else %}
+                      data-confirm="{{ u.get_full_name|default:u.username }} pourra de nouveau se connecter."
+                      data-confirm-titre="Réactiver ce compte ?"
+                      data-confirm-bouton="Réactiver"
+                      data-confirm-type="success"
+                    {% endif %}>                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-icon btn-text-secondary" title="{% if u.is_active %}Désactiver{% else %}Activer{% endif %}">
+                  <i class="icon-base ri {% if u.is_active %}ri-lock-line{% else %}ri-lock-unlock-line{% endif %} icon-20px"></i>
+                </button>
+              </form>
+                            <form method="post" action="{% url 'supprimer-utilisateur' u.pk %}"
+                    data-confirm="Le compte de {{ u.get_full_name|default:u.username }} sera supprimé définitivement. Cette action est irréversible."
+                    data-confirm-titre="Supprimer cet utilisateur ?"
+                    data-confirm-bouton="Oui, supprimer">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-icon btn-text-danger" title="Supprimer">
+                  <i class="icon-base ri ri-delete-bin-line icon-20px"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-center py-6">Aucun utilisateur trouvé.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if is_paginated %}
+  <div class="card-body">
+    <nav>
+      <ul class="pagination justify-content-center mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&role={{ role_choisi }}&statut={{ statut_choisi }}">‹</a></li>
+        {% endif %}
+        <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}&role={{ role_choisi }}&statut={{ statut_choisi }}">›</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock content %}

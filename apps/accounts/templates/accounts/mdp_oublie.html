@@ -1,0 +1,42 @@
+{% extends layout_path %}
+{% load static %}
+
+{% block title %}Mot de passe oublié - EduVox{% endblock %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}">
+{% endblock page_css %}
+
+{% block content %}
+<div class="position-relative">
+  <div class="authentication-wrapper authentication-basic container-p-y p-4 p-sm-0">
+    <div class="authentication-inner py-6">
+      <div class="card p-md-7 p-1">
+        <div class="card-body mt-1">
+          <h4 class="mb-1">Mot de passe oublié ? 🔒</h4>
+          <p class="mb-5">Saisissez votre e-mail : nous vous enverrons un lien pour choisir un nouveau mot de passe.</p>
+
+          <form method="post" class="mb-5" novalidate>
+            {% csrf_token %}
+            <div class="form-floating form-floating-outline mb-5">
+              <input type="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                     id="email" name="email" placeholder="E-mail" value="{{ form.email.value|default:'' }}" autofocus />
+              <label for="email">E-mail</label>
+              {% for error in form.email.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </div>
+            <button class="btn btn-primary d-grid w-100" type="submit">Envoyer le lien</button>
+          </form>
+
+          <div class="text-center">
+            <a href="{% url 'connexion' %}" class="d-flex align-items-center justify-content-center">
+              <i class="icon-base ri ri-arrow-left-s-line scaleX-n1-rtl icon-20px me-1"></i>
+              Retour à la connexion
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

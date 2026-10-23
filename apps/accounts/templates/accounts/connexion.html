@@ -1,0 +1,55 @@
+{% extends layout_path %}
+{% load static %}
+
+{% block title %}Connexion - EduVox{% endblock %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}">
+{% endblock page_css %}
+
+{% block content %}
+<div class="position-relative">
+  <div class="authentication-wrapper authentication-basic container-p-y p-4 p-sm-0">
+    <div class="authentication-inner py-6">
+      <div class="card p-md-7 p-1">
+        <div class="card-body mt-1">
+          <h4 class="mb-1">Bienvenue sur EduVox 👋</h4>
+          <p class="mb-5">Connectez-vous pour continuer</p>
+            {% include "accounts/_messages.html" %}
+
+          <form method="post" class="mb-5">
+            {% csrf_token %}
+            {% for error in form.non_field_errors %}
+              <div class="alert alert-danger">{{ error }}</div>
+            {% endfor %}
+
+            <div class="form-floating form-floating-outline mb-5">
+              <input type="text" class="form-control" id="username" name="username" placeholder="Nom d'utilisateur" autofocus />
+              <label for="username">Nom d'utilisateur</label>
+            </div>
+
+            <div class="form-floating form-floating-outline mb-5">
+              <input type="password" class="form-control" id="password" name="password" placeholder="Mot de passe" />
+              <label for="password">Mot de passe</label>
+            </div>
+            <div class="mb-5 text-end">
+              <a href="{% url 'mdp-oublie' %}">Mot de passe oublié ?</a>
+            </div>
+
+            <button class="btn btn-primary d-grid w-100" type="submit">Se connecter</button>
+          </form>
+
+        <p class="text-center small mb-2">
+            <a href="{% url 'renvoyer-verification' %}">Vous n'avez pas reçu l'e-mail de confirmation ?</a>
+          </p>
+
+          <p class="text-center mb-0">
+            Nouveau sur EduVox ? <a href="{% url 'inscription' %}">Créer un compte</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
