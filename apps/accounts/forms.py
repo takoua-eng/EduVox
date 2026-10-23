@@ -39,13 +39,13 @@ class AjoutUtilisateurForm(UserCreationForm):
         model = Utilisateur
         fields = ["photo_profil", "username", "first_name", "last_name", "email", "role", "is_active"]
         labels = {"photo_profil": "Photo de profil", "role": "Rôle"}
-        def save(self, commit=True):
-            user = super().save(commit=False)
-            user.email_verifie = True
-            if commit:
-                user.save()
-                creer_profil(user)
-            return user
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email_verifie = True
+        if commit:
+            user.save()
+            creer_profil(user)
+        return user
 
 
 class ModifierUtilisateurForm(forms.ModelForm):
