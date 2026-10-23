@@ -23,40 +23,7 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-
-    # Dashboard urls
     path("", include("apps.dashboards.urls")),
-
-    # layouts urls
-    path("", include("apps.layouts.urls")),
-
-    # Pages urls
-    path("", include("apps.pages.urls")),
-
-    # Auth urls
-    path("", include("apps.authentication.urls")),
-
-    # Card urls
-    path("", include("apps.cards.urls")),
-
-    # UI urls
-    path("", include("apps.ui.urls")),
-
-    # Extended UI urls
-    path("", include("apps.extended_ui.urls")),
-
-    # Icons urls
-    path("", include("apps.icons.urls")),
-
-    # Forms urls
-    path("", include("apps.forms.urls")),
-
-    # FormLayouts urls
-    path("", include("apps.form_layouts.urls")),
-
-    # Tables urls
-    path("", include("apps.tables.urls")),
-    
     path("", include("apps.accounts.urls")),
 ]
 if settings.DEBUG:
