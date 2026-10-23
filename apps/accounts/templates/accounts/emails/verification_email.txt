@@ -1,0 +1,9 @@
+Bonjour {{ user.first_name|default:user.username }},
+
+Bienvenue sur EduVox ! Pour activer votre compte, confirmez votre adresse e-mail en cliquant sur ce lien :
+
+{{ lien }}
+
+Ce lien est valable 1 heure. Si vous n'avez pas créé de compte, ignorez ce message.
+
+L'équipe EduVox

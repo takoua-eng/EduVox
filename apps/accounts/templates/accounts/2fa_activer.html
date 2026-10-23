@@ -1,0 +1,55 @@
+{% extends layout_path %}
+
+{% block title %}Activer la double authentification - EduVox{% endblock title %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Activer la double authentification</h5>
+        <a href="{% url 'mon-profil' %}" class="btn btn-sm btn-outline-secondary">
+          <i class="icon-base ri ri-arrow-left-line me-1"></i> Retour
+        </a>
+      </div>
+      <div class="card-body">
+
+        <div class="d-flex mb-5">
+          <span class="badge bg-primary rounded-pill me-3 align-self-start">1</span>
+          <div>
+            <h6 class="mb-1">Installez une application d'authentification</h6>
+            <p class="mb-0 text-body-secondary">Google Authenticator, Microsoft Authenticator ou Authy (gratuites sur Android et iPhone).</p>
+          </div>
+        </div>
+
+        <div class="d-flex mb-5">
+          <span class="badge bg-primary rounded-pill me-3 align-self-start">2</span>
+          <div class="w-100">
+            <h6 class="mb-1">Scannez ce QR code avec l'application</h6>
+            <div class="text-center my-4">
+              <img src="data:image/png;base64,{{ qr_code }}" alt="QR code 2FA" width="200" height="200" class="border rounded p-2 bg-white" />
+            </div>
+            <p class="small text-body-secondary mb-1">Impossible de scanner ? Saisissez cette clé manuellement :</p>
+            <code class="d-block p-3 bg-label-secondary rounded text-center fs-6" style="letter-spacing: 2px;">{{ secret }}</code>
+          </div>
+        </div>
+
+        <div class="d-flex">
+          <span class="badge bg-primary rounded-pill me-3 align-self-start">3</span>
+          <div class="w-100">
+            <h6 class="mb-3">Saisissez le code à 6 chiffres affiché par l'application</h6>
+            {% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
+            <form method="post" class="d-flex gap-3">
+              {% csrf_token %}
+              <input type="text" name="code" class="form-control text-center fs-5" style="letter-spacing: 6px; max-width: 200px;"
+                     inputmode="numeric" pattern="[0-9 ]*" maxlength="7" placeholder="000000" autocomplete="one-time-code" required autofocus />
+              <button type="submit" class="btn btn-primary">Activer</button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

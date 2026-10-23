@@ -1,0 +1,68 @@
+{% extends layout_path %}
+
+{% block title %}Rôles et permissions - EduVox{% endblock title %}
+
+{% block content %}
+<h4 class="mb-1">Rôles et permissions</h4>
+<p class="mb-6 text-body-secondary">Chaque rôle est un groupe qui possède un ensemble de permissions. Les accès sont vérifiés côté serveur.</p>
+
+<!-- Les rôles -->
+<div class="row g-6 mb-6">
+  {% for g in groupes %}
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">{{ g.nom }}</h5>
+          <span class="badge rounded-pill {% if g.nom == 'Administrateur' %}bg-label-danger{% elif g.nom == 'Enseignant' %}bg-label-success{% else %}bg-label-info{% endif %}">
+            {{ g.membres }} membre{{ g.membres|pluralize }}
+          </span>
+        </div>
+        <p class="mb-0 text-body-secondary">
+          <i class="icon-base ri ri-key-2-line me-1"></i> {{ g.nb_permissions }} permission{{ g.nb_permissions|pluralize }}
+        </p>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Matrice -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">Matrice des permissions</h5>
+    <a href="/admin/auth/group/" class="btn btn-sm btn-outline-primary" target="_blank">
+      <i class="icon-base ri ri-settings-3-line me-1"></i> Modifier dans l'administration
+    </a>
+  </div>
+  <div class="table-responsive text-nowrap">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Permission</th>
+          {% for g in groupes %}<th class="text-center">{{ g.nom }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for ligne in matrice %}
+        <tr>
+          <td>
+            <strong>{{ ligne.permission.name }}</strong><br />
+            <small class="text-body-secondary"><code>accounts.{{ ligne.permission.codename }}</code></small>
+          </td>
+          {% for a_acces in ligne.acces %}
+          <td class="text-center">
+            {% if a_acces %}
+              <i class="icon-base ri ri-checkbox-circle-fill text-success icon-22px"></i>
+            {% else %}
+              <i class="icon-base ri ri-close-circle-line text-body-secondary icon-22px"></i>
+            {% endif %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock content %}

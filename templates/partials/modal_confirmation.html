@@ -1,0 +1,75 @@
+<!-- Fenêtre de confirmation EduVox (réutilisable) -->
+<div class="modal fade" id="modalConfirmation" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    <div class="modal-content">
+      <div class="modal-body text-center p-7">
+        <div class="avatar avatar-xl mx-auto mb-4">
+          <span id="confirmationFondIcone" class="avatar-initial rounded-circle bg-label-danger">
+            <i id="confirmationIcone" class="icon-base ri ri-error-warning-line icon-32px"></i>
+          </span>
+        </div>
+        <h5 id="confirmationTitre" class="mb-2">Êtes-vous sûr(e) ?</h5>
+        <p id="confirmationMessage" class="mb-6 text-body-secondary">Cette action est irréversible.</p>
+        <div class="d-flex justify-content-center gap-3">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="button" id="confirmationValider" class="btn btn-danger">Confirmer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const fenetre = document.getElementById("modalConfirmation");
+    if (!fenetre || typeof bootstrap === "undefined") return;
+
+    const modal = new bootstrap.Modal(fenetre);
+    const titre = document.getElementById("confirmationTitre");
+    const message = document.getElementById("confirmationMessage");
+    const icone = document.getElementById("confirmationIcone");
+    const fondIcone = document.getElementById("confirmationFondIcone");
+    const boutonValider = document.getElementById("confirmationValider");
+    let formulaireEnAttente = null;
+
+    const styles = {
+      danger:  { icone: "ri-error-warning-line", couleur: "danger" },
+      warning: { icone: "ri-lock-line",          couleur: "warning" },
+      success: { icone: "ri-lock-unlock-line",   couleur: "success" },
+      primary: { icone: "ri-question-line",      couleur: "primary" },
+    };
+
+    // Intercepte tous les formulaires qui ont l'attribut data-confirm
+    document.addEventListener("submit", function (e) {
+      const form = e.target;
+      if (!form.matches("form[data-confirm]") || form.dataset.confirme === "oui") return;
+      e.preventDefault();
+      formulaireEnAttente = form;
+
+      const type = styles[form.dataset.confirmType] ? form.dataset.confirmType : "danger";
+      const style = styles[type];
+
+      titre.textContent = form.dataset.confirmTitre || "Êtes-vous sûr(e) ?";
+      message.textContent = form.dataset.confirm;
+      boutonValider.textContent = form.dataset.confirmBouton || "Confirmer";
+      boutonValider.className = "btn btn-" + style.couleur;
+      fondIcone.className = "avatar-initial rounded-circle bg-label-" + style.couleur;
+      icone.className = "icon-base ri " + (form.dataset.confirmIcone || style.icone) + " icon-32px";
+
+      modal.show();
+    });
+
+    // Clic sur « Confirmer » : on envoie vraiment le formulaire
+    boutonValider.addEventListener("click", function () {
+      if (!formulaireEnAttente) return;
+      formulaireEnAttente.dataset.confirme = "oui";
+      boutonValider.disabled = true;
+      modal.hide();
+      HTMLFormElement.prototype.submit.call(formulaireEnAttente);
+    });
+
+    fenetre.addEventListener("hidden.bs.modal", function () {
+      boutonValider.disabled = false;
+    });
+  });
+</script>

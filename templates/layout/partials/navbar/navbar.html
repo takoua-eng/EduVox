@@ -1,0 +1,81 @@
+{% load i18n %}
+{% load static %}
+
+
+<nav class="layout-navbar {{container_class}} navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
+  {% if not navbar_hide_toggle %}
+  <div class="layout-menu-toggle navbar-nav align-items-xl-center me-4 me-xl-0 d-xl-none">
+    <a class="nav-item nav-link px-0 me-xl-6" href="javascript:void(0)">
+      <i class="icon-base ri ri-menu-line icon-md"></i>
+    </a>
+  </div>
+  {% endif %}
+  <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
+
+    <!-- Search -->
+    <div class="navbar-nav align-items-center">
+      <div class="nav-item d-flex align-items-center">
+        <i class="icon-base ri ri-search-line icon-lg lh-0"></i>
+<input type="text" class="form-control border-0 shadow-none" placeholder="Rechercher..." aria-label="Rechercher">      </div>
+    </div>
+    <!-- /Search -->
+
+    <ul class="navbar-nav flex-row align-items-center ms-auto">
+
+
+      <!-- User -->
+      <li class="nav-item navbar-dropdown dropdown-user dropdown">
+        <a class="nav-link dropdown-toggle hide-arrow p-0" href="javascript:void(0);" data-bs-toggle="dropdown">
+          <div class="avatar avatar-online">
+            {% include "partials/avatar.html" with utilisateur=request.user %}
+          </div>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end mt-3 py-2">
+          <li>
+            <a class="dropdown-item" href="{% url 'mon-profil' %}">
+              <div class="d-flex align-items-center">
+                <div class="flex-shrink-0 me-2">
+                  <div class="avatar avatar-online">
+                    {% include "partials/avatar.html" with utilisateur=request.user %}
+                  </div>
+                </div>
+                <div class="flex-grow-1">
+                  <h6 class="mb-0 small">{{ request.user.get_full_name|default:request.user.username }}</h6>
+                  <small class="text-body-secondary">{{ request.user.get_role_display }}</small>
+                </div>
+              </div>
+            </a>
+          </li>
+          <li>
+            <div class="dropdown-divider"></div>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{% url 'mon-profil' %}">
+              <i class="icon-base ri ri-user-3-line icon-22px me-2"></i>
+              <span class="align-middle">Mon profil</span>
+            </a>
+          </li>
+          <li>
+            <div class="dropdown-divider"></div>
+          </li>
+          <li>
+            <div class="d-grid px-4 pt-2 pb-1">
+              <form method="post" action="{% url 'deconnexion' %}"
+                    data-confirm="Vous devrez vous reconnecter pour accéder à EduVox."
+                    data-confirm-titre="Se déconnecter ?"
+                    data-confirm-bouton="Déconnexion"
+                    data-confirm-type="primary"
+                    data-confirm-icone="ri-logout-box-r-line">                {% csrf_token %}
+                <button type="submit" class="btn btn-danger d-flex w-100">
+                  <small class="align-middle">Déconnexion</small>
+                  <i class="icon-base ri ri-logout-box-r-line ms-2 icon-16px"></i>
+                </button>
+              </form>
+            </div>
+          </li>
+        </ul>
+      </li>
+      <!--/ User -->
+    </ul>
+  </div>
+</nav>

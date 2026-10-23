@@ -1,0 +1,250 @@
+{% extends layout_path %}
+
+{% block title %}Mon profil - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<div class="row g-6">
+
+  <!-- ========== Colonne gauche : résumé du compte ========== -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body text-center pt-8">
+        <div class="avatar avatar-xl mx-auto mb-4" style="width: 110px; height: 110px;">
+          {% include "partials/avatar.html" with utilisateur=request.user %}
+        </div>
+        <h5 class="mb-1">{{ request.user.get_full_name|default:request.user.username }}</h5>
+        <span class="badge rounded-pill {% if request.user.role == 'ADMIN' %}bg-label-danger{% elif request.user.role == 'ENSEIGNANT' %}bg-label-success{% else %}bg-label-info{% endif %}">
+          {{ request.user.get_role_display }}
+        </span>
+      </div>
+      <div class="card-body border-top">
+        <ul class="list-unstyled mb-0">
+          <li class="d-flex align-items-center mb-3">
+            <i class="icon-base ri ri-user-line me-2"></i>
+            <span class="fw-medium me-1">Nom d'utilisateur :</span> {{ request.user.username }}
+          </li>
+          <li class="d-flex align-items-center mb-3">
+            <i class="icon-base ri ri-mail-line me-2"></i>
+            <span class="fw-medium me-1">E-mail :</span> {{ request.user.email|default:"—" }}
+          </li>
+          <li class="d-flex align-items-center mb-3">
+            <i class="icon-base ri ri-calendar-line me-2"></i>
+            <span class="fw-medium me-1">Membre depuis :</span> {{ request.user.date_inscription|date:"d/m/Y" }}
+          </li>
+          <li class="d-flex align-items-center mb-3">
+            <i class="icon-base ri ri-time-line me-2"></i>
+            <span class="fw-medium me-1">Dernière connexion :</span> {{ request.user.last_login|date:"d/m/Y H:i"|default:"—" }}
+          </li>
+          <li class="d-flex align-items-center">
+            <i class="icon-base ri ri-shield-check-line me-2"></i>
+            <span class="fw-medium me-1">Double authentification :</span>
+            {% if request.user.double_auth_active %}
+              <span class="badge bg-label-success">Activée</span>
+            {% else %}
+              <span class="badge bg-label-secondary">Désactivée</span>
+            {% endif %}
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== Colonne droite : formulaires ========== -->
+  <div class="col-lg-8">
+
+    <!-- Carte 1 : Informations personnelles -->
+    <div class="card mb-6">
+      <h5 class="card-header">Informations personnelles</h5>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          <div class="row g-5">
+            {% for field in form_profil %}
+              {% if field.name == "photo_profil" %}
+                <div class="col-12">
+                  <div class="d-flex align-items-center gap-5">
+                    <div class="avatar avatar-xl">
+                      {% if request.user.photo_profil %}
+                        <img id="apercuPhoto" src="{{ request.user.photo_profil.url }}" class="rounded-circle" style="width: 100%; height: 100%; object-fit: cover;" />
+                      {% else %}
+                        <img id="apercuPhoto" src="" class="rounded-circle d-none" style="width: 100%; height: 100%; object-fit: cover;" />
+                        <span id="apercuVide" class="avatar-initial rounded-circle bg-label-secondary"><i class="icon-base ri ri-user-line icon-28px"></i></span>
+                      {% endif %}
+                    </div>
+                    <div>
+                      <label for="id_photo_profil" class="btn btn-sm btn-outline-primary mb-2">
+                        <i class="icon-base ri ri-upload-2-line me-1"></i> Changer la photo
+                      </label>
+                      <input type="file" name="photo_profil" id="id_photo_profil" accept="image/*" class="d-none" />
+                      <div class="small text-body-secondary">JPG ou PNG, carrée de préférence.</div>
+                    </div>
+                  </div>
+                  {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+              {% else %}
+                <div class="col-md-6">
+                  <div class="form-floating form-floating-outline">
+                    <input type="{% if field.name == 'email' %}email{% else %}text{% endif %}"
+                           name="{{ field.name }}" id="{{ field.id_for_label }}"
+                           value="{{ field.value|default:'' }}"
+                           class="form-control {% if field.errors %}is-invalid{% endif %}"
+                           placeholder="{{ field.label }}" />
+                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  </div>
+                  {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <button type="submit" name="enregistrer_profil" class="btn btn-primary mt-6">Enregistrer</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Carte 2 : Mot de passe -->
+    <div class="card mb-6">
+      <h5 class="card-header">Changer le mot de passe</h5>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="row g-5">
+            <div class="col-12">
+              <div class="form-floating form-floating-outline">
+                <input type="password" name="old_password" id="id_old_password"
+                       class="form-control {% if form_mdp.old_password.errors %}is-invalid{% endif %}" placeholder="Mot de passe actuel" />
+                <label for="id_old_password">Mot de passe actuel</label>
+              </div>
+              {% for error in form_mdp.old_password.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating form-floating-outline">
+                <input type="password" name="new_password1" id="id_new_password1"
+                       class="form-control {% if form_mdp.new_password1.errors %}is-invalid{% endif %}" placeholder="Nouveau mot de passe" />
+                <label for="id_new_password1">Nouveau mot de passe</label>
+              </div>
+              {% for error in form_mdp.new_password1.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-md-6">
+              <div class="form-floating form-floating-outline">
+                <input type="password" name="new_password2" id="id_new_password2"
+                       class="form-control {% if form_mdp.new_password2.errors %}is-invalid{% endif %}" placeholder="Confirmation" />
+                <label for="id_new_password2">Confirmer le nouveau mot de passe</label>
+              </div>
+              {% for error in form_mdp.new_password2.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+          </div>
+          <div class="small text-body-secondary mt-3">Au moins 8 caractères, pas uniquement des chiffres, pas trop courant.</div>
+          <button type="submit" name="changer_mdp" class="btn btn-primary mt-5">Changer le mot de passe</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Carte 3 : Double authentification -->
+    <div class="card mb-6">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Double authentification (2FA)</h5>
+        {% if request.user.double_auth_active %}
+          <span class="badge bg-label-success">Activée</span>
+        {% else %}
+          <span class="badge bg-label-secondary">Désactivée</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if request.user.double_auth_active %}
+          <p class="mb-2">Votre compte est protégé : un code de votre téléphone est demandé à chaque connexion.</p>
+          <p class="mb-5 text-body-secondary">
+            Codes de récupération restants : <strong>{{ codes_restants }}</strong> / 8
+            {% if codes_restants <= 2 %}<span class="text-danger"> — pensez à en régénérer.</span>{% endif %}
+          </p>
+
+          <div class="row g-4">
+            <div class="col-md-6">
+              <form method="post" action="{% url 'regenerer-codes' %}"
+                    data-confirm="Vos anciens codes de récupération ne fonctionneront plus."
+                    data-confirm-titre="Générer de nouveaux codes ?"
+                    data-confirm-bouton="Générer"
+                    data-confirm-type="primary">
+                {% csrf_token %}
+                <div class="form-floating form-floating-outline mb-3">
+                  <input type="password" name="mot_de_passe" id="mdp_regenerer" class="form-control" placeholder="Mot de passe" required />
+                  <label for="mdp_regenerer">Mot de passe</label>
+                </div>
+                <button type="submit" class="btn btn-outline-primary w-100">
+                  <i class="icon-base ri ri-refresh-line me-1"></i> Nouveaux codes de récupération
+                </button>
+              </form>
+            </div>
+            <div class="col-md-6">
+              <form method="post" action="{% url 'desactiver-2fa' %}"
+                    data-confirm="Votre compte sera protégé uniquement par votre mot de passe."
+                    data-confirm-titre="Désactiver la double authentification ?"
+                    data-confirm-bouton="Désactiver"
+                    data-confirm-type="warning">
+                {% csrf_token %}
+                <div class="form-floating form-floating-outline mb-3">
+                  <input type="password" name="mot_de_passe" id="mdp_desactiver" class="form-control" placeholder="Mot de passe" required />
+                  <label for="mdp_desactiver">Mot de passe</label>
+                </div>
+                <button type="submit" class="btn btn-outline-danger w-100">
+                  <i class="icon-base ri ri-shield-cross-line me-1"></i> Désactiver la 2FA
+                </button>
+              </form>
+            </div>
+          </div>
+        {% else %}
+          <p class="mb-5">Ajoutez une protection supplémentaire : en plus du mot de passe, un code temporaire généré par votre téléphone sera demandé à chaque connexion.</p>
+          <a href="{% url 'activer-2fa' %}" class="btn btn-primary">
+            <i class="icon-base ri ri-shield-check-line me-1"></i> Activer la double authentification
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Carte 4 : Supprimer le compte -->
+    <div class="card border border-danger">
+      <h5 class="card-header text-danger">Supprimer mon compte</h5>
+      <div class="card-body">
+        <div class="alert alert-warning mb-5">
+          <strong>Attention :</strong> cette action est définitive. Toutes vos données seront supprimées.
+        </div>
+        <form method="post" action="{% url 'supprimer-mon-compte' %}"
+              data-confirm="Toutes vos données (cours, quiz, historique) seront supprimées. Vous ne pourrez pas revenir en arrière."
+              data-confirm-titre="Supprimer définitivement votre compte ?"
+              data-confirm-bouton="Oui, supprimer mon compte">
+          {% csrf_token %}
+          <div class="row g-4 align-items-center">
+            <div class="col-md-7">
+              <div class="form-floating form-floating-outline">
+                <input type="password" name="mot_de_passe" id="mot_de_passe_suppression" class="form-control" placeholder="Mot de passe" required />
+                <label for="mot_de_passe_suppression">Confirmez avec votre mot de passe</label>
+              </div>
+            </div>
+            <div class="col-md-5 d-grid">
+              <button type="submit" class="btn btn-danger">
+                <i class="icon-base ri ri-delete-bin-line me-1"></i> Supprimer mon compte
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+  <!-- ========== Fin colonne droite ========== -->
+
+</div>
+
+<script>
+  document.getElementById("id_photo_profil").addEventListener("change", function (e) {
+    const fichier = e.target.files[0];
+    if (!fichier) return;
+    const apercu = document.getElementById("apercuPhoto");
+    apercu.src = URL.createObjectURL(fichier);
+    apercu.classList.remove("d-none");
+    const vide = document.getElementById("apercuVide");
+    if (vide) vide.classList.add("d-none");
+  });
+</script>
+{% endblock content %}

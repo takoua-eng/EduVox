@@ -1,0 +1,56 @@
+{% extends layout_path %}
+{% load static %}
+
+{% block title %}Inscription - EduVox{% endblock %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}">
+{% endblock page_css %}
+
+{% block content %}
+<div class="position-relative">
+  <div class="authentication-wrapper authentication-basic container-p-y p-4 p-sm-0">
+    <div class="authentication-inner py-6">
+      <div class="card p-md-7 p-1">
+        <div class="card-body mt-1">
+          <h4 class="mb-1">Créer un compte 🚀</h4>
+          <p class="mb-5">Rejoignez EduVox en quelques secondes</p>
+
+          <form method="post" class="mb-5" novalidate>
+            {% csrf_token %}
+
+            {% for field in form %}
+              <div class="form-floating form-floating-outline mb-4">
+                {% if field.name == "role" %}
+                  <select name="role" id="id_role" class="form-select">
+                    {% for value, label in field.field.choices %}
+                      <option value="{{ value }}" {% if field.value == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                {% else %}
+                  <input type="{% if 'password' in field.name %}password{% elif field.name == 'email' %}email{% else %}text{% endif %}"
+                         name="{{ field.name }}" id="{{ field.id_for_label }}"
+                         value="{% if 'password' not in field.name %}{{ field.value|default:'' }}{% endif %}"
+                         class="form-control {% if field.errors %}is-invalid{% endif %}"
+                         placeholder="{{ field.label }}" />
+                {% endif %}
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% for error in field.errors %}
+                  <div class="invalid-feedback d-block">{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% endfor %}
+
+            <button class="btn btn-primary d-grid w-100" type="submit">S'inscrire</button>
+          </form>
+
+          <p class="text-center mb-0">
+            Déjà un compte ? <a href="{% url 'connexion' %}">Se connecter</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}
