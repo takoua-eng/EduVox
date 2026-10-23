@@ -58,16 +58,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "apps.dashboards",
-    "apps.layouts",
     "apps.pages",
-    "apps.authentication",
-    "apps.cards",
-    "apps.ui",
-    "apps.extended_ui",
-    "apps.icons",
-    "apps.forms",
-    "apps.form_layouts",
-    "apps.tables",
     "apps.accounts",
 
 ]
