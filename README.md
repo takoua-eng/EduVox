@@ -3,7 +3,22 @@
 <p align="center">
    <a href="https://themeselection.com/item/materio-free-bootstrap-html-dajngo-admin-template/" target="_blank">
       <img src="https://cdn.themeselection.com/ts-assets/materio/logo/logo.png" alt="materio-logo" width="40px" height="auto">
-   </a>
+   </a># EduVox
+
+Hub éducatif multimodal propulsé par l'IA — Projet Django 5.2.
+
+## Installation
+
+1. `git clone https://github.com/takoua-eng/EduVox.git` puis `cd EduVox`
+2. `python -m venv venv` puis `venv\Scripts\activate`
+3. `pip install -r requirements.txt`
+4. `cd src`, `npm install --legacy-peer-deps`, `npm run build`, `cd ..`
+5. Copier `.env.example` en `.env` et le remplir (accès à la base envoyés en privé)
+6. `python manage.py runserver`
+
+## Équipe
+
+Nourane Lammouchi · Ibtihel Mechrgui · Wale Rezgui · Abir Mosrati · Takoua Naceur
 </p>
 
 <h1 align="center">
