@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "apps.dashboards",
     "apps.pages",
     "apps.accounts",
+    "apps.courses",
 
 ]
 
@@ -91,6 +92,7 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "config.context_processors.my_setting",
                 "config.context_processors.environment",
+                "apps.courses.context_processors.menu_cours",
             ],
             "libraries": {
                 "theme": "web_project.template_tags.theme",
@@ -195,3 +197,12 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD")
 DEFAULT_FROM_EMAIL = "EduVox <eduvox@gmail.com>"
+
+# Celery : traitements IA longs en arrière-plan (broker Redis)
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+# True : les tâches s'exécutent directement, sans worker ni Redis (pratique en développement)
+CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "True").lower() in ["true", "yes", "1"]
+CELERY_TASK_EAGER_PROPAGATES = False
+
+# Module cours : taille maximale d'un fichier envoyé (en Mo)
+COURS_TAILLE_MAX_MO = int(os.environ.get("COURS_TAILLE_MAX_MO", "50"))

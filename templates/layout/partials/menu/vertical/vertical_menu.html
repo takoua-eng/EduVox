@@ -25,14 +25,40 @@
       <span class="menu-header-text">Apprentissage</span>
     </li>
 
-    {% comment %} Module 2 : Cours (à activer quand la page existe)
-    <li class="menu-item">
+    <!-- Module 2 : Cours -->
+    <li class="menu-item {% if cours_menu_actif == 'cours' %}active{% endif %}">
       <a href="{% url 'liste-cours' %}" class="menu-link">
         <i class="menu-icon icon-base ri ri-book-open-line"></i>
-        <div class="text-truncate">Mes cours</div>
+        <div class="text-truncate">{% if cours_role == 'enseignant' %}Mes cours{% else %}Cours{% endif %}</div>
       </a>
     </li>
-    {% endcomment %}
+    {% if cours_role == 'enseignant' %}
+    <li class="menu-item {% if cours_menu_actif == 'statistiques' %}active{% endif %}">
+      <a href="{% url 'statistiques-cours' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-bar-chart-2-line"></i>
+        <div class="text-truncate">Statistiques</div>
+      </a>
+    </li>
+    <li class="menu-item {% if cours_menu_actif == 'avis-recus' %}active{% endif %}">
+      <a href="{% url 'avis-recus' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-chat-smile-2-line"></i>
+        <div class="text-truncate">Avis reçus</div>
+      </a>
+    </li>
+    {% elif cours_role == 'etudiant' %}
+    <li class="menu-item {% if cours_menu_actif == 'favoris' %}active{% endif %}">
+      <a href="{% url 'mes-favoris' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-heart-line"></i>
+        <div class="text-truncate">Mes favoris</div>
+      </a>
+    </li>
+    <li class="menu-item {% if cours_menu_actif == 'historique' %}active{% endif %}">
+      <a href="{% url 'historique-cours' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-history-line"></i>
+        <div class="text-truncate">Historique</div>
+      </a>
+    </li>
+    {% endif %}
 
     {% comment %} Module 3 : Quiz
     <li class="menu-item">
@@ -60,6 +86,44 @@
       </a>
     </li>
     {% endcomment %}
+
+    <!-- Modération des cours (module 2, administrateur) -->
+    {% if cours_role == 'admin' %}
+    <li class="menu-header mt-7">
+      <span class="menu-header-text">Modération des cours</span>
+    </li>
+    <li class="menu-item {% if cours_menu_actif == 'signalements' %}active{% endif %}">
+      <a href="{% url 'signalements' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-flag-line"></i>
+        <div class="text-truncate">Signalements</div>
+        {% if cours_signalements_nouveaux %}<div class="badge rounded-pill bg-danger ms-auto">{{ cours_signalements_nouveaux }}</div>{% endif %}
+      </a>
+    </li>
+    <li class="menu-item {% if cours_menu_actif == 'classement' %}active{% endif %}">
+      <a href="{% url 'classement-cours' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-trophy-line"></i>
+        <div class="text-truncate">Classement</div>
+      </a>
+    </li>
+    <li class="menu-item {% if cours_menu_actif == 'journal' %}active{% endif %}">
+      <a href="{% url 'journal-activite' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-file-list-3-line"></i>
+        <div class="text-truncate">Journal d'activité</div>
+      </a>
+    </li>
+    <li class="menu-item {% if cours_menu_actif == 'archivage' %}active{% endif %}">
+      <a href="{% url 'archivage-cours' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-archive-line"></i>
+        <div class="text-truncate">Archivage</div>
+      </a>
+    </li>
+    <li class="menu-item {% if cours_menu_actif == 'matieres' %}active{% endif %}">
+      <a href="{% url 'matieres' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-book-2-line"></i>
+        <div class="text-truncate">Matières</div>
+      </a>
+    </li>
+    {% endif %}
 
     <!-- Administration (visible seulement par l'admin) -->
     <!-- Administration : visible seulement avec la permission -->

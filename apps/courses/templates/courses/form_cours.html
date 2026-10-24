@@ -1,0 +1,139 @@
+{% extends layout_path %}
+
+{% block title %}{{ titre }} - EduVox{% endblock title %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">{{ titre }}</h5>
+        <a href="{% if form.instance.pk %}{% url 'detail-cours' form.instance.pk %}{% else %}{% url 'liste-cours' %}{% endif %}" class="btn btn-sm btn-outline-secondary">
+          <i class="icon-base ri ri-arrow-left-line me-1"></i> Retour
+        </a>
+      </div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" novalidate>
+          {% csrf_token %}
+          {% for error in form.non_field_errors %}
+            <div class="alert alert-danger">{{ error }}</div>
+          {% endfor %}
+
+          <div class="row g-5">
+            <div class="col-12">
+              <div class="form-floating form-floating-outline">
+                <input type="text" name="titre" id="id_titre" maxlength="200"
+                       value="{{ form.titre.value|default:'' }}"
+                       class="form-control {% if form.titre.errors %}is-invalid{% endif %}" placeholder="Titre" />
+                <label for="id_titre">Titre</label>
+              </div>
+              {% for error in form.titre.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="col-12">
+              <div class="form-floating form-floating-outline">
+                <textarea name="description" id="id_description" class="form-control" style="height: 120px;"
+                          placeholder="Description">{{ form.description.value|default:'' }}</textarea>
+                <label for="id_description">Description</label>
+              </div>
+              {% for error in form.description.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="col-12">
+              <label for="id_fichier" class="form-label">{{ form.fichier.label }}</label>
+              <input type="file" name="fichier" id="id_fichier" accept="{{ extensions_acceptees }}"
+                     class="form-control {% if form.fichier.errors %}is-invalid{% endif %}" />
+              <div class="small text-body-secondary mt-1">
+                {% if form.instance.pk %}Fichier actuel : {{ form.instance.fichier.name|cut:"cours/" }}. Laissez vide pour le conserver. {% endif %}
+                PDF ou audio (MP3, WAV, M4A, OGG, FLAC, WEBM), {{ taille_max_mo }} Mo maximum.
+              </div>
+              {% for error in form.fichier.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+
+            <!-- Organisation -->
+            <div class="col-12"><h6 class="mb-0 mt-2">Organisation</h6></div>
+
+            <div class="col-md-6">
+              <div class="form-floating form-floating-outline">
+                <select name="matiere" id="id_matiere" class="form-select">
+                  <option value="">— Aucune —</option>
+                  {% for matiere in form.fields.matiere.queryset %}
+                    <option value="{{ matiere.pk }}" {% if form.matiere.value|stringformat:"s" == matiere.pk|stringformat:"s" %}selected{% endif %}>{{ matiere.nom }}</option>
+                  {% endfor %}
+                </select>
+                <label for="id_matiere">Matière</label>
+              </div>
+              {% for error in form.matiere.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-floating form-floating-outline">
+                <select name="niveau" id="id_niveau" class="form-select">
+                  {% for valeur, libelle in form.niveau.field.choices %}
+                    <option value="{{ valeur }}" {% if form.niveau.value == valeur %}selected{% endif %}>{% if valeur %}{{ libelle }}{% else %}— Non précisé —{% endif %}</option>
+                  {% endfor %}
+                </select>
+                <label for="id_niveau">Niveau</label>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="form-floating form-floating-outline">
+                <input type="text" name="mots_cles" id="id_mots_cles" maxlength="255"
+                       value="{{ form.mots_cles.value|default:'' }}" class="form-control" placeholder="Mots-clés" />
+                <label for="id_mots_cles">Mots-clés</label>
+              </div>
+              <div class="small text-body-secondary mt-1">Séparés par des virgules, ex. : matrices, vecteurs, déterminant</div>
+            </div>
+
+            <div class="col-12">
+              <label for="id_prerequis" class="form-label">Prérequis (cours à suivre avant celui-ci)</label>
+              {{ form.prerequis }}
+              <div class="small text-body-secondary mt-1">Ctrl + clic pour en choisir plusieurs.</div>
+              {% for error in form.prerequis.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+
+            <!-- Publication -->
+            <div class="col-12"><h6 class="mb-0 mt-2">Publication</h6></div>
+
+            <div class="col-md-6">
+              <div class="form-floating form-floating-outline">
+                <select name="publication" id="id_publication" class="form-select">
+                  {% for valeur, libelle in form.publication.field.choices %}
+                    <option value="{{ valeur }}" {% if form.publication.value == valeur %}selected{% endif %}>{{ libelle }}</option>
+                  {% endfor %}
+                </select>
+                <label for="id_publication">Statut de publication</label>
+              </div>
+              <div class="small text-body-secondary mt-1">Un brouillon n'est visible que par vous.</div>
+            </div>
+
+            <div class="col-md-6" id="blocDatePublication">
+              <div class="form-floating form-floating-outline">
+                {{ form.date_publication.as_widget }}
+                <label for="id_date_publication">Date de publication</label>
+              </div>
+              {% for error in form.date_publication.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <button type="submit" class="btn btn-primary me-2">Enregistrer</button>
+            <a href="{% url 'liste-cours' %}" class="btn btn-outline-secondary">Annuler</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  // La date n'a de sens que pour une publication programmée
+  (function () {
+    const choix = document.getElementById("id_publication");
+    const bloc = document.getElementById("blocDatePublication");
+    function majAffichage() { bloc.classList.toggle("d-none", choix.value !== "programme"); }
+    choix.addEventListener("change", majAffichage);
+    majAffichage();
+  })();
+</script>
+{% endblock content %}

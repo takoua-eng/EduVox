@@ -1,0 +1,531 @@
+{% extends layout_path %}
+
+{% block title %}{{ cours.titre }} - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<div class="row g-6">
+  <!-- Informations et traitement IA -->
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-4">
+        <div>
+          <h5 class="mb-1">{{ cours.titre }}</h5>
+          <small class="text-body-secondary">
+            {{ cours.get_type_fichier_display }} · ajouté le {{ cours.date_creation|date:"d/m/Y" }}
+            par {{ cours.enseignant.utilisateur.get_full_name|default:cours.enseignant.utilisateur.username }}
+            {% if cours.minutes_estimees %}
+              · <i class="icon-base ri ri-time-line icon-14px"></i>
+              {% if cours.type_fichier == 'audio' and cours.duree_audio %}{{ cours.minutes_estimees }} min d'écoute{% else %}{{ cours.minutes_estimees }} min de lecture{% endif %}
+            {% endif %}
+            {% if note_moyenne %}
+              · <i class="icon-base ri ri-star-fill text-warning icon-14px"></i> {{ note_moyenne|floatformat:1 }}/5 ({{ liste_avis|length }} avis)
+            {% endif %}
+          </small>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{% url 'liste-cours' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="icon-base ri ri-arrow-left-line me-1"></i> Retour
+          </a>
+          {% if est_etudiant %}
+          <form method="post" action="{% url 'basculer-favori' cours.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm {% if est_favori %}btn-danger{% else %}btn-outline-danger{% endif %}">
+              <i class="icon-base ri {% if est_favori %}ri-heart-fill{% else %}ri-heart-line{% endif %} me-1"></i>
+              {% if est_favori %}Dans mes favoris{% else %}Ajouter aux favoris{% endif %}
+            </button>
+          </form>
+          {% endif %}
+          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalPartage">
+            <i class="icon-base ri ri-share-line me-1"></i> Partager
+          </button>
+          <a href="{{ cours.fichier.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+            <i class="icon-base ri ri-file-download-line me-1"></i> Fichier original
+          </a>
+          {% if est_admin %}
+          <!-- Modération (administrateur) -->
+          <form method="post" action="{% url 'masquer-cours' cours.pk %}"
+                {% if cours.masque %}
+                  data-confirm="Les étudiants pourront de nouveau voir « {{ cours.titre }} »." data-confirm-titre="Réafficher ce cours ?"
+                  data-confirm-bouton="Réafficher" data-confirm-type="success" data-confirm-icone="ri-eye-line"
+                {% else %}
+                  data-confirm="« {{ cours.titre }} » ne sera plus visible des étudiants. L'enseignant le verra toujours." data-confirm-titre="Masquer ce cours ?"
+                  data-confirm-bouton="Masquer" data-confirm-type="warning" data-confirm-icone="ri-eye-off-line"
+                {% endif %}>
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm {% if cours.masque %}btn-success{% else %}btn-outline-warning{% endif %}">
+              <i class="icon-base ri {% if cours.masque %}ri-eye-line{% else %}ri-eye-off-line{% endif %} me-1"></i>
+              {% if cours.masque %}Réafficher{% else %}Masquer{% endif %}
+            </button>
+          </form>
+          <form method="post" action="{% url 'archiver-cours' cours.pk %}"
+                {% if cours.archive %}
+                  data-confirm="« {{ cours.titre }} » redeviendra visible selon son statut de publication." data-confirm-titre="Désarchiver ce cours ?"
+                  data-confirm-bouton="Désarchiver" data-confirm-type="success" data-confirm-icone="ri-inbox-unarchive-line"
+                {% else %}
+                  data-confirm="« {{ cours.titre }} » ne sera plus visible des étudiants, sans être supprimé." data-confirm-titre="Archiver ce cours ?"
+                  data-confirm-bouton="Archiver" data-confirm-type="warning" data-confirm-icone="ri-archive-line"
+                {% endif %}>
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm {% if cours.archive %}btn-success{% else %}btn-outline-secondary{% endif %}">
+              <i class="icon-base ri {% if cours.archive %}ri-inbox-unarchive-line{% else %}ri-archive-line{% endif %} me-1"></i>
+              {% if cours.archive %}Désarchiver{% else %}Archiver{% endif %}
+            </button>
+          </form>
+          {% endif %}
+          {% if est_etudiant %}
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalSignalement" title="Signaler ce cours">
+            <i class="icon-base ri ri-flag-line"></i>
+          </button>
+          {% endif %}
+          {% if est_proprietaire %}
+          <a href="{% url 'modifier-cours' cours.pk %}" class="btn btn-sm btn-outline-primary">
+            <i class="icon-base ri ri-edit-box-line me-1"></i> Modifier
+          </a>
+          <form method="post" action="{% url 'supprimer-cours' cours.pk %}"
+                data-confirm="Le cours « {{ cours.titre }} », sa transcription et son résumé seront supprimés définitivement."
+                data-confirm-titre="Supprimer ce cours ?"
+                data-confirm-bouton="Oui, supprimer">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="icon-base ri ri-delete-bin-line me-1"></i> Supprimer
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Organisation -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+          {% if not est_etudiant %}{% include "courses/_badge_publication.html" %}{% endif %}
+          {% if cours.matiere %}<span class="badge bg-label-primary"><i class="icon-base ri ri-book-2-line icon-14px me-1"></i>{{ cours.matiere }}</span>{% endif %}
+          {% if cours.niveau %}<span class="badge bg-label-warning">{{ cours.get_niveau_display }}</span>{% endif %}
+          {% for mot in cours.liste_mots_cles %}<span class="badge bg-label-secondary">#{{ mot }}</span>{% endfor %}
+        </div>
+
+        {% if cours.description %}<p class="mb-6">{{ cours.description|linebreaksbr }}</p>{% endif %}
+
+        <!-- Prérequis (informatif, n'empêche pas l'accès) -->
+        {% if prerequis %}
+        <div class="alert alert-info d-flex gap-3 mb-6" role="alert">
+          <i class="icon-base ri ri-route-line icon-22px"></i>
+          <div class="flex-grow-1">
+            <h6 class="alert-heading mb-2">À suivre avant ce cours</h6>
+            <div class="row g-3">
+              {% for cours_requis in prerequis %}
+              <div class="col-md-6 col-xl-4">{% include "courses/_carte_cours.html" with cours=cours_requis %}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>
+            Traitement IA : <span id="statutCours">{% include "courses/_badge_statut.html" %}</span>
+            {% if cours.statut == 'en_cours' %}
+              <small class="text-body-secondary ms-1">
+                {% if cours.type_fichier == 'audio' and not transcription %}Transcription de l'audio…{% else %}Génération du résumé…{% endif %}
+              </small>
+            {% endif %}
+          </span>
+          {% if cours.statut != 'en_attente' %}<span id="pourcentageCours" class="fw-medium">{{ cours.progression }} %</span>{% endif %}
+        </div>
+        {% if cours.statut != 'en_attente' %}
+        <div class="progress" style="height: 10px;">
+          <div id="barreProgression"
+               class="progress-bar {% if cours.statut == 'erreur' %}bg-danger{% elif cours.statut == 'termine' %}bg-success{% else %}progress-bar-striped progress-bar-animated{% endif %}"
+               role="progressbar" style="width: {{ cours.progression }}%;"
+               aria-valuenow="{{ cours.progression }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        {% endif %}
+
+        {% if cours.statut == 'erreur' %}
+        <div class="alert alert-danger mt-4 mb-0">{{ cours.message_erreur }}</div>
+        {% endif %}
+
+        <!-- Actions IA : réservées à l'enseignant propriétaire -->
+        {% if est_proprietaire and cours.statut != 'en_cours' %}
+        <div class="row g-4 mt-2">
+          {% if cours.type_fichier == 'audio' %}
+          <div class="col-12">
+            <form method="post" action="{% url 'transcrire-cours' cours.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn {% if transcription %}btn-outline-primary{% else %}btn-primary{% endif %}">
+                <i class="icon-base ri ri-mic-line me-1"></i> {% if transcription %}Refaire la transcription{% else %}Transcrire l'audio{% endif %}
+              </button>
+            </form>
+          </div>
+          {% endif %}
+          {% if cours.type_fichier == 'pdf' or transcription %}
+          <div class="col-12">
+            <form method="post" action="{% url 'generer-resume' cours.pk %}" class="row g-3 align-items-end">
+              {% csrf_token %}
+              <div class="col-md-3">
+                <label for="id_type_resume" class="form-label">{{ form_resume.type_resume.label }}</label>
+                <select name="type_resume" id="id_type_resume" class="form-select">
+                  {% for valeur, libelle in form_resume.type_resume.field.choices %}
+                    <option value="{{ valeur }}" {% if form_resume.type_resume.value == valeur %}selected{% endif %}>{{ libelle }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label for="id_consigne" class="form-label">{{ form_resume.consigne.label }}</label>
+                <input type="text" name="consigne" id="id_consigne" maxlength="500" class="form-control"
+                       placeholder="Ex. : insiste sur les formules" />
+              </div>
+              <div class="col-md-3 d-grid">
+                <button type="submit" class="btn {% if resume %}btn-outline-primary{% else %}btn-primary{% endif %}">
+                  <i class="icon-base ri ri-sparkling-line me-1"></i> {% if resume %}Régénérer le résumé{% else %}Générer le résumé{% endif %}
+                </button>
+              </div>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Résumé (onglets par langue + écoute) -->
+  <div class="col-lg-6" id="resume">
+    <div class="card h-100">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h5 class="mb-0">
+          <i class="icon-base ri ri-file-text-line me-1"></i> Résumé
+          {% if resume %}<span class="badge bg-label-primary ms-1">{{ resume.get_type_resume_display }}</span>{% endif %}
+        </h5>
+        {% if resume %}
+        <div class="btn-group">
+          <a href="{% url 'telecharger-resume-pdf' cours.pk %}" class="btn btn-sm btn-primary">
+            <i class="icon-base ri ri-file-pdf-2-line me-1"></i> Télécharger le résumé
+          </a>
+          <button type="button" class="btn btn-sm btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="visually-hidden">Autres formats</span>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{% url 'telecharger-resume-pdf' cours.pk %}"><i class="icon-base ri ri-file-pdf-2-line me-2"></i>PDF mis en page</a></li>
+            <li><a class="dropdown-item" href="{% url 'telecharger-resume' cours.pk %}"><i class="icon-base ri ri-file-text-line me-2"></i>Texte (.txt)</a></li>
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if resume %}
+          {% if resume.consigne %}<p class="small text-body-secondary mb-3"><i class="icon-base ri ri-chat-quote-line icon-14px"></i> Consigne : {{ resume.consigne }}</p>{% endif %}
+
+          <ul class="nav nav-tabs mb-4" role="tablist" id="ongletsResume">
+            <li class="nav-item">
+              <button type="button" class="nav-link {% if langue_active not in traductions %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#resume-fr" role="tab">Français</button>
+            </li>
+            {% for code, libelle in langues_traduction %}
+              {% if code in traductions %}
+              <li class="nav-item">
+                <button type="button" class="nav-link {% if langue_active == code %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#resume-{{ code }}" role="tab">{{ libelle }}</button>
+              </li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+
+          <!-- Mode écoute (synthèse vocale du navigateur) -->
+          <div id="lectureVocale" class="d-flex flex-wrap align-items-center gap-2 mb-4">
+            <button type="button" id="btnLire" class="btn btn-sm btn-label-primary"><i class="icon-base ri ri-volume-up-line me-1"></i> Écouter</button>
+            <button type="button" id="btnPause" class="btn btn-sm btn-label-secondary" disabled><i class="icon-base ri ri-pause-line me-1"></i> <span>Pause</span></button>
+            <button type="button" id="btnArreter" class="btn btn-sm btn-label-secondary" disabled><i class="icon-base ri ri-stop-line me-1"></i> Arrêter</button>
+          </div>
+
+          <div class="tab-content p-0" id="contenuResume">
+            <div class="tab-pane fade {% if langue_active not in traductions %}show active{% endif %}" id="resume-fr" role="tabpanel">
+              <div lang="fr" class="texte-resume" style="white-space: pre-line;">{{ resume.texte }}</div>
+            </div>
+            {% for code, traduction in traductions.items %}
+            <div class="tab-pane fade {% if langue_active == code %}show active{% endif %}" id="resume-{{ code }}" role="tabpanel">
+              <div lang="{{ code }}" {% if code == 'ar' %}dir="rtl"{% endif %} class="texte-resume {% if code == 'ar' %}text-end{% endif %}" style="white-space: pre-line;">{{ traduction.texte }}</div>
+            </div>
+            {% endfor %}
+          </div>
+
+          {% if est_proprietaire %}
+          <div class="d-flex flex-wrap gap-2 mt-4 pt-4 border-top">
+            {% for code, libelle in langues_traduction %}
+            <form method="post" action="{% url 'traduire-resume' cours.pk %}">
+              {% csrf_token %}
+              <input type="hidden" name="langue" value="{{ code }}" />
+              <button type="submit" class="btn btn-sm btn-outline-secondary">
+                <i class="icon-base ri ri-translate-2 me-1"></i> {% if code in traductions %}Retraduire{% else %}Traduire{% endif %} en {{ libelle|lower }}
+              </button>
+            </form>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% else %}
+          <p class="text-body-secondary mb-0">Aucun résumé n'a encore été généré pour ce cours.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Transcription -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="icon-base ri ri-article-line me-1"></i> {% if cours.type_fichier == 'audio' %}Transcription{% else %}Texte extrait{% endif %}</h5>
+      </div>
+      <div class="card-body">
+        {% if transcription %}
+          <div style="white-space: pre-line; max-height: 500px; overflow-y: auto;">{{ transcription.texte }}</div>
+        {% else %}
+          <p class="text-body-secondary mb-0">{% if cours.type_fichier == 'audio' %}L'audio n'a pas encore été transcrit.{% else %}Le texte sera extrait lors de la génération du résumé.{% endif %}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Avis -->
+  <div class="{% if est_etudiant %}col-lg-7{% else %}col-12{% endif %}" id="avis">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="icon-base ri ri-star-line me-1"></i> Avis des étudiants</h5>
+        {% if note_moyenne %}
+          <span>{% include "courses/_etoiles.html" with note=note_moyenne|floatformat:0|add:0 %} <strong class="ms-1">{{ note_moyenne|floatformat:1 }}/5</strong> <small class="text-body-secondary">({{ liste_avis|length }})</small></span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if est_etudiant %}
+        <form method="post" action="{% url 'enregistrer-avis' cours.pk %}" class="mb-6 p-4 border rounded">
+          {% csrf_token %}
+          <h6 class="mb-3">{% if mon_avis %}Modifier mon avis{% else %}Donner mon avis{% endif %}</h6>
+          <div class="btn-group mb-3" role="group" aria-label="Note">
+            {% for valeur in "12345" %}
+              <input type="radio" class="btn-check" name="note" id="note{{ valeur }}" value="{{ valeur }}" autocomplete="off"
+                     {% if mon_avis and mon_avis.note|stringformat:"s" == valeur %}checked{% endif %} required />
+              <label class="btn btn-outline-warning" for="note{{ valeur }}">{{ valeur }} <i class="icon-base ri ri-star-fill icon-14px"></i></label>
+            {% endfor %}
+          </div>
+          <textarea name="commentaire" rows="3" maxlength="2000" class="form-control mb-3" placeholder="Votre commentaire (facultatif)">{{ mon_avis.commentaire|default:'' }}</textarea>
+          <button type="submit" class="btn btn-primary btn-sm">{% if mon_avis %}Mettre à jour{% else %}Publier mon avis{% endif %}</button>
+        </form>
+        {% endif %}
+
+        {% for avis in liste_avis %}
+        <div class="{% if not forloop.last %}border-bottom pb-4 mb-4{% endif %}">
+          <div class="d-flex justify-content-between flex-wrap gap-2">
+            <strong>{{ avis.utilisateur.get_full_name|default:avis.utilisateur.username }}{% if avis.utilisateur == request.user %} (vous){% endif %}</strong>
+            <span>{% include "courses/_etoiles.html" with note=avis.note %} <small class="text-body-secondary ms-2">{{ avis.date_modification|date:"d/m/Y" }}</small></span>
+          </div>
+          {% if avis.commentaire %}<p class="mb-0 mt-1">{{ avis.commentaire|linebreaksbr }}</p>{% endif %}
+          {% if avis.reponse %}
+          <div class="mt-2 ms-4 ps-3 border-start border-primary">
+            <small class="text-primary fw-medium"><i class="icon-base ri ri-reply-line icon-14px"></i> Réponse de l'enseignant</small>
+            <p class="mb-0 small">{{ avis.reponse|linebreaksbr }}</p>
+          </div>
+          {% endif %}
+        </div>
+        {% empty %}
+        <p class="text-body-secondary mb-0">Aucun avis pour le moment.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes personnelles -->
+  {% if est_etudiant %}
+  <div class="col-lg-5" id="notes">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="icon-base ri ri-sticky-note-line me-1"></i> Mes notes</h5>
+        <small class="text-body-secondary"><i class="icon-base ri ri-lock-line icon-14px"></i> Visibles par vous seul</small>
+      </div>
+      <div class="card-body">
+        <form method="post" action="{% url 'enregistrer-note' cours.pk %}">
+          {% csrf_token %}
+          <textarea name="texte" rows="8" class="form-control mb-3" placeholder="Prenez des notes sur ce cours…">{{ note_personnelle.texte|default:'' }}</textarea>
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-body-secondary">{% if note_personnelle %}Modifiées le {{ note_personnelle.date_modification|date:"d/m/Y à H:i" }}{% endif %}</small>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="icon-base ri ri-save-line me-1"></i> Enregistrer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Cours similaires -->
+  {% if similaires %}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><h5 class="mb-0"><i class="icon-base ri ri-lightbulb-line me-1"></i> Cours similaires</h5></div>
+      <div class="card-body">
+        <div class="row g-4">
+          {% for cours_similaire in similaires %}
+          <div class="col-md-6 col-xl-3">{% include "courses/_carte_cours.html" with cours=cours_similaire %}</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Partage : lien copiable + QR code -->
+<div class="modal fade" id="modalPartage" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 440px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Partager ce cours</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img src="data:image/png;base64,{{ qr_code }}" alt="QR code du cours" class="mb-4" style="width: 200px; height: 200px;" />
+        <div class="input-group">
+          <input type="text" id="lienPartage" class="form-control" value="{{ lien_partage }}" readonly />
+          <button type="button" id="btnCopier" class="btn btn-primary"><i class="icon-base ri ri-file-copy-line me-1"></i> <span>Copier</span></button>
+        </div>
+        <small class="text-body-secondary d-block mt-3">La personne devra être connectée à EduVox pour ouvrir le cours.</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Signalement -->
+{% if est_etudiant %}
+<div class="modal fade" id="modalSignalement" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{% url 'signaler-cours' cours.pk %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Signaler ce cours</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+        </div>
+        <div class="modal-body">
+          <label for="id_motif" class="form-label">Motif</label>
+          <select name="motif" id="id_motif" class="form-select mb-4" required>
+            <option value="">— Choisissez un motif —</option>
+            {% for valeur, libelle in form_signalement.motif.field.choices %}{% if valeur %}<option value="{{ valeur }}">{{ libelle }}</option>{% endif %}{% endfor %}
+          </select>
+          <label for="id_message" class="form-label">Message (facultatif)</label>
+          <textarea name="message" id="id_message" rows="3" maxlength="2000" class="form-control" placeholder="Décrivez le problème…"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-danger"><i class="icon-base ri ri-flag-line me-1"></i> Signaler</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% include "partials/modal_confirmation.html" %}
+
+<script>
+  // Copier le lien de partage
+  (function () {
+    const bouton = document.getElementById("btnCopier");
+    const champ = document.getElementById("lienPartage");
+    bouton.addEventListener("click", async function () {
+      try {
+        await navigator.clipboard.writeText(champ.value);
+      } catch (e) {
+        champ.select();
+        document.execCommand("copy");
+      }
+      bouton.querySelector("span").textContent = "Copié !";
+      setTimeout(function () { bouton.querySelector("span").textContent = "Copier"; }, 2000);
+    });
+  })();
+
+  // Mode écoute : lit le résumé de l'onglet actif avec la synthèse vocale du navigateur
+  (function () {
+    const zone = document.getElementById("lectureVocale");
+    if (!zone) return;
+    if (!("speechSynthesis" in window)) {
+      zone.innerHTML = '<small class="text-body-secondary">La lecture à voix haute n\'est pas disponible dans ce navigateur.</small>';
+      return;
+    }
+    const voix = { fr: "fr-FR", en: "en-US", ar: "ar-SA" };
+    const btnLire = document.getElementById("btnLire");
+    const btnPause = document.getElementById("btnPause");
+    const btnArreter = document.getElementById("btnArreter");
+
+    function etat(enLecture, enPause) {
+      btnPause.disabled = !enLecture;
+      btnArreter.disabled = !enLecture;
+      btnPause.querySelector("span").textContent = enPause ? "Reprendre" : "Pause";
+      btnPause.querySelector("i").className = "icon-base ri " + (enPause ? "ri-play-line" : "ri-pause-line") + " me-1";
+    }
+
+    function arreter() {
+      speechSynthesis.cancel();
+      etat(false, false);
+    }
+
+    btnLire.addEventListener("click", function () {
+      const texte = document.querySelector("#contenuResume .tab-pane.active .texte-resume");
+      if (!texte) return;
+      speechSynthesis.cancel();
+      // Découpe en phrases : certains navigateurs coupent les lectures trop longues
+      const phrases = (texte.innerText.match(/[^.!?؟\n]+[.!?؟]?/g) || []).map(function (p) { return p.trim(); }).filter(Boolean);
+      phrases.forEach(function (phrase, index) {
+        const enonce = new SpeechSynthesisUtterance(phrase);
+        enonce.lang = voix[texte.getAttribute("lang")] || "fr-FR";
+        if (index === phrases.length - 1) enonce.onend = function () { etat(false, false); };
+        speechSynthesis.speak(enonce);
+      });
+      etat(true, false);
+    });
+
+    btnPause.addEventListener("click", function () {
+      if (speechSynthesis.paused) {
+        speechSynthesis.resume();
+        etat(true, false);
+      } else {
+        speechSynthesis.pause();
+        etat(true, true);
+      }
+    });
+
+    btnArreter.addEventListener("click", arreter);
+    document.querySelectorAll('#ongletsResume [data-bs-toggle="tab"]').forEach(function (onglet) {
+      onglet.addEventListener("shown.bs.tab", arreter);
+    });
+    window.addEventListener("beforeunload", function () { speechSynthesis.cancel(); });
+  })();
+</script>
+
+{% if cours.statut == 'en_cours' %}
+<script>
+  // Interroge l'avancement toutes les 2 secondes jusqu'à la fin du traitement
+  (function () {
+    const url = "{% url 'progression-cours' cours.pk %}";
+    const barre = document.getElementById("barreProgression");
+    const pourcentage = document.getElementById("pourcentageCours");
+    const statut = document.getElementById("statutCours");
+
+    const minuteur = setInterval(async function () {
+      try {
+        const reponse = await fetch(url, { headers: { "Accept": "application/json" } });
+        if (!reponse.ok) return;
+        const donnees = await reponse.json();
+
+        barre.style.width = donnees.progression + "%";
+        barre.setAttribute("aria-valuenow", donnees.progression);
+        pourcentage.textContent = donnees.progression + " %";
+        statut.textContent = donnees.statut_libelle;
+
+        if (donnees.fini) {
+          clearInterval(minuteur);
+          // Recharge la page pour afficher la transcription, le résumé ou l'erreur
+          window.location.reload();
+        }
+      } catch (e) {
+        // Problème réseau passager : on réessaie au prochain tour
+      }
+    }, 2000);
+  })();
+</script>
+{% endif %}
+{% endblock content %}

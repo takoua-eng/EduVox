@@ -1,0 +1,89 @@
+{% extends layout_path %}
+
+{% block title %}Classement des cours - EduVox{% endblock title %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-4 mb-6">
+  <h4 class="mb-0">Classement des cours</h4>
+  <a href="{% url 'export-cours-csv' %}" class="btn btn-primary">
+    <i class="icon-base ri ri-file-excel-2-line me-1"></i> Exporter tous les cours (CSV)
+  </a>
+</div>
+
+<div class="row g-6">
+  <!-- Les plus consultés -->
+  <div class="col-xl-4 col-md-6">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center gap-2">
+        <span class="avatar avatar-sm"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-eye-line"></i></span></span>
+        <h5 class="mb-0">Les plus consultés</h5>
+      </div>
+      <ol class="list-group list-group-flush list-group-numbered">
+        {% for cours in plus_consultes %}
+        <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+          <div class="me-auto overflow-hidden">
+            <a href="{% url 'detail-cours' cours.pk %}" class="text-heading">{{ cours.titre }}</a><br />
+            <small class="text-body-secondary">{{ cours.enseignant.utilisateur.get_full_name|default:cours.enseignant.utilisateur.username }}</small>
+          </div>
+          <span class="badge bg-label-info rounded-pill">{{ cours.nb_consultations }}</span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-body-secondary">Aucune consultation pour le moment.</li>
+        {% endfor %}
+      </ol>
+    </div>
+  </div>
+
+  <!-- Les mieux notés -->
+  <div class="col-xl-4 col-md-6">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center gap-2">
+        <span class="avatar avatar-sm"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-star-line"></i></span></span>
+        <div>
+          <h5 class="mb-0">Les mieux notés</h5>
+          <small class="text-body-secondary">à partir de {{ min_avis }} avis</small>
+        </div>
+      </div>
+      <ol class="list-group list-group-flush list-group-numbered">
+        {% for cours in mieux_notes %}
+        <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+          <div class="me-auto overflow-hidden">
+            <a href="{% url 'detail-cours' cours.pk %}" class="text-heading">{{ cours.titre }}</a><br />
+            <small class="text-body-secondary">{{ cours.nb_avis }} avis</small>
+          </div>
+          <span class="badge bg-label-warning rounded-pill"><i class="icon-base ri ri-star-fill icon-14px"></i> {{ cours.note_moyenne|floatformat:1 }}</span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-body-secondary">Aucun cours n'a encore {{ min_avis }} avis.</li>
+        {% endfor %}
+      </ol>
+    </div>
+  </div>
+
+  <!-- Les plus signalés -->
+  <div class="col-xl-4 col-md-6">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center gap-2">
+        <span class="avatar avatar-sm"><span class="avatar-initial rounded bg-label-danger"><i class="icon-base ri ri-flag-line"></i></span></span>
+        <h5 class="mb-0">Les plus signalés</h5>
+      </div>
+      <ol class="list-group list-group-flush list-group-numbered">
+        {% for cours in plus_signales %}
+        <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+          <div class="me-auto overflow-hidden">
+            <a href="{% url 'detail-cours' cours.pk %}" class="text-heading">{{ cours.titre }}</a>
+            {% include "courses/_badge_publication.html" %}
+          </div>
+          <span class="badge bg-label-danger rounded-pill">{{ cours.nb_signalements }}</span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-body-secondary">Aucun cours signalé.</li>
+        {% endfor %}
+      </ol>
+      {% if plus_signales %}
+      <div class="card-body pt-2"><a href="{% url 'signalements' %}" class="btn btn-sm btn-outline-danger w-100">Voir les signalements</a></div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock content %}

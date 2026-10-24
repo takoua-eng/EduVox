@@ -1,0 +1,11 @@
+{% if cours.archive %}
+  <span class="badge rounded-pill bg-label-dark"><i class="icon-base ri ri-archive-line icon-14px me-1"></i>Archivé</span>
+{% elif cours.masque %}
+  <span class="badge rounded-pill bg-label-danger"><i class="icon-base ri ri-eye-off-line icon-14px me-1"></i>Masqué</span>
+{% elif cours.est_publie %}
+  <span class="badge rounded-pill bg-label-success">Publié</span>
+{% elif cours.publication == 'programme' %}
+  <span class="badge rounded-pill bg-label-info" title="Publication programmée">Publié le {{ cours.date_publication|date:"d/m/Y H:i" }}</span>
+{% else %}
+  <span class="badge rounded-pill bg-label-secondary">Brouillon</span>
+{% endif %}

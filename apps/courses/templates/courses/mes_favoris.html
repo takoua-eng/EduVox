@@ -1,0 +1,41 @@
+{% extends layout_path %}
+
+{% block title %}Mes favoris - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0"><i class="icon-base ri ri-heart-line me-1"></i> Ma bibliothèque</h5>
+    <span class="badge bg-label-danger">{{ favoris|length }} cours</span>
+  </div>
+  <div class="card-body">
+    {% if favoris %}
+    <div class="row g-4">
+      {% for favori in favoris %}
+      <div class="col-md-6 col-xl-4">
+        <div class="d-flex align-items-stretch gap-2 h-100">
+          <div class="flex-grow-1 overflow-hidden">
+            {% include "courses/_carte_cours.html" with cours=favori.cours info=favori.cours.enseignant.utilisateur.get_full_name %}
+          </div>
+          <form method="post" action="{% url 'basculer-favori' favori.cours.pk %}" class="d-flex">
+            {% csrf_token %}
+            <input type="hidden" name="suivant" value="{% url 'mes-favoris' %}" />
+            <button type="submit" class="btn btn-icon btn-text-danger align-self-center" title="Retirer des favoris">
+              <i class="icon-base ri ri-heart-fill icon-20px"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-6">
+      <p class="text-body-secondary mb-4">Vous n'avez encore aucun cours dans vos favoris.</p>
+      <a href="{% url 'liste-cours' %}" class="btn btn-primary"><i class="icon-base ri ri-book-open-line me-1"></i> Parcourir les cours</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock content %}
