@@ -1,0 +1,27 @@
+{% extends layout_path %}
+
+{% block title %}Historique - EduVox{% endblock title %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h5 class="mb-0"><i class="icon-base ri ri-history-line me-1"></i> Cours consultés récemment</h5>
+  </div>
+  <div class="card-body">
+    {% if historique %}
+    <div class="row g-4">
+      {% for ligne in historique %}
+      <div class="col-md-6 col-xl-4">
+        {% include "courses/_carte_cours.html" with cours=ligne.cours info=ligne.vu_le %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-6">
+      <p class="text-body-secondary mb-4">Vous n'avez encore consulté aucun cours.</p>
+      <a href="{% url 'liste-cours' %}" class="btn btn-primary"><i class="icon-base ri ri-book-open-line me-1"></i> Parcourir les cours</a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock content %}

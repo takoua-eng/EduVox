@@ -1,0 +1,82 @@
+{% extends layout_path %}
+
+{% block title %}Archivage des cours - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<div class="row g-6">
+  <!-- Archivage par année universitaire -->
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header">
+        <h5 class="mb-1"><i class="icon-base ri ri-archive-line me-1"></i> Archiver une année</h5>
+        <small class="text-body-secondary">Année en cours : {{ annee_courante }} (de septembre à août)</small>
+      </div>
+      <div class="card-body">
+        {% if annees %}
+        <p class="text-body-secondary">Les cours archivés ne sont plus visibles des étudiants. Ils ne sont pas supprimés et peuvent être désarchivés à tout moment.</p>
+        <ul class="list-group">
+          {% for ligne in annees %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ ligne.libelle }}</strong><br />
+              <small class="text-body-secondary">{{ ligne.nb_cours }} cours non archivé{{ ligne.nb_cours|pluralize }}</small>
+            </div>
+            <form method="post" action="{% url 'archivage-cours' %}"
+                  data-confirm="Les {{ ligne.nb_cours }} cours créés en {{ ligne.libelle }} ne seront plus visibles des étudiants."
+                  data-confirm-titre="Archiver l'année {{ ligne.libelle }} ?" data-confirm-bouton="Archiver"
+                  data-confirm-type="warning" data-confirm-icone="ri-archive-line">
+              {% csrf_token %}
+              <input type="hidden" name="annee" value="{{ ligne.annee }}" />
+              <button type="submit" class="btn btn-sm btn-outline-warning"><i class="icon-base ri ri-archive-line me-1"></i> Archiver</button>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-body-secondary mb-0">Aucun cours d'une année passée à archiver.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Cours archivés -->
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Cours archivés</h5>
+        <span class="badge bg-label-dark">{{ archives|length }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead><tr><th>Cours</th><th>Créé le</th><th>Archivé le</th><th class="text-end"></th></tr></thead>
+          <tbody>
+            {% for cours in archives %}
+            <tr>
+              <td>
+                <a href="{% url 'detail-cours' cours.pk %}" class="text-heading"><strong>{{ cours.titre }}</strong></a><br />
+                <small class="text-body-secondary">{{ cours.enseignant.utilisateur.get_full_name|default:cours.enseignant.utilisateur.username }}{% if cours.matiere %} · {{ cours.matiere }}{% endif %}</small>
+              </td>
+              <td class="text-nowrap">{{ cours.date_creation|date:"d/m/Y" }}</td>
+              <td class="text-nowrap">{{ cours.date_archivage|date:"d/m/Y" }}</td>
+              <td class="text-end">
+                <form method="post" action="{% url 'archiver-cours' cours.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="suivant" value="{% url 'archivage-cours' %}" />
+                  <button type="submit" class="btn btn-sm btn-outline-success text-nowrap"><i class="icon-base ri ri-inbox-unarchive-line me-1"></i> Désarchiver</button>
+                </form>
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center text-body-secondary py-6">Aucun cours archivé.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "partials/modal_confirmation.html" %}
+{% endblock content %}

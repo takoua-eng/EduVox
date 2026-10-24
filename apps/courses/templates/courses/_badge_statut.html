@@ -1,0 +1,3 @@
+<span class="badge rounded-pill {% if cours.statut == 'termine' %}bg-label-success{% elif cours.statut == 'erreur' %}bg-label-danger{% elif cours.statut == 'en_cours' %}bg-label-warning{% else %}bg-label-secondary{% endif %}">
+  {{ cours.get_statut_display }}
+</span>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Résumé - {{ cours.titre }}</title>
+  <style>
+    @page {
+      size: a4 portrait;
+      margin: 2cm 2cm 2.2cm 2cm;
+      @frame pied {
+        -pdf-frame-content: pied;
+        bottom: 1cm; margin-left: 2cm; margin-right: 2cm; height: 0.8cm;
+      }
+    }
+    body { font-family: Helvetica; font-size: 11pt; color: #2e263d; line-height: 1.45; }
+    .marque { color: #8c57ff; font-size: 10pt; font-weight: bold; letter-spacing: 1px; }
+    h1 { font-size: 20pt; color: #2e263d; margin: 6pt 0 4pt 0; }
+    .infos { color: #6d6777; font-size: 10pt; margin-bottom: 4pt; }
+    .type { color: #8c57ff; font-size: 10pt; font-weight: bold; }
+    hr { color: #e6e5e8; background-color: #e6e5e8; height: 1pt; border: 0; margin: 12pt 0; }
+    .consigne { color: #6d6777; font-size: 9.5pt; font-style: italic; margin-bottom: 8pt; }
+    .resume { font-size: 11pt; }
+    #pied { color: #a7a2ad; font-size: 8.5pt; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="marque">EDUVOX</div>
+  <h1>{{ cours.titre }}</h1>
+  <div class="infos">
+    Enseignant : {{ cours.enseignant.utilisateur.get_full_name|default:cours.enseignant.utilisateur.username }}
+    {% if cours.matiere %} &nbsp;·&nbsp; Matière : {{ cours.matiere }}{% endif %}
+    {% if cours.niveau %} &nbsp;·&nbsp; Niveau : {{ cours.get_niveau_display }}{% endif %}
+  </div>
+  <div class="infos">Résumé généré le {{ resume.date_generation|date:"d/m/Y" }}</div>
+  <div class="type">Type de résumé : {{ resume.get_type_resume_display }}</div>
+  <hr />
+  {% if resume.consigne %}<div class="consigne">Consigne de l'enseignant : {{ resume.consigne }}</div>{% endif %}
+  <div class="resume">{{ resume.texte|linebreaks }}</div>
+
+  <div id="pied">EduVox · {{ cours.titre }} · page <pdf:pagenumber /> / <pdf:pagecount /></div>
+</body>
+</html>

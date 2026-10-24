@@ -1,0 +1,58 @@
+{% extends layout_path %}
+
+{% block title %}Matières - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-1"><i class="icon-base ri ri-book-2-line me-1"></i> Matières</h5>
+        <small class="text-body-secondary">Utilisées par les enseignants pour classer leurs cours et par les étudiants pour filtrer.</small>
+      </div>
+      <div class="card-body">
+        <!-- Ajout -->
+        <form method="post" action="{% url 'matieres' %}" class="d-flex gap-2 mb-6">
+          {% csrf_token %}
+          <div class="flex-grow-1">
+            <input type="text" name="nom" maxlength="100" class="form-control {% if form.nom.errors %}is-invalid{% endif %}"
+                   placeholder="Nouvelle matière (ex. : Mathématiques)" value="{{ form.nom.value|default:'' }}" required />
+            {% for error in form.nom.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <button type="submit" class="btn btn-primary align-self-start"><i class="icon-base ri ri-add-line me-1"></i> Ajouter</button>
+        </form>
+
+        <ul class="list-group">
+          {% for matiere in matieres %}
+          <li class="list-group-item">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <form method="post" action="{% url 'modifier-matiere' matiere.pk %}" class="d-flex gap-2 flex-grow-1">
+                {% csrf_token %}
+                <input type="text" name="nom" value="{{ matiere.nom }}" maxlength="100" class="form-control form-control-sm" aria-label="Nom de la matière" required />
+                <button type="submit" class="btn btn-sm btn-icon btn-text-secondary" title="Renommer"><i class="icon-base ri ri-save-line icon-20px"></i></button>
+              </form>
+              <span class="badge bg-label-primary">{{ matiere.nb_cours }} cours</span>
+              <form method="post" action="{% url 'supprimer-matiere' matiere.pk %}"
+                    data-confirm="{% if matiere.nb_cours %}Les {{ matiere.nb_cours }} cours de cette matière n'auront plus de matière. {% endif %}Cette action est irréversible."
+                    data-confirm-titre="Supprimer « {{ matiere.nom }} » ?" data-confirm-bouton="Oui, supprimer">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-icon btn-text-danger" title="Supprimer"><i class="icon-base ri ri-delete-bin-line icon-20px"></i></button>
+              </form>
+            </div>
+          </li>
+          {% empty %}
+          <li class="list-group-item text-center text-body-secondary py-6">Aucune matière pour le moment.</li>
+          {% endfor %}
+        </ul>
+        {% if user.is_superuser %}
+        <p class="small text-body-secondary mt-4 mb-0">Vous pouvez aussi les gérer depuis <a href="{% url 'admin:courses_matiere_changelist' %}">l'administration Django</a>.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include "partials/modal_confirmation.html" %}
+{% endblock content %}

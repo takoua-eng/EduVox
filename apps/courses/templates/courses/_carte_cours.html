@@ -1,0 +1,15 @@
+<a href="{% url 'detail-cours' cours.pk %}" class="d-flex align-items-center p-3 border rounded text-reset h-100">
+  <div class="avatar avatar-sm me-3 flex-shrink-0">
+    <span class="avatar-initial rounded {% if cours.type_fichier == 'pdf' %}bg-label-danger{% else %}bg-label-info{% endif %}">
+      <i class="icon-base ri {% if cours.type_fichier == 'pdf' %}ri-file-pdf-2-line{% else %}ri-mic-line{% endif %} icon-18px"></i>
+    </span>
+  </div>
+  <div class="overflow-hidden">
+    <h6 class="mb-0 text-truncate">{{ cours.titre }}</h6>
+    <small class="text-body-secondary">
+      {% if cours.matiere %}{{ cours.matiere }}{% endif %}{% if cours.matiere and cours.niveau %} · {% endif %}{% if cours.niveau %}{{ cours.get_niveau_display }}{% endif %}
+      {% if cours.minutes_estimees %}{% if cours.matiere or cours.niveau %} · {% endif %}{{ cours.minutes_estimees }} min{% endif %}
+      {% if info %} · {{ info }}{% endif %}
+    </small>
+  </div>
+</a>

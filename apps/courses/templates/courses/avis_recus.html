@@ -1,0 +1,59 @@
+{% extends layout_path %}
+
+{% block title %}Avis reçus - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<div class="card">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-4">
+    <h5 class="mb-0">Avis reçus sur mes cours</h5>
+    <div class="btn-group" role="group">
+      <a href="{% url 'avis-recus' %}" class="btn btn-sm {% if not filtre %}btn-primary{% else %}btn-outline-primary{% endif %}">Tous</a>
+      <a href="?filtre=sans_reponse" class="btn btn-sm {% if filtre == 'sans_reponse' %}btn-primary{% else %}btn-outline-primary{% endif %}">Sans réponse</a>
+    </div>
+  </div>
+  <div class="card-body">
+    {% for avis in liste_avis %}
+    <div class="border rounded p-4 mb-4">
+      <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+        <div>
+          <strong>{{ avis.utilisateur.get_full_name|default:avis.utilisateur.username }}</strong>
+          sur <a href="{% url 'detail-cours' avis.cours.pk %}">{{ avis.cours.titre }}</a>
+        </div>
+        <div>{% include "courses/_etoiles.html" with note=avis.note %} <small class="text-body-secondary ms-2">{{ avis.date_modification|date:"d/m/Y" }}</small></div>
+      </div>
+      {% if avis.commentaire %}<p class="mb-3">{{ avis.commentaire|linebreaksbr }}</p>{% endif %}
+
+      <form method="post" action="{% url 'repondre-avis' avis.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="suivant" value="{{ request.get_full_path }}" />
+        <label for="reponse-{{ avis.pk }}" class="form-label small">
+          {% if avis.reponse %}Votre réponse (le {{ avis.date_reponse|date:"d/m/Y" }}){% else %}Répondre{% endif %}
+        </label>
+        <div class="d-flex gap-2">
+          <textarea name="reponse" id="reponse-{{ avis.pk }}" rows="2" maxlength="2000" class="form-control" required>{{ avis.reponse }}</textarea>
+          <button type="submit" class="btn btn-primary align-self-end">
+            <i class="icon-base ri ri-reply-line me-1"></i> {% if avis.reponse %}Modifier{% else %}Répondre{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+    {% empty %}
+    <p class="text-center text-body-secondary py-6 mb-0">
+      {% if filtre == 'sans_reponse' %}Tous les avis ont reçu une réponse.{% else %}Aucun avis n'a encore été laissé sur vos cours.{% endif %}
+    </p>
+    {% endfor %}
+
+    {% if is_paginated %}
+    <nav class="d-flex justify-content-center mt-4">
+      <ul class="pagination">
+        {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtre %}&filtre={{ filtre }}{% endif %}">‹</a></li>{% endif %}
+        <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ paginator.num_pages }}</span></li>
+        {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtre %}&filtre={{ filtre }}{% endif %}">›</a></li>{% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,67 @@
+{% extends layout_path %}
+
+{% block title %}Statistiques de mes cours - EduVox{% endblock title %}
+
+{% block content %}
+<!-- Totaux -->
+<div class="row g-6 mb-6">
+  <div class="col-sm-6 col-xl-3">
+    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Cours</p><h4 class="mb-0">{{ liste_cours|length }}</h4></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-book-open-line icon-24px"></i></span></div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Consultations</p><h4 class="mb-0">{{ totaux.consultations }}</h4></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-eye-line icon-24px"></i></span></div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Téléchargements du résumé</p><h4 class="mb-0">{{ totaux.telechargements }}</h4></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-download-2-line icon-24px"></i></span></div>
+    </div></div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Avis reçus</p><h4 class="mb-0">{{ totaux.avis }}</h4></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-star-line icon-24px"></i></span></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header"><h5 class="mb-0">Statistiques par cours</h5></div>
+  <div class="table-responsive text-nowrap">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Cours</th>
+          <th>Publication</th>
+          <th class="text-end">Consultations</th>
+          <th class="text-end">Téléchargements</th>
+          <th class="text-end">Note moyenne</th>
+          <th class="text-end">Avis</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cours in liste_cours %}
+        <tr>
+          <td><a href="{% url 'detail-cours' cours.pk %}" class="text-heading"><strong>{{ cours.titre }}</strong></a></td>
+          <td>{% include "courses/_badge_publication.html" %}</td>
+          <td class="text-end">{{ cours.nb_consultations }}</td>
+          <td class="text-end">{{ cours.nb_telechargements }}</td>
+          <td class="text-end">
+            {% if cours.note_moyenne %}<i class="icon-base ri ri-star-fill text-warning icon-16px"></i> {{ cours.note_moyenne|floatformat:1 }}/5{% else %}—{% endif %}
+          </td>
+          <td class="text-end">{{ cours.nb_avis }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-body-secondary py-6">Vous n'avez encore publié aucun cours.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock content %}

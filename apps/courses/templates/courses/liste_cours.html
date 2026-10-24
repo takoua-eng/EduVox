@@ -1,0 +1,169 @@
+{% extends layout_path %}
+
+{% block title %}Cours - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<div class="card">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-4">
+    <h5 class="mb-0">{% if est_enseignant %}Mes cours{% else %}Tous les cours{% endif %}</h5>
+    {% if est_enseignant %}
+    <a href="{% url 'ajouter-cours' %}" class="btn btn-primary">
+      <i class="icon-base ri ri-add-line me-1"></i> Ajouter
+    </a>
+    {% endif %}
+    {% if not est_enseignant and not est_etudiant %}
+    <a href="{% url 'export-cours-csv' %}" class="btn btn-outline-primary">
+      <i class="icon-base ri ri-file-excel-2-line me-1"></i> Exporter en CSV
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Recherche et filtres -->
+  <div class="card-body pt-0">
+    <form method="get" class="row g-4">
+      <div class="{% if est_enseignant %}col-md-6{% else %}col-md-4{% endif %}">
+        <input type="search" name="q" value="{{ filtres.q }}" class="form-control"
+               placeholder="Rechercher (titre, mots-clés, contenu du cours…)" />
+      </div>
+      <div class="col-md-2">
+        <select name="matiere" class="form-select">
+          <option value="">Toutes les matières</option>
+          {% for matiere in matieres %}
+            <option value="{{ matiere.pk }}" {% if filtres.matiere == matiere.pk|stringformat:"s" %}selected{% endif %}>{{ matiere.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="niveau" class="form-select">
+          <option value="">Tous les niveaux</option>
+          {% for valeur, libelle in niveaux %}
+            <option value="{{ valeur }}" {% if filtres.niveau == valeur %}selected{% endif %}>{{ libelle }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% if not est_enseignant %}
+      <div class="col-md-2">
+        <select name="enseignant" class="form-select">
+          <option value="">Tous les enseignants</option>
+          {% for enseignant in enseignants %}
+            <option value="{{ enseignant.pk }}" {% if filtres.enseignant == enseignant.pk|stringformat:"s" %}selected{% endif %}>{{ enseignant.utilisateur.get_full_name|default:enseignant.utilisateur.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-outline-primary flex-grow-1">Filtrer</button>
+        {% if filtre_actif %}
+        <a href="{% url 'liste-cours' %}" class="btn btn-outline-secondary" title="Effacer les filtres"><i class="icon-base ri ri-close-line"></i></a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <div class="table-responsive text-nowrap">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Cours</th>
+          {% if not est_enseignant %}<th>Enseignant</th>{% endif %}
+          <th>Durée</th>
+          <th>Note</th>
+          <th>Traitement IA</th>
+          <th class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cours in liste_cours %}
+        <tr>
+          <td>
+            <div class="d-flex align-items-center">
+              <div class="avatar avatar-sm me-3">
+                <span class="avatar-initial rounded {% if cours.type_fichier == 'pdf' %}bg-label-danger{% else %}bg-label-info{% endif %}">
+                  <i class="icon-base ri {% if cours.type_fichier == 'pdf' %}ri-file-pdf-2-line{% else %}ri-mic-line{% endif %} icon-20px"></i>
+                </span>
+              </div>
+              <div>
+                <a href="{% url 'detail-cours' cours.pk %}" class="text-heading"><strong>{{ cours.titre }}</strong></a>
+                {% if not est_etudiant %}{% include "courses/_badge_publication.html" %}{% endif %}<br />
+                <small class="text-body-secondary">
+                  {% if cours.matiere %}{{ cours.matiere }}{% if cours.niveau %} · {% endif %}{% endif %}{% if cours.niveau %}{{ cours.get_niveau_display }}{% endif %}
+                  {% if not cours.matiere and not cours.niveau %}{{ cours.description|truncatechars:60 }}{% endif %}
+                </small>
+              </div>
+            </div>
+          </td>
+          {% if not est_enseignant %}<td>{{ cours.enseignant.utilisateur.get_full_name|default:cours.enseignant.utilisateur.username }}</td>{% endif %}
+          <td>
+            {% if cours.minutes_estimees %}
+              <i class="icon-base ri {% if cours.type_fichier == 'audio' and cours.duree_audio %}ri-headphone-line{% else %}ri-book-read-line{% endif %} icon-16px"></i> {{ cours.minutes_estimees }} min
+            {% else %}<span class="text-body-secondary">—</span>{% endif %}
+          </td>
+          <td>
+            {% if cours.note_moyenne %}
+              <i class="icon-base ri ri-star-fill text-warning icon-16px"></i> {{ cours.note_moyenne|floatformat:1 }}
+              <small class="text-body-secondary">({{ cours.nb_avis }})</small>
+            {% else %}<span class="text-body-secondary">—</span>{% endif %}
+          </td>
+          <td>
+            {% include "courses/_badge_statut.html" %}
+            {% if cours.statut == 'en_cours' %}<small class="text-body-secondary ms-1">{{ cours.progression }} %</small>{% endif %}
+          </td>
+          <td class="text-end">
+            <div class="d-inline-flex gap-1">
+              {% if est_etudiant %}
+              <form method="post" action="{% url 'basculer-favori' cours.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="suivant" value="{{ request.get_full_path }}" />
+                <button type="submit" class="btn btn-sm btn-icon btn-text-danger" title="{% if cours.pk in favoris %}Retirer des favoris{% else %}Ajouter aux favoris{% endif %}">
+                  <i class="icon-base ri {% if cours.pk in favoris %}ri-heart-fill{% else %}ri-heart-line{% endif %} icon-20px"></i>
+                </button>
+              </form>
+              {% endif %}
+              <a href="{% url 'detail-cours' cours.pk %}" class="btn btn-sm btn-icon btn-text-secondary" title="Consulter">
+                <i class="icon-base ri ri-eye-line icon-20px"></i>
+              </a>
+              {% if est_enseignant %}
+              <a href="{% url 'modifier-cours' cours.pk %}" class="btn btn-sm btn-icon btn-text-secondary" title="Modifier">
+                <i class="icon-base ri ri-edit-box-line icon-20px"></i>
+              </a>
+              <form method="post" action="{% url 'supprimer-cours' cours.pk %}"
+                    data-confirm="Le cours « {{ cours.titre }} », sa transcription et son résumé seront supprimés définitivement."
+                    data-confirm-titre="Supprimer ce cours ?"
+                    data-confirm-bouton="Oui, supprimer">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-icon btn-text-danger" title="Supprimer">
+                  <i class="icon-base ri ri-delete-bin-line icon-20px"></i>
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-body-secondary py-6">
+            {% if filtre_actif %}Aucun cours ne correspond à votre recherche.
+            {% elif est_enseignant %}Vous n'avez encore publié aucun cours.
+            {% else %}Aucun cours disponible pour le moment.{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+  <div class="card-body d-flex justify-content-center">
+    <ul class="pagination mb-0">
+      {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if parametres %}&{{ parametres }}{% endif %}">‹</a></li>{% endif %}
+      <li class="page-item active"><span class="page-link">{{ page_obj.number }} / {{ paginator.num_pages }}</span></li>
+      {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if parametres %}&{{ parametres }}{% endif %}">›</a></li>{% endif %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+
+{% include "partials/modal_confirmation.html" %}
+{% endblock content %}
