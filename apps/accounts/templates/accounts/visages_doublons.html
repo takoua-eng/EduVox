@@ -1,0 +1,54 @@
+{% extends layout_path %}
+
+{% block title %}Visages en double - EduVox{% endblock title %}
+
+{% block content %}
+<h4 class="mb-1">Contrôle des visages en double</h4>
+<p class="mb-6 text-body-secondary">
+  L'IA compare tous les visages enregistrés ({{ nb_profils }}) pour repérer une même personne inscrite sur plusieurs comptes
+  (fraude à la présence, comptes partagés…).
+</p>
+
+{% if doublons %}
+  <div class="alert alert-warning d-flex gap-3">
+    <i class="icon-base ri ri-alarm-warning-line icon-22px"></i>
+    <span><strong>{{ doublons|length }} doublon{{ doublons|length|pluralize }} détecté{{ doublons|length|pluralize }}.</strong>
+      Vérifiez ces comptes et désactivez celui qui n'est pas légitime.</span>
+  </div>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead><tr><th>Compte 1</th><th>Compte 2</th><th>Ressemblance</th><th class="text-end">Actions</th></tr></thead>
+        <tbody>
+          {% for d in doublons %}
+          <tr>
+            <td><strong>{{ d.a.get_full_name|default:d.a.username }}</strong><br /><small class="text-body-secondary">{{ d.a.username }} · {{ d.a.get_role_display }}</small></td>
+            <td><strong>{{ d.b.get_full_name|default:d.b.username }}</strong><br /><small class="text-body-secondary">{{ d.b.username }} · {{ d.b.get_role_display }}</small></td>
+            <td>
+              <div class="d-flex align-items-center gap-2">
+                <div class="progress w-px-100" style="height: 8px;"><div class="progress-bar bg-danger" style="width: {{ d.score }}%"></div></div>
+                <span class="fw-medium">{{ d.score }} %</span>
+              </div>
+            </td>
+            <td class="text-end">
+              <a href="{% url 'modifier-utilisateur' d.a.pk %}" class="btn btn-sm btn-outline-secondary">Voir compte 1</a>
+              <a href="{% url 'modifier-utilisateur' d.b.pk %}" class="btn btn-sm btn-outline-secondary">Voir compte 2</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% else %}
+  <div class="card">
+    <div class="card-body text-center py-8">
+      <div class="avatar avatar-xl mx-auto mb-4">
+        <span class="avatar-initial rounded-circle bg-label-success"><i class="icon-base ri ri-shield-check-line icon-32px"></i></span>
+      </div>
+      <h5 class="mb-1">Aucun doublon</h5>
+      <p class="mb-0 text-body-secondary">Chaque visage enregistré correspond à un seul compte.</p>
+    </div>
+  </div>
+{% endif %}
+{% endblock content %}

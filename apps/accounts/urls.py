@@ -1,7 +1,6 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
-from . import views, views_securite, views_visage
-
+from . import views, views_import, views_securite, views_visage
 urlpatterns = [
     path("connexion/", views.ConnexionView.as_view(), name="connexion"),
     path("inscription/", views.InscriptionView.as_view(), name="inscription"),
@@ -46,4 +45,9 @@ urlpatterns = [
         # Journal des connexions
     path("profil/connexions/", views_securite.MesConnexionsView.as_view(), name="mes-connexions"),
     path("journal-connexions/", views_securite.JournalConnexionsView.as_view(), name="journal-connexions"),
+    
+        # Outils d'administration
+    path("utilisateurs/importer/", views_import.ImportUtilisateursView.as_view(), name="importer-utilisateurs"),
+    path("utilisateurs/importer/modele.csv", views_import.ModeleImportView.as_view(), name="modele-import"),
+    path("visages-doublons/", views_visage.VisagesDoublonsView.as_view(), name="visages-doublons"),
 ]
