@@ -149,6 +149,12 @@
         <div class="text-truncate">Journal des connexions</div>
       </a>
     </li>
+        <li class="menu-item {% if request.resolver_match.url_name == 'visages-doublons' %}active{% endif %}">
+      <a href="{% url 'visages-doublons' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-user-search-line"></i>
+        <div class="text-truncate">Visages en double</div>
+      </a>
+    </li>
     {% endif %}
 
   </ul>

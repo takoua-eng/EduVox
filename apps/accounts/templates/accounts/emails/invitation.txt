@@ -1,0 +1,13 @@
+Bonjour {{ user.first_name }},
+
+Un compte EduVox a été créé pour vous.
+
+Votre nom d'utilisateur : {{ user.username }}
+
+Pour l'activer, choisissez votre mot de passe en cliquant sur ce lien (valable 3 jours) :
+{{ lien }}
+
+Ensuite, connectez-vous ici : {{ connexion }}
+Si le lien a expiré, utilisez « Mot de passe oublié ? » sur la page de connexion.
+
+L'équipe EduVox

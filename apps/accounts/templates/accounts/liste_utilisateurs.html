@@ -37,9 +37,14 @@
   <!-- En-tête + filtres -->
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-4">
     <h5 class="mb-0">Liste des utilisateurs</h5>
-    <a href="{% url 'ajouter-utilisateur' %}" class="btn btn-primary">
-      <i class="icon-base ri ri-user-add-line me-1"></i> Ajouter
-    </a>
+    <div class="d-flex gap-2">
+      <a href="{% url 'importer-utilisateurs' %}" class="btn btn-outline-primary">
+        <i class="icon-base ri ri-file-excel-2-line me-1"></i> Importer
+      </a>
+      <a href="{% url 'ajouter-utilisateur' %}" class="btn btn-primary">
+        <i class="icon-base ri ri-user-add-line me-1"></i> Ajouter
+      </a>
+    </div>
   </div>
   <div class="card-body pt-0">
     <form method="get" class="row g-4">

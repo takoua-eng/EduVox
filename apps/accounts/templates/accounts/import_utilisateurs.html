@@ -1,0 +1,103 @@
+{% extends layout_path %}
+
+{% block title %}Importer des utilisateurs - EduVox{% endblock title %}
+
+{% block content %}
+{% include "accounts/_messages.html" %}
+
+<div class="d-flex justify-content-between align-items-center mb-6">
+  <div>
+    <h4 class="mb-1">Importer des utilisateurs</h4>
+    <p class="mb-0 text-body-secondary">Créez toute une classe en une fois à partir d'un fichier Excel ou CSV.</p>
+  </div>
+  <a href="{% url 'liste-utilisateurs' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="icon-base ri ri-arrow-left-line me-1"></i> Utilisateurs
+  </a>
+</div>
+
+<div class="row g-6">
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <h5 class="card-header">Fichier à importer</h5>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+          <div class="mb-5">
+            <input type="file" name="fichier" accept=".csv,.xlsx" class="form-control" required />
+            <div class="form-text">Formats acceptés : .xlsx (Excel) ou .csv — 2 Mo et 1 000 lignes maximum.</div>
+          </div>
+          <div class="form-floating form-floating-outline mb-5">
+            <select name="role_par_defaut" id="role_par_defaut" class="form-select">
+              <option value="ETUDIANT">Étudiant</option>
+              <option value="ENSEIGNANT">Enseignant</option>
+            </select>
+            <label for="role_par_defaut">Rôle si la colonne « role » est vide</label>
+          </div>
+          <div class="form-check mb-5">
+            <input class="form-check-input" type="checkbox" name="envoyer_emails" id="envoyer_emails" checked />
+            <label class="form-check-label" for="envoyer_emails">
+              Envoyer à chaque utilisateur un e-mail avec un lien pour choisir son mot de passe
+            </label>
+          </div>
+          <button type="submit" class="btn btn-primary">
+            <i class="icon-base ri ri-upload-cloud-2-line me-1"></i> Importer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <h5 class="card-header">Format attendu</h5>
+      <div class="card-body">
+        <p class="mb-3">La première ligne contient les noms de colonnes :</p>
+        <ul class="mb-4">
+          <li><code>prenom</code>, <code>nom</code>, <code>email</code> : <strong>obligatoires</strong></li>
+          <li><code>role</code> : Etudiant ou Enseignant</li>
+          <li><code>nom_utilisateur</code> : créé automatiquement s'il est vide (ex. asalah)</li>
+          <li><code>niveau_ou_specialite</code> : niveau de l'étudiant ou spécialité de l'enseignant</li>
+        </ul>
+        <a href="{% url 'modele-import' %}" class="btn btn-outline-primary w-100">
+          <i class="icon-base ri ri-download-2-line me-1"></i> Télécharger le modèle (.csv)
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if crees or erreurs %}
+<div class="row g-6 mt-0">
+  {% if crees %}
+  <div class="col-lg-7">
+    <div class="card">
+      <h5 class="card-header text-success">{{ crees|length }} compte{{ crees|length|pluralize }} créé{{ crees|length|pluralize }}</h5>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th>Nom</th><th>Nom d'utilisateur</th><th>E-mail</th><th>Rôle</th></tr></thead>
+          <tbody>
+            {% for u in crees %}
+            <tr><td>{{ u.get_full_name }}</td><td><code>{{ u.username }}</code></td><td>{{ u.email }}</td><td>{{ u.get_role_display }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if envoye %}<div class="card-body small text-body-secondary">Un e-mail d'activation a été envoyé à chacun.</div>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% if erreurs %}
+  <div class="col-lg-5">
+    <div class="card">
+      <h5 class="card-header text-warning">{{ erreurs|length }} ligne{{ erreurs|length|pluralize }} ignorée{{ erreurs|length|pluralize }}</h5>
+      <ul class="list-group list-group-flush">
+        {% for numero, message in erreurs %}
+          <li class="list-group-item"><span class="badge bg-label-warning me-2">Ligne {{ numero }}</span>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock content %}

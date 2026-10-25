@@ -7,6 +7,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_not_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -26,10 +27,26 @@ NB_CAPTURES = 3          # photos prises à l'enregistrement
 ECART_LACET_MIN = 0.25   # rotation minimale de la tête exigée pour prouver que c'est une vraie personne
 MAX_ESSAIS = 5           # essais de connexion par visage avant blocage temporaire
 DUREE_BLOCAGE = 300      # secondes
+MARGE_IDENTIFICATION = 0.05  # écart minimal entre les deux visages les plus proches (évite les confusions)
 
 
 def seuil():
     return getattr(settings, "FACE_SEUIL", 0.363)
+
+
+def identifier(encodage, exclure=None):
+    """Compare un visage à tous les visages enregistrés (identification « 1 parmi N »).
+
+    Renvoie (profil le plus proche, son score, score du 2e plus proche).
+    """
+    profils = ProfilFacial.objects.filter(utilisateur__is_active=True).select_related("utilisateur")
+    if exclure is not None:
+        profils = profils.exclude(utilisateur=exclure)
+    resultats = sorted(((p.score(encodage), p) for p in profils), key=lambda r: r[0], reverse=True)
+    if not resultats:
+        return None, 0.0, 0.0
+    deuxieme = resultats[1][0] if len(resultats) > 1 else 0.0
+    return resultats[0][1], resultats[0][0], deuxieme
 
 
 def _lire_json(request):
@@ -77,6 +94,11 @@ class EnregistrerVisageView(TemplateView):
             if similarite(encodages[0], autre) < seuil():
                 return erreur("Les photos ne semblent pas montrer la même personne. Recommencez.")
 
+        # Anti-fraude : un même visage ne peut pas être associé à deux comptes
+        autre, score_autre, _ = identifier(encodages[0], exclure=request.user)
+        if autre and score_autre >= seuil():
+            return erreur("Ce visage est déjà associé à un autre compte. Contactez un administrateur.")
+
         ProfilFacial.objects.update_or_create(
             utilisateur=request.user,
             defaults={"encodages": encodages, "consentement_le": timezone.now()},
@@ -91,8 +113,6 @@ class SupprimerVisageView(View):
         messages.success(request, "Vos données faciales ont été supprimées.")
         return redirect("mon-profil")
 
-
-# ---------- Connexion par reconnaissance faciale ----------
 
 # ---------- Connexion par reconnaissance faciale ----------
 
@@ -122,8 +142,8 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
         donnees = _lire_json(request)
         nom = (donnees.get("username") or "").strip()
         image_face, image_tournee = donnees.get("image_face"), donnees.get("image_tournee")
-        if not nom or not image_face or not image_tournee:
-            return erreur("Saisissez votre nom d'utilisateur et laissez la caméra prendre les deux photos.")
+        if not image_face or not image_tournee:
+            return erreur("Laissez la caméra prendre les deux photos.")
 
         try:
             face = analyser_visage(image_face)
@@ -137,11 +157,21 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
         if similarite(face["encodage"], tournee["encodage"]) < seuil():
             return self._echec("Les deux photos ne montrent pas la même personne.", nom)
 
-        user = Utilisateur.objects.filter(username__iexact=nom, is_active=True).select_related("profil_facial").first()
-        profil = getattr(user, "profil_facial", None) if user else None
-        if not profil or profil.score(face["encodage"]) < seuil():
-            # Message volontairement identique dans les deux cas : on ne révèle pas quels comptes existent
-            return self._echec("Visage non reconnu pour ce compte.", nom, user)
+        if nom:
+            # Vérification « 1 pour 1 » : ce visage est-il celui de ce compte ?
+            user = Utilisateur.objects.filter(username__iexact=nom, is_active=True).select_related("profil_facial").first()
+            profil = getattr(user, "profil_facial", None) if user else None
+            if not profil or profil.score(face["encodage"]) < seuil():
+                # Message volontairement identique dans les deux cas : on ne révèle pas quels comptes existent
+                return self._echec("Visage non reconnu pour ce compte.", nom, user)
+        else:
+            # Identification « 1 parmi N » : l'IA retrouve seule le compte
+            profil, score, deuxieme = identifier(face["encodage"])
+            if not profil or score < seuil():
+                return self._echec("Visage non reconnu. Enregistrez d'abord votre visage depuis votre profil.")
+            if score - deuxieme < MARGE_IDENTIFICATION:
+                return self._echec("Plusieurs comptes ressemblent à ce visage : saisissez votre nom d'utilisateur.")
+            user = profil.utilisateur
 
         if not user.email_verifie and not user.is_superuser:
             return erreur("Vous devez d'abord confirmer votre adresse e-mail.", 403)
@@ -161,3 +191,25 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
         request.methode_connexion = "VISAGE"  # lu par le journal des connexions
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
         return JsonResponse({"ok": True, "redirection": reverse("index")})
+
+
+# ---------- Contrôle des visages en double (administrateur) ----------
+
+class VisagesDoublonsView(PermissionRequiredMixin, TemplateView):
+    permission_required = "accounts.gerer_utilisateurs"
+    template_name = "accounts/visages_doublons.html"
+
+    def get_context_data(self, **kwargs):
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        profils = list(ProfilFacial.objects.select_related("utilisateur"))
+        doublons = []
+        for i, a in enumerate(profils):
+            for b in profils[i + 1:]:
+                score = max(similarite(x, y) for x in a.encodages for y in b.encodages)
+                if score >= seuil():
+                    doublons.append({"a": a.utilisateur, "b": b.utilisateur, "score": round(score * 100)})
+        context.update({
+            "doublons": sorted(doublons, key=lambda d: d["score"], reverse=True),
+            "nb_profils": len(profils),
+        })
+        return context
