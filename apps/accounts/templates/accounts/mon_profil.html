@@ -202,6 +202,46 @@
       </div>
     </div>
 
+        <!-- Carte : Reconnaissance faciale -->
+    <div class="card mb-6">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Reconnaissance faciale</h5>
+        {% if request.user.profil_facial %}
+          <span class="badge bg-label-success">Activée</span>
+        {% else %}
+          <span class="badge bg-label-secondary">Non configurée</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if request.user.profil_facial %}
+          <p class="mb-2">Vous pouvez vous connecter avec la caméra, sans mot de passe.</p>
+          <p class="mb-5 small text-body-secondary">
+            Enregistré le {{ request.user.profil_facial.cree_le|date:"d/m/Y" }}
+            · Dernière utilisation : {{ request.user.profil_facial.derniere_utilisation|date:"d/m/Y H:i"|default:"jamais" }}
+          </p>
+          <div class="d-flex flex-wrap gap-3">
+            <a href="{% url 'enregistrer-visage' %}" class="btn btn-outline-primary">
+              <i class="icon-base ri ri-refresh-line me-1"></i> Mettre à jour mon visage
+            </a>
+            <form method="post" action="{% url 'supprimer-visage' %}"
+                  data-confirm="Vous ne pourrez plus vous connecter avec la caméra. Vos données faciales seront effacées définitivement."
+                  data-confirm-titre="Supprimer mes données faciales ?"
+                  data-confirm-bouton="Supprimer">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger">
+                <i class="icon-base ri ri-delete-bin-line me-1"></i> Supprimer mes données faciales
+              </button>
+            </form>
+          </div>
+        {% else %}
+          <p class="mb-5">Enregistrez votre visage pour vous connecter avec la caméra. Aucune photo n'est conservée : seule une signature numérique de votre visage est enregistrée.</p>
+          <a href="{% url 'enregistrer-visage' %}" class="btn btn-primary">
+            <i class="icon-base ri ri-camera-line me-1"></i> Enregistrer mon visage
+          </a>
+        {% endif %}
+      </div>
+    </div>
+
     <!-- Carte 4 : Supprimer le compte -->
     <div class="card border border-danger">
       <h5 class="card-header text-danger">Supprimer mon compte</h5>

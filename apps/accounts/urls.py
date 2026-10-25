@@ -1,6 +1,6 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
-from . import views
+from . import views, views_visage
 
 urlpatterns = [
     path("connexion/", views.ConnexionView.as_view(), name="connexion"),
@@ -36,4 +36,9 @@ urlpatterns = [
     path("profil/2fa/codes/", views.CodesRecuperationView.as_view(), name="codes-recuperation"),
     path("profil/2fa/regenerer/", views.RegenererCodesView.as_view(), name="regenerer-codes"),
     path("profil/2fa/desactiver/", views.Desactiver2FAView.as_view(), name="desactiver-2fa"),
+    
+        # Reconnaissance faciale
+    path("connexion/visage/", views_visage.ConnexionVisageView.as_view(), name="connexion-visage"),
+    path("profil/visage/", views_visage.EnregistrerVisageView.as_view(), name="enregistrer-visage"),
+    path("profil/visage/supprimer/", views_visage.SupprimerVisageView.as_view(), name="supprimer-visage"),
 ]
