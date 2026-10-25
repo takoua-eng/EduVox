@@ -19,6 +19,7 @@ from ai_services import VisageErreur, analyser_visage, similarite
 from web_project import TemplateLayout
 
 from .models import ProfilFacial, Utilisateur
+from .securite import enregistrer_connexion
 from .views import SansMenuMixin
 
 NB_CAPTURES = 3          # photos prises à l'enregistrement
@@ -93,6 +94,8 @@ class SupprimerVisageView(View):
 
 # ---------- Connexion par reconnaissance faciale ----------
 
+# ---------- Connexion par reconnaissance faciale ----------
+
 @method_decorator(login_not_required, name="dispatch")
 class ConnexionVisageView(SansMenuMixin, TemplateView):
     template_name = "accounts/connexion_visage.html"
@@ -101,7 +104,9 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
         fin = self.request.session.get("visage_blocage_jusqua", 0)
         return time.time() < fin
 
-    def _echec(self, message):
+    def _echec(self, message, nom="", utilisateur=None):
+        enregistrer_connexion(self.request, utilisateur=utilisateur, nom_saisi=nom, succes=False,
+                              methode="VISAGE", motif=message)
         essais = self.request.session.get("visage_essais", 0) + 1
         self.request.session["visage_essais"] = essais
         if essais >= MAX_ESSAIS:
@@ -128,15 +133,15 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
 
         # Détection de vivacité : une photo imprimée ou un écran ne peut pas tourner la tête
         if abs(tournee["lacet"] - face["lacet"]) < ECART_LACET_MIN:
-            return self._echec("Mouvement de tête non détecté : tournez davantage la tête lors de la 2e photo.")
+            return self._echec("Mouvement de tête non détecté : tournez davantage la tête lors de la 2e photo.", nom)
         if similarite(face["encodage"], tournee["encodage"]) < seuil():
-            return self._echec("Les deux photos ne montrent pas la même personne.")
+            return self._echec("Les deux photos ne montrent pas la même personne.", nom)
 
         user = Utilisateur.objects.filter(username__iexact=nom, is_active=True).select_related("profil_facial").first()
         profil = getattr(user, "profil_facial", None) if user else None
         if not profil or profil.score(face["encodage"]) < seuil():
             # Message volontairement identique dans les deux cas : on ne révèle pas quels comptes existent
-            return self._echec("Visage non reconnu pour ce compte.")
+            return self._echec("Visage non reconnu pour ce compte.", nom, user)
 
         if not user.email_verifie and not user.is_superuser:
             return erreur("Vous devez d'abord confirmer votre adresse e-mail.", 403)
@@ -150,7 +155,9 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
             request.session["2fa_user_id"] = user.pk
             request.session["2fa_next"] = reverse("index")
             request.session["2fa_essais"] = 0
+            request.session["2fa_methode"] = "VISAGE"
             return JsonResponse({"ok": True, "redirection": reverse("connexion-2fa")})
 
+        request.methode_connexion = "VISAGE"  # lu par le journal des connexions
         login(request, user, backend="django.contrib.auth.backends.ModelBackend")
         return JsonResponse({"ok": True, "redirection": reverse("index")})

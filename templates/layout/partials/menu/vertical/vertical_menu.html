@@ -143,6 +143,12 @@
         <div class="text-truncate">Rôles et permissions</div>
       </a>
     </li>
+        <li class="menu-item {% if request.resolver_match.url_name == 'journal-connexions' %}active{% endif %}">
+      <a href="{% url 'journal-connexions' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-history-line"></i>
+        <div class="text-truncate">Journal des connexions</div>
+      </a>
+    </li>
     {% endif %}
 
   </ul>
