@@ -1,0 +1,15 @@
+Bonjour {{ user.first_name|default:user.username }},
+
+Notre système de sécurité a détecté une connexion inhabituelle à votre compte EduVox :
+
+- Date : {{ entree.date|date:"d/m/Y à H:i" }}
+- Appareil : {{ entree.appareil }}
+- Adresse IP : {{ entree.ip|default:"inconnue" }}
+- Raisons : {% for r in entree.raisons_risque %}{{ r }}{% if not forloop.last %}, {% endif %}{% endfor %}
+
+Si c'était bien vous, vous pouvez ignorer ce message.
+
+Sinon, changez immédiatement votre mot de passe et activez la double authentification :
+{{ lien_profil }}
+
+L'équipe EduVox

@@ -1,0 +1,43 @@
+<tr class="{% if c.suspect %}table-warning{% endif %}">
+  <td class="text-nowrap">{{ c.date|date:"d/m/Y H:i" }}</td>
+  {% if afficher_utilisateur %}
+  <td>
+    <strong>{{ c.utilisateur.username|default:c.nom_saisi|default:"—" }}</strong>
+    {% if not c.utilisateur %}<br /><small class="text-body-secondary">compte inconnu</small>{% endif %}
+  </td>
+  {% endif %}
+  <td>
+    {% if c.methode == "VISAGE" %}
+      <span class="badge bg-label-info"><i class="icon-base ri ri-user-smile-line me-1"></i>Visage</span>
+    {% else %}
+      <span class="badge bg-label-secondary"><i class="icon-base ri ri-key-2-line me-1"></i>Mot de passe</span>
+    {% endif %}
+    {% if c.double_auth %}<span class="badge bg-label-primary ms-1">+ 2FA</span>{% endif %}
+  </td>
+  <td>
+    {{ c.appareil|default:"—" }}<br />
+    <small class="text-body-secondary">{{ c.ip|default:"" }}</small>
+  </td>
+  <td>
+    {% if c.succes %}
+      <span class="badge bg-label-success">Réussie</span>
+    {% else %}
+      <span class="badge bg-label-danger">Échouée</span><br />
+      <small class="text-body-secondary">{{ c.motif }}</small>
+    {% endif %}
+  </td>
+  <td>
+    {% if c.succes and c.score_risque is not None %}
+      {% if c.suspect %}
+        <span class="badge bg-warning"><i class="icon-base ri ri-alarm-warning-line me-1"></i>Suspecte · {{ c.score_risque }}/100</span>
+      {% elif c.score_risque > 0 %}
+        <span class="badge bg-label-warning">Risque {{ c.score_risque }}/100</span>
+      {% else %}
+        <span class="badge bg-label-success">Normale</span>
+      {% endif %}
+      {% for raison in c.raisons_risque %}<br /><small class="text-body-secondary">• {{ raison }}</small>{% endfor %}
+    {% else %}
+      <span class="text-body-secondary">—</span>
+    {% endif %}
+  </td>
+</tr>

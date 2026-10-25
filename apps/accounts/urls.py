@@ -1,6 +1,6 @@
 from django.contrib.auth.views import LogoutView
 from django.urls import path
-from . import views, views_visage
+from . import views, views_securite, views_visage
 
 urlpatterns = [
     path("connexion/", views.ConnexionView.as_view(), name="connexion"),
@@ -41,4 +41,9 @@ urlpatterns = [
     path("connexion/visage/", views_visage.ConnexionVisageView.as_view(), name="connexion-visage"),
     path("profil/visage/", views_visage.EnregistrerVisageView.as_view(), name="enregistrer-visage"),
     path("profil/visage/supprimer/", views_visage.SupprimerVisageView.as_view(), name="supprimer-visage"),
+    
+    
+        # Journal des connexions
+    path("profil/connexions/", views_securite.MesConnexionsView.as_view(), name="mes-connexions"),
+    path("journal-connexions/", views_securite.JournalConnexionsView.as_view(), name="journal-connexions"),
 ]

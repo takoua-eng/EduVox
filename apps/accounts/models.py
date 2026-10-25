@@ -76,3 +76,33 @@ class ProfilFacial(models.Model):
         """Meilleure similarité entre un nouvel encodage et les captures enregistrées."""
         from ai_services import similarite
         return max(similarite(encodage, reference) for reference in self.encodages)
+    
+class JournalConnexion(models.Model):
+    """Historique de toutes les tentatives de connexion (réussies ou non)."""
+
+    class Methode(models.TextChoices):
+        MOT_DE_PASSE = "MOT_DE_PASSE", "Mot de passe"
+        VISAGE = "VISAGE", "Visage"
+
+    utilisateur = models.ForeignKey(Utilisateur, null=True, blank=True, on_delete=models.CASCADE, related_name="connexions")
+    nom_saisi = models.CharField(max_length=150, blank=True)
+    date = models.DateTimeField(auto_now_add=True, db_index=True)
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    appareil = models.CharField(max_length=100, blank=True)
+    navigateur = models.TextField(blank=True)
+    methode = models.CharField(max_length=20, choices=Methode.choices, default=Methode.MOT_DE_PASSE)
+    double_auth = models.BooleanField(default=False)
+    succes = models.BooleanField(default=False)
+    motif = models.CharField(max_length=200, blank=True)
+    score_risque = models.PositiveSmallIntegerField(null=True, blank=True)
+    raisons_risque = models.JSONField(default=list, blank=True)
+    suspect = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-date"]
+        verbose_name = "connexion"
+        verbose_name_plural = "journal des connexions"
+
+    def __str__(self):
+        etat = "réussie" if self.succes else "échouée"
+        return f"{self.nom_saisi or self.utilisateur} – {etat} – {self.date:%d/%m/%Y %H:%M}"

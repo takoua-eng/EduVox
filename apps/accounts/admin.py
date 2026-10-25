@@ -1,7 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Enseignant, Etudiant, ProfilFacial, Utilisateur
-
+from .models import Enseignant, Etudiant, JournalConnexion, ProfilFacial, Utilisateur
 
 @admin.register(Utilisateur)
 class UtilisateurAdmin(UserAdmin):
@@ -17,6 +16,18 @@ class ProfilFacialAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False  # un visage s'enregistre uniquement par l'utilisateur, avec la caméra
+    
+@admin.register(JournalConnexion)
+class JournalConnexionAdmin(admin.ModelAdmin):
+    list_display = ["date", "nom_saisi", "methode", "succes", "score_risque", "suspect", "appareil", "ip"]
+    list_filter = ["succes", "suspect", "methode"]
+    search_fields = ["nom_saisi", "ip"]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False  # un journal ne se modifie pas
     
 admin.site.register(Etudiant)
 admin.site.register(Enseignant)
