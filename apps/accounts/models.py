@@ -55,3 +55,24 @@ class CodeRecuperation(models.Model):
 
     def __str__(self):
         return f"Code de {self.utilisateur.username} ({'utilisé' if self.utilise else 'disponible'})"
+class ProfilFacial(models.Model):
+    """Visage enregistré d'un utilisateur. On ne stocke que les encodages, jamais les photos."""
+
+    utilisateur = models.OneToOneField(Utilisateur, on_delete=models.CASCADE, related_name="profil_facial")
+    encodages = models.JSONField(help_text="Encodages SFace (128 nombres) des captures d'enregistrement")
+    consentement_le = models.DateTimeField()
+    cree_le = models.DateTimeField(auto_now_add=True)
+    modifie_le = models.DateTimeField(auto_now=True)
+    derniere_utilisation = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "profil facial"
+        verbose_name_plural = "profils faciaux"
+
+    def __str__(self):
+        return f"Visage de {self.utilisateur.username}"
+
+    def score(self, encodage):
+        """Meilleure similarité entre un nouvel encodage et les captures enregistrées."""
+        from ai_services import similarite
+        return max(similarite(encodage, reference) for reference in self.encodages)

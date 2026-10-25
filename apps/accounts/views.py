@@ -46,12 +46,16 @@ class ConnexionView(LoginView):
     def form_valid(self, form):
         user = form.get_user()
         if user.double_auth_active:
-            # Mot de passe correct, mais on attend encore le code 2FA
             self.request.session["2fa_user_id"] = user.pk
             self.request.session["2fa_next"] = self.get_success_url()
             self.request.session["2fa_essais"] = 0
             return redirect("connexion-2fa")
-        return super().form_valid(form)
+        reponse = super().form_valid(form)
+        if self.request.POST.get("se_souvenir"):
+            self.request.session.set_expiry(14 * 24 * 3600)  # 2 semaines
+        else:
+            self.request.session.set_expiry(0)               # fin de session à la fermeture du navigateur
+        return reponse
     
     
     

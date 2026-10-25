@@ -206,3 +206,9 @@ CELERY_TASK_EAGER_PROPAGATES = False
 
 # Module cours : taille maximale d'un fichier envoyé (en Mo)
 COURS_TAILLE_MAX_MO = int(os.environ.get("COURS_TAILLE_MAX_MO", "50"))
+# Reconnaissance faciale : seuil de similarité (plus haut = plus strict)
+FACE_SEUIL = float(os.environ.get("FACE_SEUIL", "0.363"))
+
+# Sessions : déconnexion automatique après 30 minutes d'inactivité
+SESSION_COOKIE_AGE = 30 * 60
+SESSION_SAVE_EVERY_REQUEST = True   # chaque clic repousse l'expiration
