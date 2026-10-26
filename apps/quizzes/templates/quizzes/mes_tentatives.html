@@ -1,0 +1,89 @@
+{% extends layout_path %}
+
+{% block title %}Ma progression - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}
+<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module">
+{% include "accounts/_messages.html" %}
+
+<section class="qz-hero mb-6" aria-labelledby="titre-page">
+  <div class="d-flex flex-wrap justify-content-between gap-4 position-relative" style="z-index:1">
+    <div>
+      <h1 id="titre-page" class="h3 mb-1">Ma progression</h1>
+      <p class="mb-0">Tous tes résultats, ta tendance et tes bilans IA au même endroit.</p>
+    </div>
+    <a href="{% url 'liste-quiz' %}" class="btn btn-light align-self-start"><i class="icon-base ri ri-play-circle-line me-1" aria-hidden="true"></i> Passer un quiz</a>
+  </div>
+  <div class="qz-hero-stats position-relative" style="z-index:1">
+    <div class="qz-hero-stat"><strong>{{ stats.nb }}</strong><span>tentative{{ stats.nb|pluralize }} sur {{ stats.quiz }} quiz</span></div>
+    <div class="qz-hero-stat"><strong>{% if stats.moyenne is not None %}{{ stats.moyenne }} %{% else %}—{% endif %}</strong><span>score moyen</span></div>
+    <div class="qz-hero-stat"><strong>{% if stats.meilleur is not None %}{{ stats.meilleur }} %{% else %}—{% endif %}</strong><span>meilleur score</span></div>
+    <div class="qz-hero-stat"><strong>{% if stats.tendance is not None %}{% if stats.tendance > 0 %}+{% endif %}{{ stats.tendance }} pts{% else %}—{% endif %}</strong><span>tendance{% if stats.tendance is not None %} ({% if stats.tendance > 0 %}en progrès{% elif stats.tendance < 0 %}en baisse{% else %}stable{% endif %}){% endif %}</span></div>
+    <div class="qz-hero-stat"><strong>{{ stats.indices }}</strong><span>indice{{ stats.indices|pluralize }} IA utilisé{{ stats.indices|pluralize }}</span></div>
+  </div>
+</section>
+
+{% if stats.nb >= 2 %}
+<section class="card mb-6" aria-labelledby="titre-courbe"><div class="card-body">
+  <h2 id="titre-courbe" class="qz-section-titre mb-3"><i class="icon-base ri ri-line-chart-line" aria-hidden="true"></i> Évolution de mes scores</h2>
+  <div id="graphiqueProgression" class="qz-graphique" role="img" aria-label="Courbe de tes scores dans l'ordre chronologique ; le détail est dans le tableau ci-dessous"></div>
+</div></section>
+{% endif %}
+
+<section class="card" aria-labelledby="titre-historique">
+  <div class="card-body pb-0"><h2 id="titre-historique" class="qz-section-titre"><i class="icon-base ri ri-history-line" aria-hidden="true"></i> Historique</h2></div>
+  {% if tentatives %}
+  <div class="table-responsive">
+    <table class="table table-hover qz-tableau mb-0">
+      <thead><tr><th scope="col">Quiz</th><th scope="col">Cours</th><th scope="col">N°</th><th scope="col">Date</th><th scope="col">État</th><th scope="col">Score</th><th scope="col" class="text-end">Détail</th></tr></thead>
+      <tbody>
+        {% for tentative in tentatives %}
+        <tr>
+          <td class="fw-medium">{{ tentative.quiz.titre }}</td>
+          <td>{{ tentative.quiz.cours.titre|default:tentative.quiz.titre_cours }}</td>
+          <td>{{ tentative.numero }}</td>
+          <td>{{ tentative.date_soumission|default:tentative.date_debut|date:"d/m/Y H:i" }}</td>
+          <td>{% include "quizzes/_badge_tentative.html" %}</td>
+          <td>{% include "quizzes/_score.html" %}</td>
+          <td class="text-end"><a href="{% url 'tentative' tentative.pk %}" class="btn btn-sm btn-outline-primary">{% if tentative.statut == 'en_cours' %}Reprendre{% else %}Résultat et bilan{% endif %}<span class="visually-hidden"> : {{ tentative.quiz.titre }}, tentative {{ tentative.numero }}</span></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "quizzes/_pagination.html" %}
+  {% else %}
+  <div class="qz-vide">
+    <div class="qz-vide-icone" aria-hidden="true"><i class="icon-base ri ri-rocket-2-line"></i></div>
+    <h2 class="h5">Tu n'as encore passé aucun quiz</h2>
+    <a href="{% url 'liste-quiz' %}" class="btn btn-primary mt-2">Voir les quiz disponibles</a>
+  </div>
+  {% endif %}
+</section>
+</div>
+{{ graphique|json_script:"donnees-graphique" }}
+{% endblock content %}
+
+{% block page_js %}
+{% if stats.nb >= 2 %}
+<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+<script>
+(function () {
+  if (typeof ApexCharts === "undefined") return;
+  const d = JSON.parse(document.getElementById("donnees-graphique").textContent);
+  new ApexCharts(document.getElementById("graphiqueProgression"), {
+    chart: { type: "line", height: 260, toolbar: { show: false }, fontFamily: "Inter, sans-serif",
+             animations: { enabled: !window.matchMedia("(prefers-reduced-motion: reduce)").matches } },
+    series: [{ name: "Score (%)", data: d.scores }],
+    xaxis: { categories: d.dates }, yaxis: { min: 0, max: 100, labels: { formatter: function (v) { return v + " %"; } } },
+    colors: ["#6d28d9"], stroke: { curve: "smooth", width: 3 }, markers: { size: 5 },
+    tooltip: { x: { formatter: function (v, o) { return d.quiz[o.dataPointIndex] + " · " + d.dates[o.dataPointIndex]; } } },
+    annotations: { yaxis: [{ y: 50, borderColor: "#d97706", label: { text: "50 %", style: { background: "#d97706", color: "#fff" } } }] },
+    grid: { borderColor: "#ece9f6" }
+  }).render();
+})();
+</script>
+{% endif %}
+{% endblock page_js %}

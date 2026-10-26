@@ -1,0 +1,31 @@
+{% extends layout_path %}
+
+{% block title %}Vérification de certificat - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<main class="quiz-module container-xxl py-6" style="max-width: 720px">
+  <div class="text-center mb-6">{% include 'partials/logo.html' %}</div>
+  <section class="card" aria-labelledby="titre-page">
+    <div class="card-body text-center p-7">
+      {% if valide %}
+        <div class="qz-vide-icone" style="background:#d1fae5;color:var(--qz-vert)" aria-hidden="true"><i class="icon-base ri ri-shield-check-line"></i></div>
+        <h1 id="titre-page" class="h4 mb-2">Certificat authentique</h1>
+        <p class="quiz-aide mb-5">Ce certificat a bien été délivré par EduVox et le résultat n'a pas été modifié.</p>
+        <dl class="row text-start mb-0 mx-auto" style="max-width: 460px">
+          <dt class="col-5">Titulaire</dt><dd class="col-7">{{ tentative.etudiant.get_full_name|default:tentative.etudiant.username }}</dd>
+          <dt class="col-5">Évaluation</dt><dd class="col-7">{{ tentative.quiz.titre }}</dd>
+          <dt class="col-5">Cours</dt><dd class="col-7">{{ tentative.quiz.cours.titre|default:tentative.quiz.titre_cours }}</dd>
+          <dt class="col-5">Score</dt><dd class="col-7"><strong>{{ tentative.pourcentage }} %</strong> · mention {{ mention }}</dd>
+          <dt class="col-5">Date</dt><dd class="col-7">{{ tentative.date_soumission|date:"d/m/Y" }}</dd>
+          <dt class="col-5">Référence</dt><dd class="col-7"><code>{{ code }}</code></dd>
+        </dl>
+      {% else %}
+        <div class="qz-vide-icone" style="background:#fee2e2;color:var(--qz-rouge)" aria-hidden="true"><i class="icon-base ri ri-shield-cross-line"></i></div>
+        <h1 id="titre-page" class="h4 mb-2">Certificat non valide</h1>
+        <p class="quiz-aide mb-0">Ce lien ne correspond à aucun certificat EduVox valide : il a pu être modifié, ou le résultat a été révisé depuis sa délivrance.</p>
+      {% endif %}
+    </div>
+  </section>
+</main>
+{% endblock content %}

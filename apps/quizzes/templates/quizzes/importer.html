@@ -1,0 +1,109 @@
+{% extends layout_path %}
+
+{% block title %}Importer des questions - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module">
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'liste-quiz' %}">Quiz</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'detail-quiz' quiz.pk %}">{{ quiz.titre }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Import intelligent</li>
+  </ol>
+</nav>
+{% include "accounts/_messages.html" %}
+
+<section class="qz-hero mb-6" aria-labelledby="titre-page">
+  <div class="position-relative" style="z-index:1">
+    <span class="quiz-badge quiz-badge--ia mb-3"><i class="icon-base ri ri-magic-line" aria-hidden="true"></i> Import intelligent par IA</span>
+    <h1 id="titre-page" class="h3 mb-1">Importer des questions existantes</h1>
+    <p class="mb-0" style="max-width:700px">Collez un ancien examen, une série d'exercices ou un document Word/PDF copié : l'IA reconnaît les questions, les choix et les bonnes réponses. Vous vérifiez l'aperçu avant tout ajout.</p>
+  </div>
+</section>
+
+{% if not apercu %}
+<section class="card" aria-labelledby="titre-texte"><div class="card-body">
+  <h2 id="titre-texte" class="qz-section-titre mb-3"><i class="icon-base ri ri-file-text-line" aria-hidden="true"></i> 1. Collez le texte</h2>
+  {% if not ia_disponible %}<div class="alert alert-warning" role="alert">L'IA n'est pas configurée sur ce serveur : l'import intelligent est indisponible.</div>{% endif %}
+  <form method="post" id="formImport">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="analyser" />
+    <label for="texte" class="form-label">Texte des questions <span aria-hidden="true">*</span></label>
+    <textarea name="texte" id="texte" rows="14" maxlength="{{ texte_max }}" required class="form-control font-monospace"
+              aria-describedby="aide-texte" placeholder="1) Quelle commande crée une migration ?
+a) migrate   b) makemigrations (*)   c) runserver
+
+2) Vrai ou faux : l'ORM protège contre les injections SQL. Réponse : vrai
+
+3) Expliquez le rôle du jeton CSRF. (2 points)">{{ texte }}</textarea>
+    <div id="aide-texte" class="form-text quiz-aide">
+      Indiquez si possible les bonnes réponses (astérisque, « (x) », « Réponse : B » ou corrigé en fin de texte). Sinon l'IA les déduit et vous le signale.
+      {{ texte_max }} caractères maximum · {{ places }} question{{ places|pluralize }} peuvent encore être ajoutée{{ places|pluralize }} à ce quiz.
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-3 mt-4">
+      <button type="submit" class="btn btn-primary" id="btnAnalyser" {% if not ia_disponible %}disabled{% endif %}>
+        <span class="spinner-border spinner-border-sm me-1 d-none" aria-hidden="true" id="spinnerImport"></span>
+        <i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> Analyser avec l'IA
+      </button>
+      <a href="{% url 'detail-quiz' quiz.pk %}" class="btn btn-outline-secondary">Annuler</a>
+      <span id="etatImport" role="status" aria-live="polite" class="small"></span>
+    </div>
+  </form>
+</div></section>
+{% else %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="confirmer" />
+  <section class="card mb-4" aria-labelledby="titre-apercu"><div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <h2 id="titre-apercu" class="qz-section-titre mb-0"><i class="icon-base ri ri-eye-line" aria-hidden="true"></i> 2. Vérifiez l'aperçu</h2>
+      <span class="small quiz-aide">{{ apercu|length }} question{{ apercu|length|pluralize }} reconnue{{ apercu|length|pluralize }} en {{ duree_ms }} ms{% if rejets %} · {{ rejets|length }} écartée{{ rejets|length|pluralize }}{% endif %}</span>
+    </div>
+    {% if rejets %}<details class="small mt-2"><summary>Questions écartées par la validation</summary><ul class="mb-0">{% for r in rejets %}<li>{{ r }}</li>{% endfor %}</ul></details>{% endif %}
+  </div></section>
+
+  {% for q in apercu %}
+  <article class="card mb-3"><div class="card-body">
+    <div class="d-flex gap-3">
+      <div class="form-check mt-1">
+        <input class="form-check-input" type="checkbox" name="selection" value="{{ forloop.counter0 }}" id="sel{{ forloop.counter0 }}" checked />
+        <label class="visually-hidden" for="sel{{ forloop.counter0 }}">Importer la question {{ forloop.counter }}</label>
+      </div>
+      <div class="flex-grow-1">
+        <div class="d-flex flex-wrap gap-2 mb-2">
+          <span class="quiz-badge quiz-badge--neutre">{% if q.type_question == 'qcm' %}QCM{% elif q.type_question == 'vrai_faux' %}Vrai/Faux{% else %}Ouverte{% endif %}</span>
+          <span class="quiz-badge quiz-badge--neutre">{{ q.points }} pt</span>
+          {% if not q.reponse_indiquee %}<span class="quiz-badge quiz-badge--attente"><i class="icon-base ri ri-error-warning-line" aria-hidden="true"></i> Réponse déduite par l'IA : à vérifier</span>{% endif %}
+        </div>
+        <p class="fw-medium mb-2">{{ q.enonce }}</p>
+        {% if q.choix %}
+        <ul class="list-unstyled d-grid gap-1 mb-0">{% for c in q.choix %}<li class="{% if c.est_correct %}quiz-correct{% endif %}"><i class="icon-base ri {% if c.est_correct %}ri-checkbox-circle-fill{% else %}ri-checkbox-blank-circle-line{% endif %}" aria-hidden="true"></i> {{ c.texte }}{% if c.est_correct %} <span class="small">(bonne réponse)</span>{% endif %}</li>{% endfor %}</ul>
+        {% else %}<p class="small mb-0"><strong>Attendu :</strong> {{ q.reponse_attendue }}</p>{% endif %}
+      </div>
+    </div>
+  </div></article>
+  {% endfor %}
+
+  <div class="d-flex flex-wrap gap-2 mb-6">
+    <button type="submit" class="btn btn-primary"><i class="icon-base ri ri-download-2-line me-1" aria-hidden="true"></i> Ajouter les questions cochées</button>
+    <a href="{% url 'importer-questions' quiz.pk %}" class="btn btn-outline-secondary">Recommencer</a>
+  </div>
+</form>
+{% endif %}
+</div>
+{% endblock content %}
+
+{% block page_js %}
+<script>
+  (function () {
+    const form = document.getElementById("formImport");
+    if (!form) return;
+    form.addEventListener("submit", function () {
+      document.getElementById("btnAnalyser").disabled = true;
+      document.getElementById("spinnerImport").classList.remove("d-none");
+      document.getElementById("etatImport").textContent = "L'IA analyse le texte… (10 à 30 secondes)";
+    });
+  })();
+</script>
+{% endblock page_js %}

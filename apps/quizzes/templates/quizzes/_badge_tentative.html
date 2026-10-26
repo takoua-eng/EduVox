@@ -1,0 +1,4 @@
+<span class="quiz-badge {% if tentative.statut == 'corrigee' %}quiz-badge--succes{% elif tentative.statut == 'soumise' %}quiz-badge--attente{% else %}quiz-badge--info{% endif %}">
+  <i class="icon-base ri {% if tentative.statut == 'corrigee' %}ri-check-double-line{% elif tentative.statut == 'soumise' %}ri-time-line{% else %}ri-edit-line{% endif %} icon-16px" aria-hidden="true"></i>
+  {{ tentative.get_statut_display }}
+</span>

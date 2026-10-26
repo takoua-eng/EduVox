@@ -1,0 +1,4 @@
+<span class="quiz-badge {% if quiz.statut == 'publie' %}quiz-badge--succes{% elif quiz.statut == 'archive' %}quiz-badge--neutre{% else %}quiz-badge--info{% endif %}">
+  <i class="icon-base ri {% if quiz.statut == 'publie' %}ri-eye-line{% elif quiz.statut == 'archive' %}ri-archive-line{% else %}ri-draft-line{% endif %} icon-16px" aria-hidden="true"></i>
+  {{ quiz.get_statut_display }}
+</span>

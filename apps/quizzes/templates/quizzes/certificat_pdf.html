@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Certificat de réussite - {{ quiz.titre }}</title>
+  <style>
+    @page { size: a4 landscape; margin: 1.2cm; }
+    body { font-family: Helvetica; color: #27223a; }
+    .cadre { border: 3pt solid #6d28d9; padding: 26pt 34pt; }
+    .marque { color: #6d28d9; font-size: 12pt; font-weight: bold; letter-spacing: 3px; }
+    .titre { font-size: 30pt; font-weight: bold; color: #4c1d95; margin: 10pt 0 2pt 0; }
+    .sous-titre { font-size: 12pt; color: #57526b; }
+    .nom { font-size: 26pt; font-weight: bold; color: #27223a; margin: 18pt 0 6pt 0; }
+    .texte { font-size: 12.5pt; line-height: 1.5; }
+    .score { font-size: 22pt; font-weight: bold; color: #047857; }
+    .mention { font-size: 13pt; font-weight: bold; color: #6d28d9; }
+    .petit { font-size: 9pt; color: #57526b; }
+    .code { font-family: Courier; font-size: 10pt; color: #27223a; }
+    td { vertical-align: top; }
+  </style>
+</head>
+<body>
+  <div class="cadre">
+    <table width="100%"><tr>
+      <td width="72%">
+        <div class="marque">EDUVOX</div>
+        <div class="titre">Certificat de réussite</div>
+        <div class="sous-titre">Évaluation en ligne · {{ quiz.cours.titre|default:quiz.titre_cours }}</div>
+        <div class="nom">{{ etudiant.get_full_name|default:etudiant.username }}</div>
+        <div class="texte">
+          a réussi l'évaluation <b>« {{ quiz.titre }} »</b><br />
+          le {{ tentative.date_soumission|date:"d/m/Y" }}, avec le score de
+        </div>
+        <p><span class="score">{{ tentative.pourcentage }} %</span>
+          &nbsp;&nbsp;<span class="mention">Mention {{ mention }}</span>
+          &nbsp;&nbsp;<span class="petit">({{ tentative.score|floatformat:"-2" }} / {{ tentative.score_max|floatformat:"-2" }} points · difficulté {{ quiz.get_difficulte_display|lower }})</span></p>
+        <p class="petit">Enseignant : {{ quiz.enseignant.utilisateur.get_full_name|default:quiz.enseignant.utilisateur.username }}</p>
+      </td>
+      <td width="28%" align="center">
+        <img src="data:image/png;base64,{{ qr }}" width="150" height="150" alt="QR code de vérification" />
+        <p class="petit">Scannez pour vérifier<br />l'authenticité du certificat</p>
+        <p class="code">Réf. {{ code }}</p>
+      </td>
+    </tr></table>
+    <p class="petit">Certificat signé numériquement par EduVox. Vérification : {{ lien }}</p>
+  </div>
+</body>
+</html>

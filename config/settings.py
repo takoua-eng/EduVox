@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "apps.pages",
     "apps.accounts",
     "apps.courses",
+    "apps.quizzes",
 
 ]
 

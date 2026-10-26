@@ -1,0 +1,135 @@
+{% extends layout_path %}
+
+{% block title %}Pilotage des quiz - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}
+<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module">
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'liste-quiz' %}">Quiz</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Pilotage</li>
+  </ol>
+</nav>
+
+<section class="qz-hero mb-6" aria-labelledby="titre-page">
+  <div class="d-flex flex-wrap justify-content-between gap-4 position-relative" style="z-index:1">
+    <div>
+      <span class="quiz-badge quiz-badge--ia mb-3"><i class="icon-base ri ri-dashboard-3-line" aria-hidden="true"></i> Administration</span>
+      <h1 id="titre-page" class="h3 mb-1">Pilotage des évaluations</h1>
+      <p class="mb-0">Activité de la plateforme, résultats des étudiants et performance mesurée de l'IA Gemini.</p>
+    </div>
+    <div class="text-end">
+      <span class="quiz-badge {% if ia_disponible %}quiz-badge--succes{% else %}quiz-badge--erreur{% endif %}"><i class="icon-base ri {% if ia_disponible %}ri-checkbox-circle-line{% else %}ri-close-circle-line{% endif %}" aria-hidden="true"></i> IA {% if ia_disponible %}configurée{% else %}non configurée{% endif %}</span>
+    </div>
+  </div>
+</section>
+
+<section class="row g-4 mb-6" aria-label="Indicateurs clés">
+  <div class="col-6 col-xl-3"><div class="qz-kpi"><span class="qz-kpi-icone" aria-hidden="true"><i class="icon-base ri ri-question-answer-line"></i></span><div><div class="qz-kpi-valeur">{{ kpi.nb_quiz }}</div><div class="qz-kpi-libelle">quiz · {{ kpi.nb_publies }} publiés · {{ kpi.nb_brouillons }} brouillons · {{ kpi.nb_ia }} générés par IA</div></div></div></div>
+  <div class="col-6 col-xl-3"><div class="qz-kpi"><span class="qz-kpi-icone qz-kpi-icone--cyan" aria-hidden="true"><i class="icon-base ri ri-user-follow-line"></i></span><div><div class="qz-kpi-valeur">{{ kpi.nb_tentatives }}</div><div class="qz-kpi-libelle">tentatives · {{ kpi.nb_etudiants }} étudiant{{ kpi.nb_etudiants|pluralize }} actif{{ kpi.nb_etudiants|pluralize }}</div></div></div></div>
+  <div class="col-6 col-xl-3"><div class="qz-kpi"><span class="qz-kpi-icone qz-kpi-icone--vert" aria-hidden="true"><i class="icon-base ri ri-percent-line"></i></span><div><div class="qz-kpi-valeur">{% if kpi.moyenne is not None %}{{ kpi.moyenne }} %{% else %}—{% endif %}</div><div class="qz-kpi-libelle">score moyen · {{ kpi.en_attente }} en attente de correction</div></div></div></div>
+  <div class="col-6 col-xl-3"><div class="qz-kpi"><span class="qz-kpi-icone qz-kpi-icone--ambre" aria-hidden="true"><i class="icon-base ri ri-cpu-line"></i></span><div><div class="qz-kpi-valeur">{{ metriques_ia.total }}</div><div class="qz-kpi-libelle">appels IA · succès {{ metriques_ia.taux_succes|default_if_none:"—" }} % · médiane {{ metriques_ia.mediane_ms|default_if_none:"—" }} ms</div></div></div></div>
+  <div class="col-6 col-xl-3"><div class="qz-kpi"><span class="qz-kpi-icone qz-kpi-icone--vert" aria-hidden="true"><i class="icon-base ri ri-award-line"></i></span><div><div class="qz-kpi-valeur">{{ certifies }}</div><div class="qz-kpi-libelle">certificats de réussite délivrables (≥ 70 %)</div></div></div></div>
+  <div class="col-6 col-xl-3"><div class="qz-kpi"><span class="qz-kpi-icone qz-kpi-icone--rouge" aria-hidden="true"><i class="icon-base ri ri-shield-user-line"></i></span><div><div class="qz-kpi-valeur">{{ a_verifier }}</div><div class="qz-kpi-libelle">tentatives avec signaux d'intégrité à vérifier</div></div></div></div>
+</section>
+
+<div class="row g-6 mb-6">
+  <div class="col-lg-8">
+    <section class="card h-100" aria-labelledby="titre-activite"><div class="card-body">
+      <h2 id="titre-activite" class="qz-section-titre mb-3"><i class="icon-base ri ri-line-chart-line" aria-hidden="true"></i> Tentatives soumises (30 derniers jours)</h2>
+      <div id="graphiqueActivite" class="qz-graphique" role="img" aria-label="Courbe du nombre de tentatives soumises par jour sur les 30 derniers jours"></div>
+    </div></section>
+  </div>
+  <div class="col-lg-4">
+    <section class="card h-100" aria-labelledby="titre-dist"><div class="card-body">
+      <h2 id="titre-dist" class="qz-section-titre mb-3"><i class="icon-base ri ri-bar-chart-grouped-line" aria-hidden="true"></i> Distribution des scores</h2>
+      <div id="graphiqueDistribution" class="qz-graphique" role="img" aria-label="Histogramme des scores de toutes les tentatives par tranche de 10 %"></div>
+    </div></section>
+  </div>
+</div>
+
+<section class="card mb-6" aria-labelledby="titre-ia"><div class="card-body">
+  <h2 id="titre-ia" class="qz-section-titre mb-1"><i class="icon-base ri ri-sparkling-2-line" aria-hidden="true"></i> Performance de l'IA (mesurée)</h2>
+  <p class="small quiz-aide">Journal des appels Gemini : volume, taux de succès, latence (succès uniquement), sorties invalides bloquées par la validation serveur ({{ metriques_ia.taux_invalides|default_if_none:"—" }} % des appels).</p>
+  {% if metriques_ia.types %}
+  <div class="row g-6">
+    <div class="col-lg-6"><div id="graphiqueIA" class="qz-graphique" role="img" aria-label="Appels IA réussis et en échec par type ; détail dans le tableau"></div></div>
+    <div class="col-lg-6">
+      <div class="table-responsive">
+        <table class="table qz-tableau mb-0">
+          <caption class="visually-hidden">Performance de l'IA par type d'appel</caption>
+          <thead><tr><th scope="col">Type</th><th scope="col">Appels</th><th scope="col">Succès</th><th scope="col">Médiane</th><th scope="col">p95</th></tr></thead>
+          <tbody>
+            {% for m in metriques_ia.types %}
+            <tr><th scope="row" class="fw-normal">{{ m.libelle }}</th><td>{{ m.n }}</td>
+              <td><span class="quiz-badge {% if m.taux >= 90 %}quiz-badge--succes{% elif m.taux >= 70 %}quiz-badge--attente{% else %}quiz-badge--erreur{% endif %}">{{ m.taux }} %</span></td>
+              <td>{% if m.mediane_ms is not None %}{{ m.mediane_ms }} ms{% else %}—{% endif %}</td><td>{% if m.p95_ms is not None %}{{ m.p95_ms }} ms{% else %}—{% endif %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% if derniers_echecs %}
+  <h3 class="h6 mt-5">Derniers échecs</h3>
+  <ul class="list-unstyled d-grid gap-2 mb-0 small">
+    {% for a in derniers_echecs %}<li><span class="quiz-badge quiz-badge--erreur">{{ a.code }}</span> {{ a.get_type_appel_display }}{% if a.quiz %} · {{ a.quiz.titre }}{% endif %} · {{ a.date|date:"d/m/Y H:i" }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% else %}
+  <p class="quiz-aide mb-0">Aucun appel IA enregistré pour l'instant.</p>
+  {% endif %}
+</div></section>
+
+<section class="card" aria-labelledby="titre-classement">
+  <div class="card-body pb-0"><h2 id="titre-classement" class="qz-section-titre"><i class="icon-base ri ri-trophy-line" aria-hidden="true"></i> Quiz les plus passés</h2></div>
+  <div class="table-responsive">
+    <table class="table table-hover qz-tableau mb-0">
+      <thead><tr><th scope="col">Quiz</th><th scope="col">Enseignant</th><th scope="col">Statut</th><th scope="col">Tentatives</th><th scope="col">Moyenne</th></tr></thead>
+      <tbody>
+        {% for quiz in classement %}
+        <tr><td><a href="{% url 'detail-quiz' quiz.pk %}">{{ quiz.titre }}</a></td>
+          <td>{{ quiz.enseignant.utilisateur.get_full_name|default:quiz.enseignant.utilisateur.username }}</td>
+          <td>{% include "quizzes/_badge_statut.html" %}</td><td>{{ quiz.nb }}</td>
+          <td>{% if quiz.moyenne is not None %}<div class="d-flex align-items-center gap-2"><div class="qz-barre flex-grow-1" style="min-width:80px"><span style="width: {{ quiz.moyenne }}%"></span></div>{{ quiz.moyenne }} %</div>{% else %}—{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="5" class="quiz-aide">Aucun quiz.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+</div>
+{{ graphique|json_script:"donnees-graphique" }}
+{% endblock content %}
+
+{% block page_js %}
+<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+<script>
+(function () {
+  if (typeof ApexCharts === "undefined") return;
+  const d = JSON.parse(document.getElementById("donnees-graphique").textContent);
+  const anim = { enabled: !window.matchMedia("(prefers-reduced-motion: reduce)").matches };
+  const base = { toolbar: { show: false }, fontFamily: "Inter, sans-serif", height: 260, animations: anim };
+  new ApexCharts(document.getElementById("graphiqueActivite"), {
+    chart: Object.assign({ type: "area" }, base), series: [{ name: "Tentatives", data: d.tentatives }],
+    xaxis: { categories: d.jours, tickAmount: 10 }, yaxis: { labels: { formatter: function (v) { return Math.round(v); } } },
+    colors: ["#6d28d9"], stroke: { curve: "smooth", width: 3 }, dataLabels: { enabled: false },
+    fill: { type: "gradient", gradient: { opacityFrom: .45, opacityTo: .05 } }, grid: { borderColor: "#ece9f6" }
+  }).render();
+  new ApexCharts(document.getElementById("graphiqueDistribution"), {
+    chart: Object.assign({ type: "bar" }, base), series: [{ name: "Tentatives", data: d.distribution }],
+    xaxis: { categories: ["0", "10", "20", "30", "40", "50", "60", "70", "80", "90"], title: { text: "Score (%)" } },
+    colors: ["#0e7490"], plotOptions: { bar: { borderRadius: 5 } }, dataLabels: { enabled: false }, grid: { borderColor: "#ece9f6" }
+  }).render();
+  const zoneIA = document.getElementById("graphiqueIA");
+  if (zoneIA) new ApexCharts(zoneIA, {
+    chart: Object.assign({ type: "bar", stacked: true }, base),
+    series: [{ name: "Succès", data: d.ia_succes }, { name: "Échecs", data: d.ia_echecs }],
+    xaxis: { categories: d.ia_types }, colors: ["#059669", "#dc2626"],
+    plotOptions: { bar: { horizontal: true, borderRadius: 4 } }, dataLabels: { enabled: false }, grid: { borderColor: "#ece9f6" }
+  }).render();
+})();
+</script>
+{% endblock page_js %}

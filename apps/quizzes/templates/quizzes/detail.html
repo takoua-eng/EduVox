@@ -1,0 +1,332 @@
+{% extends layout_path %}
+
+{% block title %}{{ quiz.titre }} - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module">
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'liste-quiz' %}">Quiz</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ quiz.titre }}</li>
+  </ol>
+</nav>
+{% include "accounts/_messages.html" %}
+
+<!-- Bandeau du quiz -->
+<section class="qz-hero mb-6" aria-labelledby="titre-quiz">
+  <div class="position-relative" style="z-index:1">
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      {% if role != 'etudiant' %}{% include "quizzes/_badge_statut.html" %}{% endif %}
+      {% if quiz.origine == 'ia' %}<span class="quiz-badge quiz-badge--info"><i class="icon-base ri ri-sparkling-line" aria-hidden="true"></i> Généré par l'IA</span>{% endif %}
+      {% if quiz.version > 1 %}<span class="quiz-badge quiz-badge--neutre">Version {{ quiz.version }}</span>{% endif %}
+    </div>
+    <h1 id="titre-quiz" class="h3 mb-2">{{ quiz.titre }}</h1>
+    <p class="mb-0">
+      <i class="icon-base ri ri-book-2-line" aria-hidden="true"></i>
+      {% if quiz.cours %}<a href="{% url 'detail-cours' quiz.cours.pk %}">{{ quiz.cours.titre }}</a>{% else %}{{ quiz.titre_cours|default:"—" }} (cours supprimé){% endif %}
+      {% if quiz.description %} · {{ quiz.description }}{% endif %}
+    </p>
+    <div class="qz-hero-stats">
+      <div class="qz-hero-stat"><strong>{{ nb_questions }}</strong><span>question{{ nb_questions|pluralize }}</span></div>
+      <div class="qz-hero-stat"><strong>{{ points_total|floatformat:"-2" }}</strong><span>points</span></div>
+      <div class="qz-hero-stat"><strong>≈ {{ duree_estimee }} min</strong><span>durée estimée</span></div>
+      <div class="qz-hero-stat"><strong>{{ quiz.get_difficulte_display }}</strong><span>difficulté</span></div>
+      <div class="qz-hero-stat"><strong>{{ quiz.tentatives_max }}</strong><span>tentative{{ quiz.tentatives_max|pluralize }} autorisée{{ quiz.tentatives_max|pluralize }}</span></div>
+    </div>
+  </div>
+</section>
+
+{% if role == 'etudiant' %}
+<!-- ===================== Vue étudiant ===================== -->
+<div class="row g-6">
+  <div class="col-lg-7">
+    <section class="card h-100" aria-labelledby="titre-regles">
+      <div class="card-body">
+        <h2 id="titre-regles" class="qz-section-titre mb-4"><i class="icon-base ri ri-rocket-2-line" aria-hidden="true"></i> Prêt à commencer ?</h2>
+        <ul class="list-unstyled d-grid gap-3 mb-5">
+          <li class="d-flex gap-3"><span class="qz-kpi-icone" aria-hidden="true"><i class="icon-base ri ri-list-check-3"></i></span>
+            <span><strong>{% for libelle, nb in repartition_types %}{{ nb }} {{ libelle }}{% if not forloop.last %}, {% endif %}{% endfor %}</strong><br />
+            <span class="quiz-aide small">QCM et Vrai/Faux : une seule bonne réponse. Une question par écran, navigation libre.</span></span></li>
+          {% if ia_disponible %}
+          <li class="d-flex gap-3"><span class="qz-kpi-icone" aria-hidden="true"><i class="icon-base ri ri-lightbulb-flash-line"></i></span>
+            <span><strong>{{ indices_max }} indices IA</strong> si tu bloques<br />
+            <span class="quiz-aide small">L'indice t'aide à raisonner sans donner la réponse ; une question aidée rapporte 75 % de ses points.</span></span></li>
+          {% endif %}
+          <li class="d-flex gap-3"><span class="qz-kpi-icone qz-kpi-icone--vert" aria-hidden="true"><i class="icon-base ri ri-medal-line"></i></span>
+            <span><strong>Correction immédiate{% if ia_disponible %} et bilan IA personnalisé{% endif %}</strong><br />
+            <span class="quiz-aide small">{% if quiz.afficher_corrige %}Le corrigé détaillé s'affiche après la soumission.{% else %}Ton enseignant a choisi de ne pas afficher le corrigé.{% endif %} Les réponses rédigées sont notées avec l'aide de l'IA et peuvent être révisées par l'enseignant.</span></span></li>
+          <li class="d-flex gap-3"><span class="qz-kpi-icone qz-kpi-icone--cyan" aria-hidden="true"><i class="icon-base ri ri-save-3-line"></i></span>
+            <span><strong>Sauvegarde automatique</strong><br />
+            <span class="quiz-aide small">Tes réponses sont gardées sur cet appareil jusqu'à la soumission ; tu peux fermer la page et reprendre.</span></span></li>
+          <li class="d-flex gap-3"><span class="qz-kpi-icone qz-kpi-icone--ambre" aria-hidden="true"><i class="icon-base ri ri-shield-user-line"></i></span>
+            <span><strong>Évaluation équitable</strong><br />
+            <span class="quiz-aide small">L'ordre des réponses est propre à chaque étudiant. Les changements d'onglet et les textes collés sont comptés et visibles par ton enseignant, comme simple contexte.</span></span></li>
+          <li class="d-flex gap-3"><span class="qz-kpi-icone qz-kpi-icone--vert" aria-hidden="true"><i class="icon-base ri ri-award-line"></i></span>
+            <span><strong>Certificat vérifiable</strong><br />
+            <span class="quiz-aide small">À partir de 70 %, télécharge un certificat de réussite avec QR code d'authenticité.</span></span></li>
+        </ul>
+        {% if tentative_en_cours %}
+          <a href="{% url 'tentative' tentative_en_cours.pk %}" class="btn btn-primary btn-lg"><i class="icon-base ri ri-play-circle-line me-1" aria-hidden="true"></i> Reprendre ma tentative</a>
+        {% elif tentatives_restantes %}
+          <form method="post" action="{% url 'commencer-quiz' quiz.pk %}" class="d-flex flex-wrap align-items-center gap-3">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary btn-lg"><i class="icon-base ri ri-play-circle-line me-1" aria-hidden="true"></i> {% if mes_tentatives %}Nouvelle tentative{% else %}Commencer le quiz{% endif %}</button>
+            <span class="quiz-aide">{{ tentatives_restantes }} tentative{{ tentatives_restantes|pluralize }} restante{{ tentatives_restantes|pluralize }}</span>
+          </form>
+        {% else %}
+          <p class="alert alert-info mb-0" role="note">Tu as utilisé toutes tes tentatives pour ce quiz. Consulte ton bilan ci-contre.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+  <div class="col-lg-5">
+    <section class="card h-100" aria-labelledby="titre-mes-tentatives">
+      <div class="card-body">
+        <h2 id="titre-mes-tentatives" class="qz-section-titre mb-4"><i class="icon-base ri ri-history-line" aria-hidden="true"></i> Mes tentatives</h2>
+        {% if mes_tentatives %}
+          {% if meilleur is not None %}
+          <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="qz-anneau" style="--p: {{ meilleur }}; --t: 4rem" role="img" aria-label="Meilleur score {{ meilleur }} %"><span>{{ meilleur }}%</span></div>
+            <div><strong>Meilleur score</strong><br /><span class="quiz-aide small">sur {{ mes_tentatives|length }} tentative{{ mes_tentatives|pluralize }}</span></div>
+          </div>
+          {% endif %}
+          <ol class="list-unstyled d-grid gap-2 mb-0">
+            {% for tentative in mes_tentatives %}
+            <li class="d-flex justify-content-between align-items-center gap-2 p-3 border rounded-3">
+              <span><strong>Tentative {{ tentative.numero }}</strong><br /><span class="small quiz-aide">{{ tentative.date_soumission|default:tentative.date_debut|date:"d/m/Y H:i" }}</span></span>
+              <span class="text-end">{% include "quizzes/_score.html" %}<br />
+                <a href="{% url 'tentative' tentative.pk %}" class="small">{% if tentative.statut == 'en_cours' %}Reprendre{% else %}Voir le détail{% endif %}<span class="visually-hidden"> de la tentative {{ tentative.numero }}</span></a></span>
+            </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <p class="quiz-aide mb-0">Pas encore de tentative. Ton score et ton bilan IA apparaîtront ici.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+
+{% else %}
+<!-- ===================== Vue enseignant / administrateur ===================== -->
+
+{% if quiz.statut_generation != 'aucune' %}
+<section class="qz-ia mb-6" aria-labelledby="titre-generation">
+  <h2 id="titre-generation" class="qz-ia-titre h6"><i class="icon-base ri ri-sparkling-2-line" aria-hidden="true"></i> Génération par l'IA</h2>
+  <div id="etatGeneration" role="status" aria-live="polite">
+    {% if quiz.statut_generation == 'en_cours' %}
+      <div class="d-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span> Gemini rédige les questions à partir du cours… la page se mettra à jour automatiquement.</div>
+      <div class="qz-squelette w-75" aria-hidden="true"></div><div class="qz-squelette w-50" aria-hidden="true"></div>
+    {% elif quiz.statut_generation == 'erreur' %}
+      <span class="quiz-badge quiz-badge--erreur"><i class="icon-base ri ri-error-warning-line" aria-hidden="true"></i> Échec</span> {{ quiz.message_generation }}
+    {% else %}
+      <span class="quiz-badge quiz-badge--succes"><i class="icon-base ri ri-check-line" aria-hidden="true"></i> Terminée</span> {{ quiz.message_generation }}
+    {% endif %}
+  </div>
+  {% if peut_gerer and quiz.statut_generation == 'erreur' and not nb_questions and quiz.statut == 'brouillon' %}
+  <div class="d-flex flex-wrap gap-2 mt-3">
+    <form method="post" action="{% url 'relancer-generation-quiz' quiz.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-primary">Relancer la génération</button></form>
+    <a href="{% url 'ajouter-question' quiz.pk %}" class="btn btn-sm btn-outline-secondary">Écrire les questions moi-même</a>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+<div class="row g-6 mb-6">
+  <!-- Actions et publication -->
+  <div class="col-lg-{% if peut_gerer %}7{% else %}12{% endif %}">
+    <section class="card h-100" aria-labelledby="titre-actions">
+      <div class="card-body">
+        <h2 id="titre-actions" class="qz-section-titre mb-4"><i class="icon-base ri ri-settings-4-line" aria-hidden="true"></i> {% if peut_gerer %}Gestion du quiz{% else %}Consultation (lecture seule){% endif %}</h2>
+        {% if peut_gerer %}
+        <div class="d-flex flex-wrap gap-2">
+          {% if quiz.est_modifiable %}
+            <a href="{% url 'ajouter-question' quiz.pk %}" class="btn btn-primary"><i class="icon-base ri ri-add-line me-1" aria-hidden="true"></i> Ajouter une question</a>
+            <a href="{% url 'importer-questions' quiz.pk %}" class="btn btn-outline-primary"><i class="icon-base ri ri-magic-line me-1" aria-hidden="true"></i> Importer (IA)</a>
+            <a href="{% url 'modifier-quiz' quiz.pk %}" class="btn btn-outline-primary"><i class="icon-base ri ri-pencil-line me-1" aria-hidden="true"></i> Réglages</a>
+          {% endif %}
+          {% if quiz.statut == 'brouillon' and not quiz.generation_en_cours %}
+            <form method="post" action="{% url 'publier-quiz' quiz.pk %}"
+                  data-confirm="Les étudiants pourront passer ce quiz. Vous avez relu les questions et les bonnes réponses ?"
+                  data-confirm-titre="Publier le quiz ?" data-confirm-bouton="Publier" data-confirm-type="success">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success" {% if erreurs_publication %}aria-describedby="erreurs-publication"{% endif %}><i class="icon-base ri ri-send-plane-line me-1" aria-hidden="true"></i> Valider et publier</button>
+            </form>
+          {% endif %}
+          {% if quiz.statut == 'publie' and not quiz.a_des_tentatives %}
+            <form method="post" action="{% url 'depublier-quiz' quiz.pk %}">{% csrf_token %}<button type="submit" class="btn btn-outline-secondary">Repasser en brouillon</button></form>
+          {% endif %}
+          {% if not quiz.generation_en_cours and not quiz.est_modifiable %}
+            <form method="post" action="{% url 'nouvelle-version-quiz' quiz.pk %}">{% csrf_token %}<button type="submit" class="btn btn-outline-primary"><i class="icon-base ri ri-file-copy-line me-1" aria-hidden="true"></i> Nouvelle version</button></form>
+          {% endif %}
+          {% if nb_tentatives %}
+            <a href="{% url 'resultats-quiz' quiz.pk %}" class="btn btn-outline-primary"><i class="icon-base ri ri-bar-chart-2-line me-1" aria-hidden="true"></i> Analytics ({{ nb_tentatives }})</a>
+          {% endif %}
+          {% if quiz.est_supprimable %}
+            <form method="post" action="{% url 'supprimer-quiz' quiz.pk %}" data-confirm="Le brouillon « {{ quiz.titre }} » et ses questions seront supprimés définitivement."
+                  data-confirm-titre="Supprimer le brouillon ?" data-confirm-bouton="Supprimer">
+              {% csrf_token %}<button type="submit" class="btn btn-outline-danger"><i class="icon-base ri ri-delete-bin-line me-1" aria-hidden="true"></i> Supprimer</button>
+            </form>
+          {% elif quiz.statut != 'archive' and not quiz.generation_en_cours %}
+            <form method="post" action="{% url 'archiver-quiz' quiz.pk %}" data-confirm="Le quiz ne sera plus proposé aux étudiants. Toutes les tentatives et notes sont conservées."
+                  data-confirm-titre="Archiver le quiz ?" data-confirm-bouton="Archiver" data-confirm-type="warning">
+              {% csrf_token %}<button type="submit" class="btn btn-outline-secondary"><i class="icon-base ri ri-archive-line me-1" aria-hidden="true"></i> Archiver</button>
+            </form>
+          {% endif %}
+        </div>
+        {% if erreurs_publication %}
+        <div id="erreurs-publication" class="alert alert-warning mt-4 mb-0" role="note">
+          <strong>Avant de publier :</strong>
+          <ul class="mb-0 mt-1">{% for erreur in erreurs_publication %}<li>{{ erreur }}</li>{% endfor %}</ul>
+        </div>
+        {% elif quiz.statut == 'brouillon' and nb_questions %}
+        <p class="quiz-badge quiz-badge--succes mt-4 mb-0"><i class="icon-base ri ri-checkbox-circle-line" aria-hidden="true"></i> Contrôles automatiques réussis : le quiz est publiable.</p>
+        {% endif %}
+        {% if not quiz.est_modifiable and quiz.a_des_tentatives %}
+        <p class="small quiz-aide mt-4 mb-0"><i class="icon-base ri ri-lock-line" aria-hidden="true"></i> Déjà passé par des étudiants : les questions sont verrouillées pour ne pas fausser les scores. Pour corriger, créez une nouvelle version.</p>
+        {% endif %}
+        {% else %}
+          <div class="d-flex flex-wrap gap-2">
+            {% if nb_tentatives %}<a href="{% url 'resultats-quiz' quiz.pk %}" class="btn btn-primary"><i class="icon-base ri ri-bar-chart-2-line me-1" aria-hidden="true"></i> Analytics ({{ nb_tentatives }})</a>{% endif %}
+            <a href="{% url 'pilotage-quiz' %}" class="btn btn-outline-primary"><i class="icon-base ri ri-dashboard-3-line me-1" aria-hidden="true"></i> Pilotage global</a>
+          </div>
+        {% endif %}
+        {% if versions_suivantes %}
+        <p class="small mt-3 mb-0">Versions suivantes :
+          {% for v in versions_suivantes %}<a href="{% url 'detail-quiz' v.pk %}">version {{ v.version }} ({{ v.get_statut_display|lower }})</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  {% if peut_gerer %}
+  <!-- Audit qualité IA -->
+  <div class="col-lg-5">
+    <section id="audit" class="card h-100" aria-labelledby="titre-audit">
+      <div class="card-body">
+        <h2 id="titre-audit" class="qz-section-titre mb-2"><i class="icon-base ri ri-shield-check-line" aria-hidden="true"></i> Audit qualité par l'IA</h2>
+        <p class="small quiz-aide">L'IA relit chaque question comme un expert en évaluation : ambiguïtés, erreur de corrigé, plusieurs bonnes réponses possibles, adéquation au cours.</p>
+        <div id="etatAudit" role="status" aria-live="polite">
+        {% if etat_audit == 'en_cours' %}
+          <div class="d-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span> Audit en cours…</div>
+          <div class="qz-squelette" aria-hidden="true"></div><div class="qz-squelette w-75" aria-hidden="true"></div>
+        {% elif etat_audit == 'termine' and audit %}
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="qz-anneau" style="--p: {{ audit.score }}; --t: 4.25rem; --c: {% if audit.score >= 80 %}#059669{% elif audit.score >= 60 %}#6d28d9{% else %}#d97706{% endif %}" role="img" aria-label="Score qualité {{ audit.score }} sur 100"><span>{{ audit.score }}</span></div>
+            <div>
+              <strong>Score qualité : {{ audit.score }}/100</strong><br />
+              <span class="small">{% if audit.nb_majeurs %}<span class="quiz-badge quiz-badge--erreur">{{ audit.nb_majeurs }} problème{{ audit.nb_majeurs|pluralize }} majeur{{ audit.nb_majeurs|pluralize }}</span>{% endif %}
+              {% if audit.nb_mineurs %}<span class="quiz-badge quiz-badge--attente">{{ audit.nb_mineurs }} remarque{{ audit.nb_mineurs|pluralize }}</span>{% endif %}
+              {% if not audit.nb_majeurs and not audit.nb_mineurs %}<span class="quiz-badge quiz-badge--succes">Aucun problème</span>{% endif %}</span>
+            </div>
+          </div>
+          <p class="small mb-0">{{ audit.synthese }}</p>
+          <p class="small quiz-aide mt-2 mb-0">Le détail est affiché sur chaque question ci-dessous.</p>
+        {% elif etat_audit == 'erreur' %}
+          <p class="quiz-erreur small">{{ quiz.audit_ia.message }}</p>
+        {% endif %}
+        </div>
+        {% if etat_audit != 'en_cours' %}
+        <form method="post" action="{% url 'audit-quiz' quiz.pk %}" class="mt-3">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm {% if etat_audit == 'termine' %}btn-outline-primary{% else %}btn-primary{% endif %}" {% if not ia_disponible or not nb_questions %}disabled aria-describedby="audit-indispo"{% endif %}>
+            <i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> {% if etat_audit == 'termine' %}Relancer l'audit{% else %}Lancer l'audit IA{% endif %}
+          </button>
+          {% if not ia_disponible %}<span id="audit-indispo" class="small quiz-aide ms-2">IA non configurée.</span>{% elif not nb_questions %}<span id="audit-indispo" class="small quiz-aide ms-2">Ajoutez des questions d'abord.</span>{% endif %}
+        </form>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Questions -->
+<section aria-labelledby="titre-questions">
+  <h2 id="titre-questions" class="qz-section-titre mb-4"><i class="icon-base ri ri-list-ordered-2" aria-hidden="true"></i> Questions ({{ nb_questions }})</h2>
+  {% for question in questions %}
+  <article id="question-{{ question.pk }}" class="card mb-4" aria-labelledby="enonce-{{ question.pk }}">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="qz-lettre" aria-hidden="true">{{ question.ordre }}</span>
+          <span class="visually-hidden">Question {{ question.ordre }}</span>
+          <span class="quiz-badge quiz-badge--neutre">{{ question.get_type_question_display }}</span>
+          <span class="quiz-badge quiz-badge--neutre">{{ question.points|floatformat:"-2" }} pt{{ question.points|pluralize }}</span>
+          {% for ordre, remarque in audit_par_question.items %}{% if ordre == question.ordre and etat_audit == 'termine' %}
+            {% if remarque.gravite == 'majeur' %}<span class="quiz-badge quiz-badge--erreur"><i class="icon-base ri ri-error-warning-line" aria-hidden="true"></i> Audit : problème majeur</span>
+            {% elif remarque.gravite == 'mineur' %}<span class="quiz-badge quiz-badge--attente"><i class="icon-base ri ri-information-line" aria-hidden="true"></i> Audit : à améliorer</span>
+            {% else %}<span class="quiz-badge quiz-badge--succes"><i class="icon-base ri ri-check-line" aria-hidden="true"></i> Audit : OK</span>{% endif %}
+          {% endif %}{% endfor %}
+        </div>
+        {% if peut_gerer and quiz.est_modifiable %}
+        <div class="d-flex flex-wrap gap-1">
+          {% if not forloop.first %}<form method="post" action="{% url 'deplacer-question' question.pk %}">{% csrf_token %}<input type="hidden" name="sens" value="haut" /><button type="submit" class="btn btn-sm btn-icon btn-outline-secondary" aria-label="Monter la question {{ question.ordre }}"><i class="icon-base ri ri-arrow-up-line" aria-hidden="true"></i></button></form>{% endif %}
+          {% if not forloop.last %}<form method="post" action="{% url 'deplacer-question' question.pk %}">{% csrf_token %}<input type="hidden" name="sens" value="bas" /><button type="submit" class="btn btn-sm btn-icon btn-outline-secondary" aria-label="Descendre la question {{ question.ordre }}"><i class="icon-base ri ri-arrow-down-line" aria-hidden="true"></i></button></form>{% endif %}
+          <a href="{% url 'modifier-question' question.pk %}" class="btn btn-sm btn-outline-primary">Modifier<span class="visually-hidden"> la question {{ question.ordre }}</span></a>
+          <form method="post" action="{% url 'supprimer-question' question.pk %}" data-confirm="La question {{ question.ordre }} et ses choix seront supprimés." data-confirm-titre="Supprimer la question ?" data-confirm-bouton="Supprimer">
+            {% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger">Supprimer<span class="visually-hidden"> la question {{ question.ordre }}</span></button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      <p id="enonce-{{ question.pk }}" class="fw-medium mb-3">{{ question.enonce|linebreaksbr }}</p>
+      {% if question.a_des_choix %}
+      <ul class="list-unstyled d-grid gap-2 mb-2">
+        {% for choix in question.choix.all %}
+        <li class="d-flex align-items-center gap-2 p-2 rounded-3 {% if choix.est_correct %}quiz-correct{% endif %}" {% if choix.est_correct %}style="background:#ecfdf5"{% endif %}>
+          <i class="icon-base ri {% if choix.est_correct %}ri-checkbox-circle-fill{% else %}ri-checkbox-blank-circle-line{% endif %}" aria-hidden="true"></i>
+          {{ choix.texte }}{% if choix.est_correct %} <span class="small">(bonne réponse)</span>{% endif %}
+        </li>
+        {% empty %}<li class="quiz-erreur">Aucun choix défini.</li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="small mb-2"><strong>Réponse attendue / barème :</strong> {{ question.reponse_attendue|default:"—"|linebreaksbr }}</p>
+      {% endif %}
+      {% if question.explication %}<p class="small quiz-aide mb-0"><strong>Explication :</strong> {{ question.explication|linebreaksbr }}</p>{% endif %}
+      {% for ordre, remarque in audit_par_question.items %}{% if ordre == question.ordre and etat_audit == 'termine' and remarque.gravite != 'ok' %}
+      <div class="qz-ia mt-3">
+        <p class="qz-ia-titre mb-1"><i class="icon-base ri ri-shield-check-line" aria-hidden="true"></i> Remarques de l'audit IA</p>
+        {% if remarque.problemes %}<ul class="small mb-1">{% for p in remarque.problemes %}<li>{{ p }}</li>{% endfor %}</ul>{% endif %}
+        {% if remarque.suggestion %}<p class="small mb-0"><strong>Suggestion :</strong> {{ remarque.suggestion }}</p>{% endif %}
+      </div>
+      {% endif %}{% endfor %}
+    </div>
+  </article>
+  {% empty %}
+  <div class="card"><div class="qz-vide">
+    <div class="qz-vide-icone" aria-hidden="true"><i class="icon-base ri ri-file-list-3-line"></i></div>
+    <p class="mb-3">Ce quiz ne contient encore aucune question.</p>
+    {% if peut_gerer and quiz.est_modifiable %}<a href="{% url 'ajouter-question' quiz.pk %}" class="btn btn-primary">Ajouter la première question</a>{% endif %}
+  </div></div>
+  {% endfor %}
+</section>
+{% endif %}
+</div>
+{% endblock content %}
+
+{% block page_js %}
+{% if peut_gerer %}{% if quiz.statut_generation == 'en_cours' or etat_audit == 'en_cours' %}
+<script>
+  // Suit la génération ou l'audit en cours, puis recharge la page quand le traitement est fini
+  (function () {
+    const urlGeneration = "{% url 'etat-generation-quiz' quiz.pk %}";
+    const urlIA = "{% url 'etat-ia-quiz' quiz.pk %}";
+    const suivreGeneration = {{ quiz.generation_en_cours|yesno:"true,false" }};
+    let essais = 0;
+    const minuteur = setInterval(async function () {
+      if (++essais > 100) { clearInterval(minuteur); return; }
+      try {
+        const reponse = await fetch(suivreGeneration ? urlGeneration : urlIA, { headers: { "Accept": "application/json" } });
+        if (!reponse.ok) return;
+        const d = await reponse.json();
+        const fini = suivreGeneration ? d.fini : d.audit !== "en_cours";
+        if (fini) { clearInterval(minuteur); window.location.reload(); }
+      } catch (e) { /* on réessaie au prochain passage */ }
+    }, 3000);
+  })();
+</script>
+{% endif %}{% endif %}
+{% endblock page_js %}

@@ -1,0 +1,120 @@
+{% extends layout_path %}
+
+{% block title %}{% if question %}Modifier la question{% else %}Ajouter une question{% endif %} - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module row justify-content-center">
+  <div class="col-lg-9">
+    <nav aria-label="Fil d'Ariane" class="mb-4">
+      <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item"><a href="{% url 'liste-quiz' %}">Quiz</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'detail-quiz' quiz.pk %}">{{ quiz.titre }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{% if question %}Question {{ question.ordre }}{% else %}Nouvelle question{% endif %}</li>
+      </ol>
+    </nav>
+    {% include "accounts/_messages.html" %}
+
+    <section class="card" aria-labelledby="titre-page">
+      <div class="card-header">
+        <h1 id="titre-page" class="h5 mb-0">{% if question %}Modifier la question {{ question.ordre }}{% else %}Ajouter une question{% endif %}</h1>
+      </div>
+      <div class="card-body">
+        {% if form.errors or formset.non_form_errors %}
+        <div class="alert alert-danger" role="alert" tabindex="-1" id="resume-erreurs">
+          La question n'a pas été enregistrée : corrigez les champs signalés.
+        </div>
+        {% endif %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% include "quizzes/_champ.html" with champ=form.type_question %}
+          {% include "quizzes/_champ.html" with champ=form.enonce %}
+          <div class="row">
+            <div class="col-md-4">{% include "quizzes/_champ.html" with champ=form.points %}</div>
+          </div>
+
+          <!-- QCM : choix -->
+          <fieldset class="mb-4 p-3 border rounded" data-type="qcm" aria-describedby="aide-qcm">
+            <legend class="fs-6 fw-semibold float-none w-auto px-1">Choix du QCM</legend>
+            <p id="aide-qcm" class="small quiz-aide">Entre 2 et 6 choix, <strong>une seule bonne réponse</strong>. Les lignes laissées vides sont ignorées.</p>
+            {{ formset.management_form }}
+            {% if formset.non_form_errors %}
+            <div class="quiz-erreur small mb-2" role="alert">{% for e in formset.non_form_errors %}{{ e }} {% endfor %}</div>
+            {% endif %}
+            {% for f in formset %}
+            <div class="row g-2 align-items-center mb-2">
+              {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+              <div class="col-md-8">
+                <label class="visually-hidden" for="{{ f.texte.id_for_label }}">Texte du choix {{ forloop.counter }}</label>
+                <input type="text" name="{{ f.texte.html_name }}" id="{{ f.texte.id_for_label }}" maxlength="300"
+                       value="{{ f.texte.value|default:'' }}" placeholder="Choix {{ forloop.counter }}"
+                       class="form-control {% if f.texte.errors %}is-invalid{% endif %}"
+                       {% if f.texte.errors %}aria-invalid="true" aria-describedby="{{ f.texte.auto_id }}_erreurs"{% endif %} />
+                {% if f.texte.errors %}<div id="{{ f.texte.auto_id }}_erreurs" class="quiz-erreur small">{% for e in f.texte.errors %}{{ e }}{% endfor %}</div>{% endif %}
+              </div>
+              <div class="col-auto form-check ms-2">
+                <input type="checkbox" class="form-check-input choix-correct" name="{{ f.est_correct.html_name }}" id="{{ f.est_correct.id_for_label }}" {% if f.est_correct.value %}checked{% endif %} />
+                <label class="form-check-label" for="{{ f.est_correct.id_for_label }}">Bonne réponse<span class="visually-hidden"> (choix {{ forloop.counter }})</span></label>
+              </div>
+              {% if f.instance.pk %}
+              <div class="col-auto form-check ms-2">
+                <input type="checkbox" class="form-check-input" name="{{ f.DELETE.html_name }}" id="{{ f.DELETE.id_for_label }}" {% if f.DELETE.value %}checked{% endif %} />
+                <label class="form-check-label" for="{{ f.DELETE.id_for_label }}">Supprimer<span class="visually-hidden"> le choix {{ forloop.counter }}</span></label>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </fieldset>
+
+          <!-- Vrai / Faux -->
+          <div class="mb-4 p-3 border rounded" data-type="vrai_faux">
+            {% include "quizzes/_champ.html" with champ=form.bonne_reponse_vf inline=True classe="mb-0" %}
+          </div>
+
+          <!-- Question ouverte -->
+          <div data-type="ouverte">
+            {% include "quizzes/_champ.html" with champ=form.reponse_attendue %}
+          </div>
+
+          {% include "quizzes/_champ.html" with champ=form.explication %}
+
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            {% if not question %}<button type="submit" name="ajouter_autre" value="1" class="btn btn-outline-primary">Enregistrer et ajouter une autre</button>{% endif %}
+            <a href="{% url 'detail-quiz' quiz.pk %}" class="btn btn-outline-secondary">Annuler</a>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock content %}
+
+{% block page_js %}
+<script>
+  (function () {
+    // N'affiche que la partie utile au type choisi (sans JavaScript, tout reste visible ; le serveur ignore le reste)
+    const selecteur = document.getElementById("{{ form.type_question.id_for_label }}");
+    function majType() {
+      document.querySelectorAll("[data-type]").forEach(function (bloc) {
+        bloc.hidden = bloc.dataset.type !== selecteur.value;
+      });
+    }
+    selecteur.addEventListener("change", majType);
+    majType();
+
+    // QCM à une seule bonne réponse : cocher un choix décoche les autres
+    document.querySelectorAll(".choix-correct").forEach(function (caseACocher) {
+      caseACocher.addEventListener("change", function () {
+        if (!caseACocher.checked) return;
+        document.querySelectorAll(".choix-correct").forEach(function (autre) {
+          if (autre !== caseACocher) autre.checked = false;
+        });
+      });
+    });
+
+    const resume = document.getElementById("resume-erreurs");
+    if (resume) resume.focus();
+  })();
+</script>
+{% endblock page_js %}

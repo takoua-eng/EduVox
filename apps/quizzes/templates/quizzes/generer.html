@@ -1,0 +1,75 @@
+{% extends layout_path %}
+
+{% block title %}Générer un quiz avec l'IA - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module row justify-content-center">
+  <div class="col-lg-8">
+    {% include "accounts/_messages.html" %}
+    <section class="card" aria-labelledby="titre-page">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h1 id="titre-page" class="h5 mb-0"><i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> Générer un quiz avec l'IA</h1>
+        <a href="{% url 'liste-quiz' %}" class="btn btn-sm btn-outline-secondary"><i class="icon-base ri ri-arrow-left-line me-1" aria-hidden="true"></i> Retour</a>
+      </div>
+      <div class="card-body">
+        {% if not ia_disponible %}
+        <div class="alert alert-warning" role="alert">
+          L'IA n'est pas configurée sur ce serveur (variable <code>GEMINI_API_KEY</code> absente) : la génération est indisponible.
+          Vous pouvez <a href="{% url 'creer-quiz' %}">créer un quiz manuellement</a>.
+        </div>
+        {% endif %}
+        <p class="quiz-aide">
+          Gemini propose des questions à partir du texte de votre cours ou de son résumé.
+          Le résultat est enregistré <strong>en brouillon</strong> : vous le relisez, le modifiez puis le publiez vous-même.
+        </p>
+
+        <form method="post" id="formGeneration" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{% for e in form.non_field_errors %}{{ e }} {% endfor %}</div>{% endif %}
+          {% include "quizzes/_champ.html" with champ=form.cours %}
+          {% if sources_par_cours %}
+          <details class="mb-4">
+            <summary class="small">Textes disponibles pour chacun de vos cours</summary>
+            <ul class="small mt-2 mb-0">
+              {% for cours, sources in sources_par_cours %}
+              <li><strong>{{ cours.titre }}</strong> : {% if sources %}{{ sources|join:", " }}{% else %}aucun texte (transcrivez l'audio ou générez le résumé depuis la page du cours){% endif %}</li>
+              {% endfor %}
+            </ul>
+          </details>
+          {% else %}
+          <div class="alert alert-info" role="alert">Vous n'avez encore aucun cours. <a href="{% url 'ajouter-cours' %}">Ajoutez un cours</a> d'abord.</div>
+          {% endif %}
+          {% include "quizzes/_champ.html" with champ=form.source inline=True %}
+          {% include "quizzes/_champ.html" with champ=form.titre %}
+          <div class="row">
+            <div class="col-md-6">{% include "quizzes/_champ.html" with champ=form.nb_questions %}</div>
+            <div class="col-md-6">{% include "quizzes/_champ.html" with champ=form.difficulte %}</div>
+          </div>
+          {% include "quizzes/_champ.html" with champ=form.types %}
+
+          <div class="d-flex flex-wrap align-items-center gap-3">
+            <button type="submit" class="btn btn-primary" id="btnGenerer" {% if not ia_disponible %}disabled{% endif %}>
+              <span class="spinner-border spinner-border-sm me-1 d-none" aria-hidden="true" id="spinnerGeneration"></span>
+              Générer le brouillon
+            </button>
+            <span id="etatEnvoi" role="status" aria-live="polite" class="small"></span>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock content %}
+
+{% block page_js %}
+<script>
+  // Indicateur de chargement et protection contre le double envoi
+  document.getElementById("formGeneration").addEventListener("submit", function () {
+    const bouton = document.getElementById("btnGenerer");
+    bouton.disabled = true;
+    document.getElementById("spinnerGeneration").classList.remove("d-none");
+    document.getElementById("etatEnvoi").textContent = "Envoi de la demande à l'IA… cela peut prendre jusqu'à une minute.";
+  });
+</script>
+{% endblock page_js %}

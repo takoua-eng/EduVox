@@ -1,0 +1,140 @@
+{% extends layout_path %}
+
+{% block title %}Quiz - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module">
+{% include "accounts/_messages.html" %}
+
+<!-- Bandeau -->
+<section class="qz-hero mb-6" aria-labelledby="titre-page">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-4 position-relative" style="z-index:1">
+    <div>
+      <span class="quiz-badge quiz-badge--ia mb-3"><i class="icon-base ri ri-sparkling-2-line" aria-hidden="true"></i> Évaluation assistée par IA</span>
+      <h1 id="titre-page" class="h3 mb-2">
+        {% if role == 'enseignant' %}Mes quiz{% elif role == 'etudiant' %}Entraîne-toi et progresse{% else %}Tous les quiz{% endif %}
+      </h1>
+      <p class="mb-0" style="max-width: 640px">
+        {% if role == 'enseignant' %}Générez un brouillon à partir de vos cours, faites-le auditer par l'IA, publiez-le, puis analysez les résultats de la classe.
+        {% elif role == 'etudiant' %}Des quiz liés à tes cours, des indices IA quand tu bloques, et un bilan personnalisé après chaque tentative.
+        {% else %}Vue d'ensemble des quiz de la plateforme. Le tableau de bord de pilotage détaille l'activité et la performance de l'IA.{% endif %}
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      {% if role == 'enseignant' %}
+        <a href="{% url 'generer-quiz' %}" class="btn btn-light"><i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> Générer avec l'IA</a>
+        <a href="{% url 'creer-quiz' %}" class="btn btn-outline-light"><i class="icon-base ri ri-add-line me-1" aria-hidden="true"></i> Créer manuellement</a>
+      {% elif role == 'etudiant' %}
+        <a href="{% url 'revision' %}" class="btn btn-light"><i class="icon-base ri ri-brain-line me-1" aria-hidden="true"></i> Réviser{% if revision_dues %} <span class="badge rounded-pill bg-danger ms-1">{{ revision_dues }}</span><span class="visually-hidden"> fiches à réviser</span>{% endif %}</a>
+        <a href="{% url 'mes-tentatives' %}" class="btn btn-outline-light"><i class="icon-base ri ri-line-chart-line me-1" aria-hidden="true"></i> Ma progression</a>
+      {% elif role == 'admin' %}
+        <a href="{% url 'pilotage-quiz' %}" class="btn btn-light"><i class="icon-base ri ri-dashboard-3-line me-1" aria-hidden="true"></i> Tableau de bord de pilotage</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if role == 'etudiant' and bandeau %}
+  <div class="qz-hero-stats position-relative" style="z-index:1">
+    <div class="qz-hero-stat"><strong>{{ bandeau.disponibles }}</strong><span>quiz disponibles</span></div>
+    <div class="qz-hero-stat"><strong>{{ bandeau.termines }}</strong><span>quiz terminés</span></div>
+    <div class="qz-hero-stat"><strong>{% if bandeau.moyenne is not None %}{{ bandeau.moyenne }} %{% else %}—{% endif %}</strong><span>score moyen</span></div>
+    <div class="qz-hero-stat"><strong>{% if bandeau.meilleur is not None %}{{ bandeau.meilleur }} %{% else %}—{% endif %}</strong><span>meilleur score</span></div>
+  </div>
+  {% endif %}
+</section>
+
+<!-- Recherche et filtres -->
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-5">
+  {% if role != 'etudiant' and onglets %}
+  <nav class="qz-onglets" aria-label="Filtrer par statut">
+    {% for valeur, libelle, nb in onglets %}
+    <a href="?statut={{ valeur }}{% if recherche %}&q={{ recherche|urlencode }}{% endif %}" {% if filtre_statut == valeur %}aria-current="page"{% endif %}>{{ libelle }}<span>({{ nb }})</span></a>
+    {% endfor %}
+  </nav>
+  {% else %}<h2 class="qz-section-titre"><i class="icon-base ri ri-book-open-line" aria-hidden="true"></i> Quiz disponibles</h2>{% endif %}
+  <form method="get" role="search" aria-label="Rechercher un quiz" class="d-flex gap-2" style="min-width: min(100%, 340px)">
+    {% if filtre_statut %}<input type="hidden" name="statut" value="{{ filtre_statut }}" />{% endif %}
+    <label for="filtre-q" class="visually-hidden">Rechercher un quiz ou un cours</label>
+    <input type="search" id="filtre-q" name="q" value="{{ recherche }}" class="form-control" placeholder="Rechercher un quiz ou un cours…" />
+    <button type="submit" class="btn btn-primary" aria-label="Rechercher"><i class="icon-base ri ri-search-line" aria-hidden="true"></i></button>
+  </form>
+</div>
+
+{% if liste_quiz %}
+<ul class="qz-grille list-unstyled mb-0" aria-label="Liste des quiz">
+  {% for quiz in liste_quiz %}
+  <li>
+    <article class="qz-carte qz-carte--{{ quiz.difficulte }}" aria-labelledby="carte-{{ quiz.pk }}">
+      <div class="qz-carte-bande" aria-hidden="true"></div>
+      <div class="qz-carte-corps">
+        <div class="d-flex justify-content-between align-items-start gap-3">
+          <div>
+            <p class="small quiz-aide mb-1"><i class="icon-base ri ri-book-2-line" aria-hidden="true"></i> {{ quiz.cours.titre|default:quiz.titre_cours|default:"Cours supprimé" }}</p>
+            <h3 id="carte-{{ quiz.pk }}" class="qz-carte-titre"><a href="{% url 'detail-quiz' quiz.pk %}">{{ quiz.titre }}</a></h3>
+          </div>
+          {% if role == 'etudiant' and quiz.meilleur is not None %}
+            <div class="qz-anneau" style="--p: {{ quiz.meilleur }}; --c: {% if quiz.meilleur >= 70 %}#059669{% elif quiz.meilleur >= 50 %}#6d28d9{% else %}#d97706{% endif %}"
+                 role="img" aria-label="Meilleur score : {{ quiz.meilleur }} %"><span>{{ quiz.meilleur }}%</span></div>
+          {% elif role != 'etudiant' and quiz.moyenne is not None %}
+            <div class="qz-anneau" style="--p: {{ quiz.moyenne }}" role="img" aria-label="Moyenne de la classe : {{ quiz.moyenne }} %"><span>{{ quiz.moyenne }}%</span></div>
+          {% endif %}
+        </div>
+        <div class="qz-meta">
+          <span><i class="icon-base ri ri-question-line" aria-hidden="true"></i> {{ quiz.nb_questions }} question{{ quiz.nb_questions|pluralize }}</span>
+          <span><i class="icon-base ri ri-bar-chart-line" aria-hidden="true"></i> {{ quiz.get_difficulte_display }}</span>
+          {% if role == 'etudiant' %}
+            <span><i class="icon-base ri ri-restart-line" aria-hidden="true"></i> {{ quiz.mes_nb }}/{{ quiz.tentatives_max }} tentative{{ quiz.tentatives_max|pluralize }}</span>
+          {% else %}
+            <span><i class="icon-base ri ri-group-line" aria-hidden="true"></i> {{ quiz.nb_tentatives }} tentative{{ quiz.nb_tentatives|pluralize }}</span>
+          {% endif %}
+          {% if role == 'admin' %}<span><i class="icon-base ri ri-user-line" aria-hidden="true"></i> {{ quiz.enseignant.utilisateur.get_full_name|default:quiz.enseignant.utilisateur.username }}</span>{% endif %}
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-auto">
+          {% if role != 'etudiant' %}{% include "quizzes/_badge_statut.html" %}{% endif %}
+          {% if quiz.origine == 'ia' %}<span class="quiz-badge quiz-badge--info"><i class="icon-base ri ri-sparkling-line" aria-hidden="true"></i> Généré par l'IA</span>{% endif %}
+          {% if quiz.statut_generation == 'en_cours' %}<span class="quiz-badge quiz-badge--attente">Génération…</span>{% elif quiz.statut_generation == 'erreur' %}<span class="quiz-badge quiz-badge--erreur">Échec IA</span>{% endif %}
+          {% if role == 'etudiant' %}
+            {% if quiz.en_cours %}<span class="quiz-badge quiz-badge--attente"><i class="icon-base ri ri-time-line" aria-hidden="true"></i> En cours</span>
+            {% elif quiz.mes_nb %}<span class="quiz-badge quiz-badge--succes"><i class="icon-base ri ri-check-line" aria-hidden="true"></i> Terminé</span>
+            {% else %}<span class="quiz-badge quiz-badge--neutre">Nouveau</span>{% endif %}
+          {% endif %}
+        </div>
+      </div>
+      <div class="qz-carte-pied">
+        {% if role == 'etudiant' %}
+          <span class="small quiz-aide">{% if quiz.ma_derniere and quiz.ma_derniere.est_soumise %}Dernier : {{ quiz.ma_derniere.pourcentage|default_if_none:"—" }} %{% else %}≈ {{ quiz.nb_questions|add:quiz.nb_questions }} min{% endif %}</span>
+          <a href="{% url 'detail-quiz' quiz.pk %}" class="btn btn-sm btn-primary">{% if quiz.en_cours %}Reprendre{% elif quiz.mes_nb %}Voir{% else %}Commencer{% endif %}<span class="visually-hidden"> : {{ quiz.titre }}</span></a>
+        {% else %}
+          <span class="small quiz-aide">Créé le {{ quiz.date_creation|date:"d/m/Y" }}</span>
+          <span class="d-flex gap-1">
+            {% if quiz.nb_tentatives %}<a href="{% url 'resultats-quiz' quiz.pk %}" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-bar-chart-2-line" aria-hidden="true"></i><span class="visually-hidden">Analytics du quiz {{ quiz.titre }}</span></a>{% endif %}
+            <a href="{% url 'detail-quiz' quiz.pk %}" class="btn btn-sm btn-primary">{% if role == 'enseignant' %}Gérer{% else %}Ouvrir{% endif %}<span class="visually-hidden"> : {{ quiz.titre }}</span></a>
+          </span>
+        {% endif %}
+      </div>
+    </article>
+  </li>
+  {% endfor %}
+</ul>
+{% include "quizzes/_pagination.html" %}
+{% else %}
+<div class="card"><div class="qz-vide">
+  <div class="qz-vide-icone" aria-hidden="true"><i class="icon-base ri ri-question-answer-line"></i></div>
+  {% if recherche or filtre_statut %}
+    <h2 class="h5">Aucun quiz ne correspond</h2>
+    <p class="quiz-aide">Essayez un autre mot-clé ou un autre statut.</p>
+    <a href="{% url 'liste-quiz' %}" class="btn btn-outline-primary">Effacer les filtres</a>
+  {% elif role == 'enseignant' %}
+    <h2 class="h5">Créez votre premier quiz</h2>
+    <p class="quiz-aide">L'IA peut rédiger un brouillon à partir de vos cours en quelques secondes ; vous gardez la main pour le relire et le publier.</p>
+    <a href="{% url 'generer-quiz' %}" class="btn btn-primary"><i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> Générer avec l'IA</a>
+  {% elif role == 'etudiant' %}
+    <h2 class="h5">Aucun quiz pour le moment</h2>
+    <p class="quiz-aide mb-0">Les quiz apparaîtront ici dès que tes enseignants les publieront.</p>
+  {% else %}
+    <h2 class="h5">Aucun quiz sur la plateforme</h2>
+  {% endif %}
+</div></div>
+{% endif %}
+</div>
+{% endblock content %}

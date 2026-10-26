@@ -1,0 +1,28 @@
+{# Champ de formulaire accessible : libellé associé, aide et erreurs reliées par aria-describedby #}
+<div class="{{ classe|default:'mb-4' }}">
+  {% if champ.widget_type == 'checkbox' %}
+    <div class="form-check">
+      {{ champ }}
+      <label class="form-check-label" for="{{ champ.id_for_label }}">{{ champ.label }}</label>
+    </div>
+  {% elif champ.widget_type == 'radioselect' or champ.widget_type == 'checkboxselectmultiple' %}
+    <fieldset {% if champ.errors %}aria-describedby="{{ champ.auto_id }}_erreurs"{% endif %}>
+      <legend class="form-label fs-6 mb-1">{{ champ.label }}{% if champ.field.required %} <span aria-hidden="true">*</span>{% endif %}</legend>
+      {% for option in champ %}
+      <div class="form-check {% if inline %}form-check-inline{% endif %}">
+        {{ option.tag }}
+        <label class="form-check-label" for="{{ option.id_for_label }}">{{ option.choice_label }}</label>
+      </div>
+      {% endfor %}
+    </fieldset>
+  {% else %}
+    <label class="form-label" for="{{ champ.id_for_label }}">{{ champ.label }}{% if champ.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>
+    {{ champ }}
+  {% endif %}
+  {% if champ.help_text %}<div id="{{ champ.auto_id }}_helptext" class="form-text quiz-aide">{{ champ.help_text }}</div>{% endif %}
+  {% if champ.errors %}
+    <div id="{{ champ.auto_id }}_erreurs" class="quiz-erreur small mt-1">
+      {% for erreur in champ.errors %}<i class="icon-base ri ri-error-warning-line" aria-hidden="true"></i> {{ erreur }} {% endfor %}
+    </div>
+  {% endif %}
+</div>
