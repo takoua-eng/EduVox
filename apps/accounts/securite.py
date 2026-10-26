@@ -1,14 +1,19 @@
 """Journal des connexions et détection IA des connexions suspectes."""
 
+import logging
 import math
+import time
 from datetime import timedelta
 
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
+from django.core.cache import caches
 from django.utils import timezone
 from django.utils.timezone import localtime
 
+logger = logging.getLogger(__name__)
+
 HISTORIQUE_MIN_IA = 8       # connexions réussies nécessaires pour entraîner le modèle
+TAILLE_HISTORIQUE = 200     # connexions passées prises en compte
+DUREE_CACHE_MODELE = 24 * 3600  # le modèle entraîné d'un utilisateur est gardé 24 h (ou jusqu'à sa prochaine connexion)
 SEUIL_SUSPECT = 60          # score de risque (sur 100) à partir duquel la connexion est suspecte
 POIDS = {"heure": 40, "appareil": 35, "ip": 25}
 
@@ -81,10 +86,72 @@ def _ecart_heures(date_a, date_b):
     return min(difference, 24 - difference)
 
 
-def _heure_inhabituelle(historique, date):
+def cle_modele(utilisateur, historique):
+    """Clé de cache du modèle : elle change dès que l'historique change (nombre, dernière et première connexion)."""
+    if utilisateur is None or not historique:
+        return None
+    identifiant = utilisateur.pk or f"simule-{utilisateur.username}"  # utilisateurs simulés de l'évaluation
+    dates = [c.date for c in historique]
+    return f"accounts:modele_heures:{identifiant}:{len(dates)}:{max(dates).timestamp()}:{min(dates).timestamp()}"
+
+
+def cache_modeles():
+    """Cache partagé avec le worker Celery (réglage CACHES["modeles_ia"])."""
+    return caches["modeles_ia"]
+
+
+def _modele_heures(historique, cle=None):
+    """Isolation Forest entraîné sur les heures de l'historique, réutilisé depuis le cache si possible.
+
+    Une panne du cache (Redis arrêté, dossier inaccessible) ne bloque jamais la connexion : on entraîne.
+    """
+    modele = None
+    if cle:
+        try:
+            modele = cache_modeles().get(cle)
+        except Exception:
+            logger.exception("Cache des modèles IA illisible")
+    if modele is None:
+        from sklearn.ensemble import IsolationForest
+
+        modele = IsolationForest(n_estimators=300, contamination=0.05, random_state=42)
+        modele.fit([_caracteristiques(c.date) for c in historique])
+        if cle:
+            try:
+                cache_modeles().set(cle, modele, DUREE_CACHE_MODELE)
+            except Exception:
+                logger.exception("Cache des modèles IA inaccessible en écriture")
+    return modele
+
+
+def historique_connexions(utilisateur, avant=None):
+    """Connexions réussies non suspectes, les plus récentes d'abord (ce sur quoi l'IA apprend les habitudes)."""
+    from .models import JournalConnexion
+
+    # Les connexions suspectes ne servent pas à apprendre les habitudes (un pirate ne doit pas « entraîner » l'IA)
+    connexions = JournalConnexion.objects.filter(utilisateur=utilisateur, succes=True, suspect=False)
+    if avant is not None:
+        connexions = connexions.exclude(date__gte=avant)
+    return list(connexions.order_by("-date")[:TAILLE_HISTORIQUE])
+
+
+def preparer_modele_heures(utilisateur, historique=None):
+    """Entraîne et met en cache le modèle de la PROCHAINE connexion (historique actuel complet).
+
+    Appelé par la tâche Celery après chaque connexion réussie. Renvoie True si un modèle est prêt en cache.
+    """
+    historique = historique_connexions(utilisateur) if historique is None else historique
+    if len(historique) < HISTORIQUE_MIN_IA:
+        return False  # le modèle ne serait jamais utilisé
+    _modele_heures(historique, cle_modele(utilisateur, historique))
+    return True
+
+
+def _heure_inhabituelle(historique, date, cle=None):
     """L'heure de connexion est-elle inhabituelle pour cet utilisateur ?
 
-    - Modèle IA : Isolation Forest (scikit-learn) entraîné sur les heures habituelles de l'utilisateur.
+    - Modèle IA : Isolation Forest (scikit-learn) entraîné sur les heures habituelles de l'utilisateur
+      (mis en cache : il n'est réentraîné que si l'historique a changé).
     - Garde-fous : jamais d'alerte si une connexion habituelle a eu lieu à moins d'1 h de cette heure,
       et toujours une alerte si aucune connexion n'a eu lieu à moins de 3 h.
     """
@@ -98,27 +165,21 @@ def _heure_inhabituelle(historique, date):
     if len(historique) < HISTORIQUE_MIN_IA:
         return False
 
-    from sklearn.ensemble import IsolationForest
-
-    modele = IsolationForest(n_estimators=300, contamination=0.05, random_state=42)
-    modele.fit([_caracteristiques(c.date) for c in historique])
-    return modele.predict([_caracteristiques(date)])[0] == -1
+    return _modele_heures(historique, cle).predict([_caracteristiques(date)])[0] == -1
 
 
-def evaluer_risque(utilisateur, ip, appareil, date):
-    """Renvoie (score sur 100, liste des raisons) pour une connexion réussie."""
-    from .models import JournalConnexion
+def evaluer_risque(utilisateur, ip, appareil, date, historique=None):
+    """Renvoie (score sur 100, liste des raisons) pour une connexion réussie.
 
-    historique = list(
-        # Les connexions suspectes ne servent pas à apprendre les habitudes (un pirate ne doit pas « entraîner » l'IA)
-        JournalConnexion.objects.filter(utilisateur=utilisateur, succes=True, suspect=False)
-        .exclude(date__gte=date).order_by("-date")[:200]
-    )
+    `historique` permet de fournir les connexions passées sans base de données (évaluation de l'IA).
+    """
+    if historique is None:
+        historique = historique_connexions(utilisateur, avant=date)
     if not historique:
         return 0, []  # première connexion : rien à comparer
 
     raisons, score = [], 0
-    if _heure_inhabituelle(historique, date):
+    if _heure_inhabituelle(historique, date, cle_modele(utilisateur, historique)):
         score += POIDS["heure"]
         raisons.append(f"Heure inhabituelle ({localtime(date):%H} h)")
     if appareil not in {c.appareil for c in historique}:
@@ -138,32 +199,32 @@ def enregistrer_connexion(request, utilisateur=None, nom_saisi="", succes=False,
 
     ip = adresse_ip(request)
     user_agent = request.META.get("HTTP_USER_AGENT", "")
+    temps_visage = getattr(request, "temps_ia_visage_ms", None)  # renseigné par la connexion par visage
     entree = JournalConnexion.objects.create(
         utilisateur=utilisateur, nom_saisi=nom_saisi or (utilisateur.username if utilisateur else ""),
         ip=ip, appareil=decrire_appareil(user_agent), navigateur=user_agent[:500],
-        methode=methode, double_auth=double_auth, succes=succes, motif=motif,
+        methode=methode, double_auth=double_auth, succes=succes, motif=motif, temps_ia_ms=temps_visage,
     )
 
     if succes and utilisateur:
+        debut = time.perf_counter()
         score, raisons = evaluer_risque(utilisateur, ip, entree.appareil, entree.date)
+        entree.temps_ia_ms = round((temps_visage or 0) + (time.perf_counter() - debut) * 1000, 1)
         entree.score_risque, entree.raisons_risque = score, raisons
         entree.suspect = score >= SEUIL_SUSPECT
-        entree.save(update_fields=["score_risque", "raisons_risque", "suspect"])
+        entree.save(update_fields=["score_risque", "raisons_risque", "suspect", "temps_ia_ms"])
         if entree.suspect:
             alerter_utilisateur(request, entree)
     return entree
 
 
 def alerter_utilisateur(request, entree):
-    """E-mail d'alerte en cas de connexion inhabituelle."""
-    if not entree.utilisateur.email:
-        return
-    message = render_to_string("accounts/emails/alerte_connexion.txt", {
-        "user": entree.utilisateur, "entree": entree,
-        "lien_profil": request.build_absolute_uri("/profil/connexions/"),
-    })
-    send_mail("EduVox – Connexion inhabituelle à votre compte", message, None, [entree.utilisateur.email],
-              fail_silently=True)
+    """E-mail d'alerte en cas de connexion inhabituelle (envoyé en arrière-plan)."""
+    from .emails import envoyer_en_arriere_plan
+    from .tasks import email_alerte_connexion
+
+    if entree.utilisateur.email:
+        envoyer_en_arriere_plan(email_alerte_connexion, entree.pk, request.build_absolute_uri("/profil/connexions/"))
 
 
 
@@ -215,11 +276,9 @@ def debloquer(utilisateur):
 
 
 def alerter_blocage(request, utilisateur):
-    if not utilisateur.email:
-        return
-    message = render_to_string("accounts/emails/compte_bloque.txt", {
-        "user": utilisateur, "jusqua": utilisateur.bloque_jusqua,
-        "lien_mdp": request.build_absolute_uri("/mot-de-passe-oublie/"),
-    })
-    send_mail("EduVox – Votre compte est temporairement bloqué", message, None, [utilisateur.email],
-              fail_silently=True)
+    """E-mail « compte bloqué » (envoyé en arrière-plan)."""
+    from .emails import envoyer_en_arriere_plan
+    from .tasks import email_compte_bloque
+
+    if utilisateur.email:
+        envoyer_en_arriere_plan(email_compte_bloque, utilisateur.pk, request.build_absolute_uri("/mot-de-passe-oublie/"))

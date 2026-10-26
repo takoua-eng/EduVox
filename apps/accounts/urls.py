@@ -46,6 +46,7 @@ urlpatterns = [
         # Journal des connexions
     path("profil/connexions/", views_securite.MesConnexionsView.as_view(), name="mes-connexions"),
     path("journal-connexions/", views_securite.JournalConnexionsView.as_view(), name="journal-connexions"),
+    path("performances-ia/", views_securite.PerformancesIAView.as_view(), name="performances-ia"),
     
         # Outils d'administration
     path("utilisateurs/importer/", views_import.ImportUtilisateursView.as_view(), name="importer-utilisateurs"),

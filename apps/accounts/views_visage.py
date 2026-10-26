@@ -31,7 +31,13 @@ MARGE_IDENTIFICATION = 0.05  # écart minimal entre les deux visages les plus pr
 
 
 def seuil():
+    """Vérification 1:1 (avec nom d'utilisateur) et anti-doublon à l'enregistrement."""
     return getattr(settings, "FACE_SEUIL", 0.363)
+
+
+def seuil_identification():
+    """Identification 1 parmi N (connexion sans nom d'utilisateur) : plus strict."""
+    return getattr(settings, "FACE_SEUIL_IDENTIFICATION", 0.45)
 
 
 def identifier(encodage, exclure=None):
@@ -124,7 +130,15 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
         fin = self.request.session.get("visage_blocage_jusqua", 0)
         return time.time() < fin
 
+    def _noter_temps_ia(self):
+        """Temps de l'IA depuis la réception des photos (analyse + comparaison), lu par le journal."""
+        debut = getattr(self, "debut_ia", None)
+        if debut is not None:
+            self.request.temps_ia_visage_ms = round((time.perf_counter() - debut) * 1000, 1)
+        return getattr(self.request, "temps_ia_visage_ms", None)
+
     def _echec(self, message, nom="", utilisateur=None):
+        self._noter_temps_ia()
         enregistrer_connexion(self.request, utilisateur=utilisateur, nom_saisi=nom, succes=False,
                               methode="VISAGE", motif=message)
         essais = self.request.session.get("visage_essais", 0) + 1
@@ -145,6 +159,7 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
         if not image_face or not image_tournee:
             return erreur("Laissez la caméra prendre les deux photos.")
 
+        self.debut_ia = time.perf_counter()
         try:
             face = analyser_visage(image_face)
             tournee = analyser_visage(image_tournee)
@@ -167,7 +182,7 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
         else:
             # Identification « 1 parmi N » : l'IA retrouve seule le compte
             profil, score, deuxieme = identifier(face["encodage"])
-            if not profil or score < seuil():
+            if not profil or score < seuil_identification():
                 return self._echec("Visage non reconnu. Enregistrez d'abord votre visage depuis votre profil.")
             if score - deuxieme < MARGE_IDENTIFICATION:
                 return self._echec("Plusieurs comptes ressemblent à ce visage : saisissez votre nom d'utilisateur.")
@@ -178,6 +193,7 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
         if user.est_bloque:
             return erreur("Compte temporairement bloqué après trop d'essais. Réessayez plus tard.", 403)
 
+        temps_ia = self._noter_temps_ia()
         profil.derniere_utilisation = timezone.now()
         profil.save(update_fields=["derniere_utilisation"])
         request.session["visage_essais"] = 0
@@ -188,6 +204,7 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
             request.session["2fa_next"] = reverse("index")
             request.session["2fa_essais"] = 0
             request.session["2fa_methode"] = "VISAGE"
+            request.session["2fa_temps_ia_ms"] = temps_ia
             return JsonResponse({"ok": True, "redirection": reverse("connexion-2fa")})
 
         request.methode_connexion = "VISAGE"  # lu par le journal des connexions

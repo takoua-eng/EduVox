@@ -192,6 +192,10 @@ src/node_modules/
 
 # Modèles IA téléchargés automatiquement
 ai_services/modeles/
+# Photos d'évaluation de la reconnaissance faciale (LFW, photos personnelles : données biométriques)
+ai_services/donnees_test/
+# Cache des modèles IA pré-calculés (FileBasedCache)
+.cache_modeles_ia/
 donnees*.json
 
 # EduSprint : livrables deposes par les etudiants (stockage prive)

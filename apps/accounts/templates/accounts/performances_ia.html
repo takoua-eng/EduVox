@@ -1,0 +1,272 @@
+{% extends layout_path %}
+
+{% block title %}Performances de l'IA - EduVox{% endblock title %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-4 mb-6">
+  <div>
+    <h1 class="h4 mb-1">Performances de l'IA</h1>
+    <p class="mb-0 text-body-secondary">Précision, rappel, F1, matrices de confusion et temps de réponse des deux IA du module.</p>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary">
+      <i class="icon-base ri ri-play-circle-line icon-18px me-2" aria-hidden="true"></i>Lancer une nouvelle évaluation
+    </button>
+  </form>
+</div>
+
+{% include "accounts/_messages.html" %}
+
+{% if not historique %}
+  <div class="card mb-6">
+    <div class="card-body text-center py-8">
+      <h2 class="h5 mb-1">Aucune évaluation pour l'instant</h2>
+      <p class="mb-0 text-body-secondary">Cliquez sur « Lancer une nouvelle évaluation » ou lancez <code>python manage.py evaluer_ia</code>.</p>
+    </div>
+  </div>
+{% endif %}
+
+<!-- ===================== Reconnaissance faciale ===================== -->
+{% with visage=visage_images|default:visage_base %}
+{% if visage %}
+<section class="mb-6" aria-labelledby="titre-visage">
+  <h2 id="titre-visage" class="h5 mb-1">Reconnaissance faciale</h2>
+  <p class="mb-4 text-body-secondary">
+    <span class="badge bg-label-secondary">Source : {{ visage.resultats.source }}</span>
+    <span class="ms-1">· {{ visage.date|date:"d/m/Y H:i" }} · seuil {{ visage.resultats.seuil }}</span>
+  </p>
+  <div class="row g-6 mb-6">
+    {% with m=visage.resultats.verification %}
+    <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Précision</p><p class="h4 mb-0">{{ m.precision }} %</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-focus-3-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Rappel</p><p class="h4 mb-0">{{ m.rappel }} %</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-user-follow-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">F1 · FAR · FRR</p><p class="h4 mb-0">{{ m.f1 }} %</p><small class="text-body-secondary">FAR {{ m.far }} % · FRR {{ m.frr }} %</small></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-scales-3-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></div></div>
+    {% endwith %}
+    <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Temps moyen (détection + encodage)</p><p class="h4 mb-0">{% if temps_visage is not None %}{{ temps_visage|floatformat:1 }} ms{% else %}—{% endif %}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-timer-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></div></div>
+  </div>
+
+  {% if visage_images %}
+  <div class="card mb-6">
+    <div class="card-body">
+      <h3 class="h6 mb-1">Jeu d'images ({{ visage_images.resultats.dossier }})</h3>
+      <p class="text-body-secondary mb-4">
+        {{ visage_images.resultats.source }} · {{ visage_images.date|date:"d/m/Y H:i" }} ·
+        {{ visage_images.resultats.nb_photos_test }} photos testées · {{ visage_images.resultats.nb_ignorees }} photo{{ visage_images.resultats.nb_ignorees|pluralize }} ignorée{{ visage_images.resultats.nb_ignorees|pluralize }} (visage non détecté ou image de mauvaise qualité)
+      </p>
+      <div class="row g-6">
+        <div class="col-lg-6">
+          {% include "accounts/_matrice_confusion.html" with m=visage_images.resultats.verification positif=visage_images.resultats.libelle_positif negatif=visage_images.resultats.libelle_negatif titre="Vérification 1:1 – matrice de confusion (paires de photos)" %}
+        </div>
+        <div class="col-lg-6">
+          {% with i=visage_images.resultats.identification %}
+          {% include "accounts/_matrice_confusion.html" with m=i positif="Accepté" negatif="Refusé" titre="Identification 1 parmi N (connexion sans nom d'utilisateur) – matrice de confusion" %}
+          <p class="small text-body-secondary mt-2 mb-0">
+            Seuil {{ i.seuil }} et marge {{ i.marge }} · {{ i.taux_correct }} % des personnes connues retrouvées ·
+            {{ i.taux_inconnus_acceptes }} % d'inconnus acceptés · précision {{ i.precision }} % · rappel {{ i.rappel }} % · F1 {{ i.f1 }} %.
+            FP = accepté sous un autre nom ou inconnu accepté.
+          </p>
+          {% endwith %}
+        </div>
+      </div>
+    </div>
+    {% if visage_images.resultats.identification_par_seuil %}
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <caption class="caption-top text-body-secondary px-4">Identification 1 parmi N selon le seuil (marge de 0,05 incluse)</caption>
+        <thead>
+          <tr><th scope="col" class="ps-4">Seuil</th><th scope="col" class="text-end">Personnes retrouvées</th>
+            <th scope="col" class="text-end">Confondues avec un autre</th><th scope="col" class="text-end pe-4">Inconnus acceptés</th></tr>
+        </thead>
+        <tbody>
+          {% for l in visage_images.resultats.identification_par_seuil %}
+          <tr{% if l.seuil == visage_images.resultats.identification.seuil %} class="table-primary"{% endif %}>
+            <th scope="row" class="ps-4">{{ l.seuil }}{% if l.seuil == visage_images.resultats.identification.seuil %} <span class="badge bg-primary ms-1">utilisé</span>{% endif %}</th>
+            <td class="text-end">{{ l.taux_correct }} %</td>
+            <td class="text-end">{{ l.taux_confusions }} %</td>
+            <td class="text-end pe-4">{{ l.taux_inconnus_acceptes }} %</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% include "accounts/_tableau_seuils.html" with ev=visage_images %}
+  </div>
+  {% endif %}
+
+  {% if visage_base %}
+  <div class="card mb-6">
+    <div class="card-body">
+      <h3 class="h6 mb-1">Base enregistrée (résultat optimiste)</h3>
+      <p class="text-body-secondary mb-2">{{ visage_base.resultats.source }} · {{ visage_base.date|date:"d/m/Y H:i" }} ·
+        {{ visage_base.resultats.nb_paires_meme }} paires « même personne », {{ visage_base.resultats.nb_paires_differentes }} paires « personnes différentes »</p>
+      <div class="alert alert-warning mb-4" role="note">{{ visage_base.resultats.avertissement }}</div>
+      {% include "accounts/_matrice_confusion.html" with m=visage_base.resultats.verification positif=visage_base.resultats.libelle_positif negatif=visage_base.resultats.libelle_negatif titre="Vérification 1:1 – matrice de confusion (encodages enregistrés)" %}
+    </div>
+    {% include "accounts/_tableau_seuils.html" with ev=visage_base %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endwith %}
+
+<!-- ===================== Connexions suspectes ===================== -->
+{% if connexions %}
+<section class="mb-6" aria-labelledby="titre-connexions">
+  <h2 id="titre-connexions" class="h5 mb-1">Détection des connexions suspectes</h2>
+  <p class="mb-4 text-body-secondary">
+    <span class="badge bg-label-secondary">Source : {{ connexions.resultats.source }}</span>
+    <span class="ms-1">· {{ connexions.date|date:"d/m/Y H:i" }} · suspecte si score ≥ {{ connexions.resultats.seuil }}</span>
+  </p>
+  {% with m=connexions.resultats.metriques %}
+  <div class="row g-6 mb-6">
+    <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Précision</p><p class="h4 mb-0">{{ m.precision }} %</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-focus-3-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Rappel</p><p class="h4 mb-0">{{ m.rappel }} %</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-alarm-warning-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">F1 · exactitude</p><p class="h4 mb-0">{{ m.f1 }} %</p><small class="text-body-secondary">Exactitude {{ m.exactitude }} %</small></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-scales-3-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Temps moyen (score de risque)</p><p class="h4 mb-0">{% if temps_risque is not None %}{{ temps_risque|floatformat:1 }} ms{% else %}—{% endif %}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-timer-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></div></div>
+  </div>
+
+  <div class="card mb-6">
+    <div class="card-body">
+      <div class="row g-6">
+        <div class="col-lg-5">
+          {% include "accounts/_matrice_confusion.html" with m=m positif=connexions.resultats.libelle_positif negatif=connexions.resultats.libelle_negatif titre="Matrice de confusion – connexions simulées" %}
+        </div>
+        <div class="col-lg-7">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <caption class="caption-top text-body-secondary">Résultats par scénario (étiquette = qui se connecte réellement)</caption>
+              <thead><tr><th scope="col">Scénario</th><th scope="col">Attendu</th><th scope="col" class="text-end">Cas</th><th scope="col" class="text-end">Corrects</th><th scope="col" class="text-end">Score moyen</th></tr></thead>
+              <tbody>
+                {% for l in connexions.resultats.par_scenario %}
+                <tr>
+                  <th scope="row" class="fw-normal">{{ l.scenario }}</th>
+                  <td><span class="badge {% if l.attendu == 'Suspecte' %}bg-label-danger{% else %}bg-label-success{% endif %}">{{ l.attendu }}</span></td>
+                  <td class="text-end">{{ l.nb }}</td>
+                  <td class="text-end">{{ l.taux_correct }} %</td>
+                  <td class="text-end">{{ l.score_moyen }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+</section>
+{% endif %}
+
+<!-- ===================== Temps de réponse ===================== -->
+<section class="mb-6" aria-labelledby="titre-temps">
+  <h2 id="titre-temps" class="h5 mb-4">Temps de réponse</h2>
+  <div class="row g-6">
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <caption class="caption-top text-body-secondary px-4">
+              Mesures de l'évaluation{% if temps %} · {{ temps.resultats.source }} · {{ temps.date|date:"d/m/Y H:i" }}{% endif %}
+            </caption>
+            <thead><tr><th scope="col">Traitement</th><th scope="col" class="text-end">Moyenne</th><th scope="col" class="text-end">Médiane</th><th scope="col" class="text-end">p95</th></tr></thead>
+            <tbody>
+              {% if temps %}
+                {% with r=temps.resultats %}
+                <tr><th scope="row" class="fw-normal">Détection + encodage d'un visage</th>
+                  {% if r.detection_encodage %}<td class="text-end">{{ r.detection_encodage.moyenne }} ms</td><td class="text-end">{{ r.detection_encodage.mediane }} ms</td><td class="text-end">{{ r.detection_encodage.p95 }} ms</td>
+                  {% else %}<td colspan="3" class="text-end text-body-secondary">{{ r.note_detection }}</td>{% endif %}</tr>
+                <tr><th scope="row" class="fw-normal">Comparaison 1 parmi N ({{ r.taille_galerie }} profils, dont {{ r.nb_profils_reels }} réels)</th>
+                  <td class="text-end">{{ r.comparaison_1n.moyenne }} ms</td><td class="text-end">{{ r.comparaison_1n.mediane }} ms</td><td class="text-end">{{ r.comparaison_1n.p95 }} ms</td></tr>
+                {% if r.evaluer_risque_sans_cache %}
+                <tr><th scope="row" class="fw-normal">Score de risque, sans pré-calcul (modèle entraîné pendant la connexion)</th>
+                  <td class="text-end">{{ r.evaluer_risque_sans_cache.moyenne }} ms</td><td class="text-end">{{ r.evaluer_risque_sans_cache.mediane }} ms</td><td class="text-end">{{ r.evaluer_risque_sans_cache.p95 }} ms</td></tr>
+                {% endif %}
+                {% with risque=r.evaluer_risque_apres_precalcul %}
+                <tr><th scope="row" class="fw-normal">Score de risque, après pré-calcul par le worker Celery</th>
+                  <td class="text-end">{{ risque.moyenne }} ms</td><td class="text-end">{{ risque.mediane }} ms</td><td class="text-end">{{ risque.p95 }} ms</td></tr>
+                {% endwith %}
+                {% endwith %}
+              {% else %}
+                <tr><td colspan="4" class="text-center py-4">Aucune mesure.</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="card h-100">
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <caption class="caption-top text-body-secondary px-4">Conditions réelles · journal des connexions (champ temps_ia_ms)</caption>
+            <thead><tr><th scope="col">Connexions</th><th scope="col" class="text-end">Nombre</th><th scope="col" class="text-end">Moyenne</th><th scope="col" class="text-end">Maximum</th></tr></thead>
+            <tbody>
+              {% for t in temps_reels %}
+              <tr>
+                <th scope="row" class="fw-normal">{% if t.methode == "VISAGE" %}Par visage{% else %}Par mot de passe{% endif %} – {% if t.succes %}réussies{% else %}échouées{% endif %}</th>
+                <td class="text-end">{{ t.nb }}</td>
+                <td class="text-end">{{ t.moyenne|floatformat:1 }} ms</td>
+                <td class="text-end">{{ t.maximum|floatformat:1 }} ms</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="4" class="text-center py-4">Pas encore de connexion mesurée.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Historique ===================== -->
+<section aria-labelledby="titre-historique">
+  <h2 id="titre-historique" class="h5 mb-4">Historique des évaluations</h2>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <caption class="visually-hidden">Dix dernières évaluations de l'IA</caption>
+        <thead><tr><th scope="col">Date</th><th scope="col">Évaluation</th><th scope="col">Source</th><th scope="col" class="text-end">F1</th><th scope="col" class="text-end">Durée</th></tr></thead>
+        <tbody>
+          {% for ev in historique %}
+          <tr>
+            <td>{{ ev.date|date:"d/m/Y H:i" }}</td>
+            <td>{{ ev.get_type_display }}</td>
+            <td><small>{{ ev.resultats.source }}</small></td>
+            <td class="text-end">{% if ev.resultats.verification %}{{ ev.resultats.verification.f1 }} %{% elif ev.resultats.metriques %}{{ ev.resultats.metriques.f1 }} %{% else %}—{% endif %}</td>
+            <td class="text-end">{{ ev.duree_totale_ms }} ms</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center py-6">Aucune évaluation.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock content %}

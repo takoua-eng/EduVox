@@ -103,6 +103,7 @@ class JournalConnexion(models.Model):
     score_risque = models.PositiveSmallIntegerField(null=True, blank=True)
     raisons_risque = models.JSONField(default=list, blank=True)
     suspect = models.BooleanField(default=False)
+    temps_ia_ms = models.FloatField(null=True, blank=True, help_text="Temps de calcul de l'IA (visage + risque), en ms")
 
     class Meta:
         ordering = ["-date"]
@@ -112,3 +113,26 @@ class JournalConnexion(models.Model):
     def __str__(self):
         etat = "réussie" if self.succes else "échouée"
         return f"{self.nom_saisi or self.utilisateur} – {etat} – {self.date:%d/%m/%Y %H:%M}"
+
+
+class EvaluationIA(models.Model):
+    """Résultats d'une évaluation des IA (commande evaluer_ia ou bouton de la page « Performances de l'IA »)."""
+
+    class Type(models.TextChoices):
+        VISAGE_BASE = "VISAGE_BASE", "Visage – base enregistrée (optimiste)"
+        VISAGE_IMAGES = "VISAGE_IMAGES", "Visage – jeu d'images (LFW ou photos)"
+        CONNEXIONS = "CONNEXIONS", "Connexions – jeu simulé"
+        TEMPS = "TEMPS", "Temps de réponse"
+
+    date = models.DateTimeField(auto_now_add=True, db_index=True)
+    type = models.CharField(max_length=20, choices=Type.choices)
+    resultats = models.JSONField(default=dict)
+    duree_totale_ms = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-date"]
+        verbose_name = "évaluation de l'IA"
+        verbose_name_plural = "évaluations de l'IA"
+
+    def __str__(self):
+        return f"{self.get_type_display()} – {self.date:%d/%m/%Y %H:%M}"

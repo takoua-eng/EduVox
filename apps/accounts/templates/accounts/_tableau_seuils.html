@@ -1,0 +1,24 @@
+<div class="table-responsive">
+  <table class="table table-sm mb-0">
+    <caption class="caption-top text-body-secondary px-4">
+      Comparaison des seuils de similarité (FAR = imposteurs acceptés, FRR = vraies personnes refusées)
+      {% if ev.resultats.eer %}· EER (FAR = FRR) : {{ ev.resultats.eer.taux }} % au seuil {{ ev.resultats.eer.seuil }}{% endif %}
+    </caption>
+    <thead>
+      <tr><th scope="col" class="ps-4">Seuil</th><th scope="col" class="text-end">FAR</th><th scope="col" class="text-end">FRR</th>
+        <th scope="col" class="text-end">Précision</th><th scope="col" class="text-end">Rappel</th><th scope="col" class="text-end pe-4">F1</th></tr>
+    </thead>
+    <tbody>
+      {% for l in ev.resultats.seuils %}
+      <tr{% if l.seuil == ev.resultats.seuil %} class="table-primary"{% endif %}>
+        <th scope="row" class="ps-4">{{ l.seuil }}{% if l.seuil == ev.resultats.seuil %} <span class="badge bg-primary ms-1">utilisé</span>{% endif %}</th>
+        <td class="text-end">{{ l.far }} %</td>
+        <td class="text-end">{{ l.frr }} %</td>
+        <td class="text-end">{{ l.precision }} %</td>
+        <td class="text-end">{{ l.rappel }} %</td>
+        <td class="text-end pe-4">{{ l.f1 }} %</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

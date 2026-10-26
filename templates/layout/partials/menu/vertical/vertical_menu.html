@@ -157,6 +157,12 @@
         <div class="text-truncate">Journal des connexions</div>
       </a>
     </li>
+    <li class="menu-item {% if request.resolver_match.url_name == 'performances-ia' %}active{% endif %}">
+      <a href="{% url 'performances-ia' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-bar-chart-box-line" aria-hidden="true"></i>
+        <div class="text-truncate">Performances de l'IA</div>
+      </a>
+    </li>
     <li class="menu-item {% if request.resolver_match.url_name == 'moderation-assistant' or request.resolver_match.url_name == 'moderation-session-assistant' %}active{% endif %}">
       <a href="{% url 'moderation-assistant' %}" class="menu-link">
         <i class="menu-icon icon-base ri ri-chat-history-line" aria-hidden="true"></i>

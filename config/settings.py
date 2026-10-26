@@ -247,7 +247,26 @@ CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
 # Module cours : taille maximale d'un fichier envoyé (en Mo)
 COURS_TAILLE_MAX_MO = int(os.environ.get("COURS_TAILLE_MAX_MO", "50"))
 # Reconnaissance faciale : seuil de similarité (plus haut = plus strict)
-FACE_SEUIL = float(os.environ.get("FACE_SEUIL", "0.363"))
+FACE_SEUIL = float(os.environ.get("FACE_SEUIL", "0.363"))  # vérification 1:1 (avec nom d'utilisateur) et anti-doublon
+# Connexion sans nom d'utilisateur (identification 1 parmi N) : plus strict, car plus il y a de visages enregistrés,
+# plus un inconnu a de chances de ressembler à quelqu'un (mesures LFW : docs/metriques_ia.md)
+FACE_SEUIL_IDENTIFICATION = float(os.environ.get("FACE_SEUIL_IDENTIFICATION", "0.45"))
+
+# Cache : « default » reste le cache mémoire de Django. « modeles_ia » garde les modèles de détection des
+# connexions suspectes pré-calculés par le worker Celery ; il doit donc être partagé avec lui :
+# Redis si le broker est Redis, sinon un dossier local (même machine que le worker, comme le broker filesystem://).
+if CELERY_BROKER_URL.startswith("redis://") and not CELERY_TASK_ALWAYS_EAGER:
+    _CACHE_MODELES_IA = {"BACKEND": "django.core.cache.backends.redis.RedisCache",
+                         "LOCATION": os.environ.get("CACHE_REDIS_URL", CELERY_BROKER_URL)}
+else:
+    _CACHE_MODELES_IA = {"BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+                         "LOCATION": str(BASE_DIR / ".cache_modeles_ia")}
+CACHES = {
+    "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    "modeles_ia": {**_CACHE_MODELES_IA, "KEY_PREFIX": "eduvox", "TIMEOUT": 24 * 3600, "OPTIONS": {"MAX_ENTRIES": 500}},
+}
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    CACHES["modeles_ia"] = {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "modeles_ia"}
 
 # Sessions : déconnexion automatique après 30 minutes d'inactivité
 SESSION_COOKIE_AGE = 30 * 60

@@ -1,15 +1,21 @@
-"""Pages du journal des connexions (utilisateur et administrateur)."""
+"""Pages du journal des connexions (utilisateur et administrateur) et des performances de l'IA."""
 
+import logging
 from datetime import timedelta
 
-from django.db.models import Q
+from django.contrib import messages
+from django.db.models import Avg, Count, Max, Q
+from django.shortcuts import redirect
 from django.utils import timezone
-from django.views.generic import ListView
+from django.views.generic import ListView, TemplateView
 
 from web_project import TemplateLayout
 
-from .models import JournalConnexion
+from .models import EvaluationIA, JournalConnexion
+from .tasks import lancer_evaluation_ia
 from .views import AdminRequiredMixin
+
+logger = logging.getLogger(__name__)
 
 
 class MesConnexionsView(ListView):
@@ -60,3 +66,38 @@ class JournalConnexionsView(AdminRequiredMixin, ListView):
             "filtre": self.request.GET.get("filtre", ""),
         })
         return context
+
+
+class PerformancesIAView(AdminRequiredMixin, TemplateView):
+    """Métriques des deux IA (précision, rappel, F1, matrices de confusion, temps de réponse)."""
+    template_name = "accounts/performances_ia.html"
+
+    def get_context_data(self, **kwargs):
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        dernieres = {t: EvaluationIA.objects.filter(type=t).first() for t in EvaluationIA.Type.values}
+        temps = dernieres[EvaluationIA.Type.TEMPS]
+        context.update({
+            "visage_images": dernieres[EvaluationIA.Type.VISAGE_IMAGES],
+            "visage_base": dernieres[EvaluationIA.Type.VISAGE_BASE],
+            "connexions": dernieres[EvaluationIA.Type.CONNEXIONS],
+            "temps": temps,
+            "temps_visage": (temps.resultats.get("detection_encodage") or {}).get("moyenne") if temps else None,
+            "temps_risque": (temps.resultats.get("evaluer_risque_apres_precalcul")
+                             or temps.resultats.get("evaluer_risque") or {}).get("moyenne") if temps else None,
+            "temps_reels": JournalConnexion.objects.filter(temps_ia_ms__isnull=False)
+                .values("methode", "succes").annotate(nb=Count("id"), moyenne=Avg("temps_ia_ms"), maximum=Max("temps_ia_ms"))
+                .order_by("methode", "-succes"),
+            "historique": EvaluationIA.objects.all()[:10],
+        })
+        return context
+
+    def post(self, request):
+        try:
+            lancer_evaluation_ia.delay()
+        except Exception:
+            logger.exception("Évaluation de l'IA non envoyée à Celery")
+            messages.error(request, "Le service de traitement est injoignable (Celery / Redis). Réessayez plus tard.")
+        else:
+            messages.success(request, "Évaluation lancée. Les nouveaux résultats s'affichent ci-dessous dès qu'elle est "
+                                      "terminée (actualisez la page si besoin).")
+        return redirect("performances-ia")
