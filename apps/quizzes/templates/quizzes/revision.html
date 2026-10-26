@@ -1,0 +1,102 @@
+{% extends layout_path %}
+
+{% block title %}Mon carnet de révision - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module">
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'liste-quiz' %}">Quiz</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Carnet de révision</li>
+  </ol>
+</nav>
+{% include "accounts/_messages.html" %}
+
+<section class="qz-hero mb-6" aria-labelledby="titre-page">
+  <div class="position-relative" style="z-index:1">
+    <span class="quiz-badge quiz-badge--ia mb-3"><i class="icon-base ri ri-brain-line" aria-hidden="true"></i> Révision espacée</span>
+    <h1 id="titre-page" class="h3 mb-1">Mon carnet de révision</h1>
+    <p class="mb-0" style="max-width:680px">Chaque question ratée devient une fiche. Réussie, elle revient de plus en plus tard (1, 2, 4, 8 puis 16 jours) ; ratée, elle revient dès demain. C'est la méthode de Leitner : réviser juste au moment où l'on risque d'oublier.</p>
+    <div class="qz-hero-stats">
+      <div class="qz-hero-stat"><strong>{{ stats.dues }}</strong><span>fiche{{ stats.dues|pluralize }} à réviser aujourd'hui</span></div>
+      <div class="qz-hero-stat"><strong>{{ stats.total }}</strong><span>fiche{{ stats.total|pluralize }} dans le carnet</span></div>
+      <div class="qz-hero-stat"><strong>{{ stats.maitrisees }}</strong><span>notion{{ stats.maitrisees|pluralize }} maîtrisée{{ stats.maitrisees|pluralize }}</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- Les 5 boîtes -->
+<section class="card mb-6" aria-labelledby="titre-boites"><div class="card-body">
+  <h2 id="titre-boites" class="qz-section-titre mb-4"><i class="icon-base ri ri-stack-line" aria-hidden="true"></i> Mes boîtes</h2>
+  <ol class="row g-3 list-unstyled mb-0">
+    {% for b in stats.boites %}
+    <li class="col-6 col-md">
+      <div class="qz-kpi flex-column align-items-start gap-1">
+        <span class="small quiz-aide">Boîte {{ b.numero }} · {% for numero, jours in intervalles.items %}{% if numero == b.numero %}tous les {{ jours }} j{% endif %}{% endfor %}</span>
+        <span class="qz-kpi-valeur">{{ b.nb }}</span>
+        <div class="qz-barre w-100 {% if b.numero >= 4 %}qz-barre--vert{% elif b.numero == 1 %}qz-barre--ambre{% endif %}" aria-hidden="true"><span style="width: {% if stats.total %}{% widthratio b.nb stats.total 100 %}{% else %}0{% endif %}%"></span></div>
+      </div>
+    </li>
+    {% endfor %}
+    <li class="col-6 col-md">
+      <div class="qz-kpi flex-column align-items-start gap-1" style="border-color:#6ee7b7">
+        <span class="small quiz-aide"><i class="icon-base ri ri-medal-line" aria-hidden="true"></i> Maîtrisées</span>
+        <span class="qz-kpi-valeur" style="color:var(--qz-vert)">{{ stats.maitrisees }}</span>
+      </div>
+    </li>
+  </ol>
+</div></section>
+
+{% if retour %}
+<section class="qz-ia mb-6" aria-labelledby="titre-retour" role="status" style="{% if retour.juste %}border-left-color:#059669;background:#f0fdf4{% else %}border-left-color:#dc2626;background:#fef2f2{% endif %}">
+  <h2 id="titre-retour" class="h6 mb-2 {% if retour.juste %}quiz-correct{% else %}quiz-incorrect{% endif %}">
+    {% if retour.juste %}<i class="icon-base ri ri-check-double-line" aria-hidden="true"></i> Bonne réponse !{% else %}<i class="icon-base ri ri-close-circle-line" aria-hidden="true"></i> Pas encore…{% endif %}
+  </h2>
+  <p class="mb-1"><strong>{{ retour.enonce }}</strong></p>
+  {% if not retour.juste %}<p class="mb-1">Ta réponse : {{ retour.choisi }} · <span class="quiz-correct">Bonne réponse : {{ retour.bonne }}</span></p>{% endif %}
+  {% if retour.explication %}<p class="small mb-1">{{ retour.explication }}</p>{% endif %}
+  <p class="small quiz-aide mb-0">{% if retour.maitrisee %}Notion maîtrisée : la fiche sort du carnet. Bravo !{% else %}Fiche placée en boîte {{ retour.boite }} : prochaine révision le {{ retour.prochaine }}.{% endif %}</p>
+</section>
+{% endif %}
+
+{% if carte %}
+<form method="post" action="{% url 'repondre-revision' carte.pk %}">
+  {% csrf_token %}
+  <fieldset class="qz-question-carte mb-6">
+    <legend>
+      <span class="d-flex flex-wrap gap-2 mb-2 fw-normal" style="font-size:.8125rem">
+        <span class="quiz-badge quiz-badge--info">Boîte {{ carte.boite }}</span>
+        <span class="quiz-badge quiz-badge--neutre">{{ carte.question.quiz.titre }}</span>
+        <span class="quiz-badge quiz-badge--neutre">{{ stats.dues }} restante{{ stats.dues|pluralize }}</span>
+      </span>
+      {{ carte.question.enonce|linebreaksbr }}
+    </legend>
+    <div class="qz-choix">
+      {% for c in choix %}
+      <label class="qz-choix-option" for="rc{{ c.pk }}">
+        <input type="radio" name="choix" id="rc{{ c.pk }}" value="{{ c.pk }}" required />
+        <span class="qz-lettre" aria-hidden="true">{% cycle 'A' 'B' 'C' 'D' 'E' 'F' %}</span>
+        <span>{{ c.texte }}</span>
+        <i class="icon-base ri ri-checkbox-circle-fill qz-choix-coche" aria-hidden="true"></i>
+      </label>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary mt-5"><i class="icon-base ri ri-check-line me-1" aria-hidden="true"></i> Valider ma réponse</button>
+  </fieldset>
+</form>
+{% else %}
+<div class="card"><div class="qz-vide">
+  <div class="qz-vide-icone" aria-hidden="true"><i class="icon-base ri ri-cup-line"></i></div>
+  {% if stats.total %}
+    <h2 class="h5">Rien à réviser aujourd'hui</h2>
+    <p class="quiz-aide mb-3">{% if stats.prochaine %}Prochaine révision le {{ stats.prochaine|date:"d/m/Y" }}.{% else %}Toutes tes fiches sont maîtrisées.{% endif %} Reviens à ce moment-là : c'est l'espacement qui ancre la mémoire.</p>
+  {% else %}
+    <h2 class="h5">Ton carnet est vide</h2>
+    <p class="quiz-aide mb-3">Passe un quiz : chaque question QCM ou Vrai/Faux ratée y sera ajoutée automatiquement.</p>
+  {% endif %}
+  <a href="{% url 'liste-quiz' %}" class="btn btn-primary">Voir les quiz</a>
+</div></div>
+{% endif %}
+</div>
+{% endblock content %}

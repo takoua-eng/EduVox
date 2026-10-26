@@ -1,0 +1,279 @@
+{% extends layout_path %}
+
+{% block title %}Résultat - {{ quiz.titre }} - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module">
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'liste-quiz' %}">Quiz</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'detail-quiz' quiz.pk %}">{{ quiz.titre }}</a></li>
+    {% if role != 'etudiant' %}<li class="breadcrumb-item"><a href="{% url 'resultats-quiz' quiz.pk %}">Analytics</a></li>{% endif %}
+    <li class="breadcrumb-item active" aria-current="page">Tentative {{ tentative.numero }}</li>
+  </ol>
+</nav>
+{% include "accounts/_messages.html" %}
+
+<!-- Score -->
+<section class="qz-hero mb-6" aria-labelledby="titre-page">
+  <div class="d-flex flex-wrap align-items-center gap-6 position-relative" style="z-index:1">
+    {% with p=tentative.pourcentage|default_if_none:0 %}
+    <div class="qz-anneau qz-anneau--grand" style="--p: {{ p }}; --c: #ffffff; background: conic-gradient(#fff calc({{ p }} * 1%), rgba(255,255,255,.25) 0)"
+         role="img" aria-label="Score : {{ p }} %">
+      <span style="color: var(--qz-violet-fonce)">{{ p }}%</span>
+    </div>
+    <div class="flex-grow-1">
+      <p class="mb-1 qz-hero-doux">{% if role != 'etudiant' %}{{ tentative.etudiant.get_full_name|default:tentative.etudiant.username }} · {% endif %}Tentative {{ tentative.numero }} · {{ tentative.date_soumission|date:"d/m/Y à H:i" }}</p>
+      <h1 id="titre-page" class="h3 mb-1">
+        {% if tentative.statut != 'corrigee' %}Score provisoire
+        {% elif p >= 90 %}Excellent travail !{% elif p >= 70 %}Très bien !{% elif p >= 50 %}Objectif atteint{% else %}À consolider{% endif %}
+      </h1>
+      <p class="h5 mb-3" style="color:#fff"><span id="scoreTentative">{{ tentative.score|floatformat:"-2" }} / {{ tentative.score_max|floatformat:"-2" }}</span> points</p>
+      <div class="qz-hero-stats mt-0">
+        <div class="qz-hero-stat"><strong>{{ nb_justes }}/{{ reponses|length }}</strong><span>réponses justes</span></div>
+        {% if tentative.duree_texte %}<div class="qz-hero-stat"><strong>{{ tentative.duree_texte }}</strong><span>durée</span></div>{% endif %}
+        <div class="qz-hero-stat"><strong>{{ tentative.indices|length }}</strong><span>indice{{ tentative.indices|length|pluralize }} IA utilisé{{ tentative.indices|length|pluralize }}</span></div>
+        <div class="qz-hero-stat"><strong>{{ tentative.get_statut_display }}</strong><span>état</span></div>
+      </div>
+    </div>
+    {% endwith %}
+    {% if proprietaire %}
+    <div class="d-flex flex-column gap-2">
+      {% if peut_certificat %}<a href="{% url 'certificat' tentative.pk %}" class="btn btn-light"><i class="icon-base ri ri-award-line me-1" aria-hidden="true"></i> Mon certificat (PDF)</a>{% endif %}
+      <a href="{% url 'revision' %}" class="btn btn-outline-light"><i class="icon-base ri ri-brain-line me-1" aria-hidden="true"></i> Carnet de révision</a>
+      <a href="{% url 'detail-quiz' quiz.pk %}" class="btn btn-outline-light"><i class="icon-base ri ri-restart-line me-1" aria-hidden="true"></i> Retour au quiz</a>
+      <a href="{% url 'mes-tentatives' %}" class="btn btn-outline-light"><i class="icon-base ri ri-line-chart-line me-1" aria-hidden="true"></i> Ma progression</a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<div id="etatCorrection" role="status" aria-live="polite">
+  {% if nb_en_attente %}
+  <div class="alert alert-warning d-flex gap-2 align-items-start" role="note">
+    {% if nb_en_attente > nb_erreurs %}<span class="spinner-border spinner-border-sm mt-1" aria-hidden="true"></span>{% endif %}
+    <div>
+      <strong>{{ nb_en_attente }} réponse{{ nb_en_attente|pluralize }} rédigée{{ nb_en_attente|pluralize }} en attente de correction</strong> : le score ne les compte pas encore.
+      {% if nb_erreurs %}<br /><span class="small">Correction automatique momentanément indisponible pour {{ nb_erreurs }} réponse{{ nb_erreurs|pluralize }} : elle sera relancée ou faite par l'enseignant. Aucune note n'est attribuée par défaut.</span>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% if proprietaire and tentative.statut == 'corrigee' and not peut_certificat %}
+<p class="small quiz-aide mb-4"><i class="icon-base ri ri-award-line" aria-hidden="true"></i> Le certificat de réussite est délivré à partir de {{ seuil_certificat }} % : refais le quiz après avoir révisé ton carnet.</p>
+{% endif %}
+{% if signaux %}
+<div class="alert alert-warning" role="note">
+  <strong><i class="icon-base ri ri-shield-user-line" aria-hidden="true"></i> Signaux d'intégrité à vérifier :</strong> {{ signaux|join:" · " }}.
+  <span class="small d-block mt-1">Simple contexte pour votre jugement : un changement d'onglet peut avoir une cause légitime.</span>
+</div>
+{% endif %}
+{% if peut_gerer and nb_erreurs %}
+<form method="post" action="{% url 'relancer-correction' tentative.pk %}" class="mb-4">
+  {% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-refresh-line me-1" aria-hidden="true"></i> Relancer la correction IA</button>
+</form>
+{% endif %}
+
+<div class="row g-6 mb-6">
+  <!-- Bilan IA -->
+  <div class="col-lg-8">
+    <section id="bilan" class="card h-100" aria-labelledby="titre-bilan">
+      <div class="card-body">
+        <h2 id="titre-bilan" class="qz-section-titre mb-4"><i class="icon-base ri ri-sparkling-2-line" aria-hidden="true"></i> {% if proprietaire %}Ton bilan personnalisé{% else %}Bilan personnalisé de l'étudiant{% endif %}</h2>
+        <div id="zoneBilan" role="status" aria-live="polite">
+        {% if etat_bilan == 'termine' and bilan %}
+          <p class="fs-6">{{ bilan.synthese }}</p>
+          <div class="row g-4">
+            {% if bilan.points_forts %}
+            <div class="col-md-6">
+              <h3 class="h6 quiz-correct"><i class="icon-base ri ri-thumb-up-line" aria-hidden="true"></i> Points forts</h3>
+              <ul class="list-unstyled d-grid gap-2 mb-0">{% for p in bilan.points_forts %}<li class="quiz-badge quiz-badge--succes text-wrap text-start">{{ p }}</li>{% endfor %}</ul>
+            </div>
+            {% endif %}
+            {% if bilan.a_revoir %}
+            <div class="col-md-6">
+              <h3 class="h6" style="color:var(--qz-ambre)"><i class="icon-base ri ri-focus-3-line" aria-hidden="true"></i> À revoir</h3>
+              <ul class="list-unstyled d-grid gap-3 mb-0">{% for item in bilan.a_revoir %}<li><strong>{{ item.notion }}</strong><br /><span class="small">{{ item.conseil }}</span></li>{% endfor %}</ul>
+            </div>
+            {% endif %}
+          </div>
+          <div class="qz-ia mt-4">
+            <p class="qz-ia-titre mb-1"><i class="icon-base ri ri-flag-2-line" aria-hidden="true"></i> Prochaine étape</p>
+            <p class="mb-0">{{ bilan.prochaine_etape }}</p>
+          </div>
+          <p class="small quiz-aide mt-3 mb-0">Bilan rédigé par l'IA ({{ bilan.modele }}) à partir de tes résultats uniquement.</p>
+        {% elif etat_bilan == 'en_cours' %}
+          <div class="d-flex align-items-center gap-2 mb-2"><span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span> L'IA analyse tes réponses pour te préparer un bilan…</div>
+          <div class="qz-squelette" aria-hidden="true"></div><div class="qz-squelette w-75" aria-hidden="true"></div><div class="qz-squelette w-50" aria-hidden="true"></div>
+        {% elif etat_bilan == 'erreur' %}
+          <p class="quiz-erreur">{{ message_bilan|default:"Le bilan n'a pas pu être généré." }}</p>
+          <form method="post" action="{% url 'relancer-bilan' tentative.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-primary">Réessayer</button></form>
+        {% elif tentative.statut != 'corrigee' %}
+          <p class="quiz-aide mb-0">Le bilan sera rédigé dès que toutes les réponses seront corrigées.</p>
+        {% else %}
+          <p class="quiz-aide mb-0">{% if ia_disponible %}Bilan non disponible pour cette tentative.{% else %}L'assistant IA n'est pas configuré sur ce serveur.{% endif %}</p>
+        {% endif %}
+        </div>
+      </div>
+    </section>
+  </div>
+  <!-- Score par type -->
+  <div class="col-lg-4">
+    <section class="card h-100" aria-labelledby="titre-par-type">
+      <div class="card-body">
+        <h2 id="titre-par-type" class="qz-section-titre mb-4"><i class="icon-base ri ri-pie-chart-2-line" aria-hidden="true"></i> Par type de question</h2>
+        <ul class="list-unstyled d-grid gap-4 mb-0">
+          {% for t in par_type %}
+          <li>
+            <div class="d-flex justify-content-between small mb-1"><span class="fw-medium">{{ t.type }}</span><span>{{ t.obtenu|floatformat:"-2" }}/{{ t.max|floatformat:"-2" }} ({{ t.pct }} %)</span></div>
+            <div class="qz-barre {% if t.pct >= 70 %}qz-barre--vert{% elif t.pct < 50 %}qz-barre--ambre{% endif %}" role="img" aria-label="{{ t.type }} : {{ t.pct }} %"><span style="width: {{ t.pct }}%"></span></div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  </div>
+</div>
+
+{% if not montrer_corrige %}
+<p class="alert alert-info" role="note">Ton enseignant a choisi de ne pas afficher le corrigé de ce quiz. Tu vois tes points par question.</p>
+{% endif %}
+
+<h2 class="qz-section-titre mb-4"><i class="icon-base ri ri-file-list-3-line" aria-hidden="true"></i> Correction détaillée</h2>
+{% for reponse in reponses %}
+{% with question=reponse.question %}
+<article id="reponse-{{ reponse.pk }}" class="card mb-4" aria-labelledby="q-{{ reponse.pk }}">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+      <h3 id="q-{{ reponse.pk }}" class="h6 mb-0 d-flex align-items-center gap-2">
+        <span class="qz-lettre" aria-hidden="true">{{ question.ordre }}</span> Question {{ question.ordre }}
+        <span class="fw-normal quiz-aide small">· {{ question.get_type_question_display }}</span>
+      </h3>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        {% if reponse.indice_utilise %}<span class="quiz-badge quiz-badge--info"><i class="icon-base ri ri-lightbulb-flash-line" aria-hidden="true"></i> Indice utilisé</span>{% endif %}
+        {% if reponse.en_attente %}
+          <span class="quiz-badge {% if reponse.statut_correction == 'erreur' %}quiz-badge--erreur{% else %}quiz-badge--attente{% endif %}"><i class="icon-base ri ri-time-line" aria-hidden="true"></i> {{ reponse.get_statut_correction_display }}</span>
+        {% else %}
+          <span class="quiz-badge {% if reponse.est_correcte %}quiz-badge--succes{% elif reponse.est_correcte is False %}quiz-badge--erreur{% else %}quiz-badge--attente{% endif %}">
+            {% if reponse.est_correcte %}<i class="icon-base ri ri-check-line" aria-hidden="true"></i> Juste{% elif reponse.est_correcte is False %}<i class="icon-base ri ri-close-line" aria-hidden="true"></i> {% if not reponse.choix and not reponse.texte %}Sans réponse{% else %}Faux{% endif %}{% else %}<i class="icon-base ri ri-contrast-line" aria-hidden="true"></i> Partiellement juste{% endif %}
+          </span>
+          <strong>{{ reponse.points_obtenus|floatformat:"-2" }} / {{ question.points|floatformat:"-2" }}</strong>
+        {% endif %}
+      </div>
+    </div>
+    <p class="fw-medium">{{ question.enonce|linebreaksbr }}</p>
+
+    {% if question.type_question == 'ouverte' %}
+      <p class="mb-1 fw-semibold">Réponse {% if proprietaire %}donnée{% else %}de l'étudiant{% endif %} :</p>
+      <blockquote class="border-start border-3 ps-3 mb-3">{{ reponse.texte|default:"(aucune réponse)"|linebreaksbr }}</blockquote>
+      {% if reponse.explication_correction and not reponse.en_attente %}
+      <div class="qz-ia mb-2">
+        <p class="qz-ia-titre mb-1">
+          {% if reponse.statut_correction == 'ia' %}<i class="icon-base ri ri-sparkling-line" aria-hidden="true"></i> Correction assistée par IA (révisable par l'enseignant)
+          {% elif reponse.statut_correction == 'enseignant' %}<i class="icon-base ri ri-user-line" aria-hidden="true"></i> Correction de l'enseignant
+          {% else %}Correction{% endif %}
+        </p>
+        <p class="mb-0">{{ reponse.explication_correction|linebreaksbr }}</p>
+      </div>
+      {% endif %}
+      {% if montrer_corrige %}<p class="small quiz-aide mb-0"><strong>Éléments attendus :</strong> {{ question.reponse_attendue|linebreaksbr }}</p>{% endif %}
+      {% if peut_gerer and reponse.points_ia is not None and reponse.statut_correction == 'enseignant' %}<p class="small quiz-aide mb-0">Note proposée initialement par l'IA : {{ reponse.points_ia|floatformat:"-2" }}</p>{% endif %}
+      {% if peut_gerer and reponse.form_revision %}
+      {% with rform=reponse.form_revision %}
+      <details class="mt-3" {% if reponse.statut_correction == 'erreur' %}open{% endif %}>
+        <summary class="fw-semibold">{% if reponse.en_attente %}Noter cette réponse{% else %}Réviser la note{% endif %}</summary>
+        <form method="post" action="{% url 'reviser-reponse' reponse.pk %}" class="row g-3 mt-1" novalidate>
+          {% csrf_token %}
+          <div class="col-md-3">{% include "quizzes/_champ.html" with champ=rform.points classe="mb-0" %}</div>
+          <div class="col-md-9">{% include "quizzes/_champ.html" with champ=rform.commentaire classe="mb-0" %}</div>
+          <div class="col-12"><button type="submit" class="btn btn-sm btn-primary">Enregistrer la note<span class="visually-hidden"> de la question {{ question.ordre }}</span></button></div>
+        </form>
+      </details>
+      {% endwith %}
+      {% endif %}
+    {% else %}
+      <ul class="list-unstyled d-grid gap-2 mb-2">
+        {% for choix in question.choix.all %}
+        <li class="d-flex align-items-center gap-2 p-2 rounded-3 {% if montrer_corrige and choix.est_correct %}quiz-correct{% elif choix.pk == reponse.choix_id and not choix.est_correct and montrer_corrige %}quiz-incorrect{% endif %}"
+            style="{% if montrer_corrige and choix.est_correct %}background:#ecfdf5{% elif choix.pk == reponse.choix_id and montrer_corrige %}background:#fef2f2{% elif choix.pk == reponse.choix_id %}background:#f3efff{% endif %}">
+          <i class="icon-base ri {% if choix.pk == reponse.choix_id %}ri-radio-button-line{% else %}ri-checkbox-blank-circle-line{% endif %}" aria-hidden="true"></i>
+          <span>{{ choix.texte }}
+            {% if choix.pk == reponse.choix_id %}<span class="small">(ta réponse)</span>{% endif %}
+            {% if montrer_corrige and choix.est_correct %}<span class="small">(bonne réponse)</span>{% endif %}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% if not reponse.choix %}<p class="small quiz-aide">Aucune réponse donnée.</p>{% endif %}
+      {% if reponse.peut_expliquer %}
+      <div class="mt-3 js-explication">
+        <div class="qz-ia" {% if not reponse.explication_ia %}hidden{% endif %} aria-live="polite">
+          <p class="qz-ia-titre mb-1"><i class="icon-base ri ri-sparkling-line" aria-hidden="true"></i> Pourquoi ta réponse est fausse</p>
+          <p class="mb-0 js-explication-texte">{{ reponse.explication_ia|linebreaksbr }}</p>
+        </div>
+        {% if not reponse.explication_ia and ia_disponible %}
+        <form method="post" action="{% url 'expliquer-erreur' reponse.pk %}" class="js-form-explication">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-question-answer-line me-1" aria-hidden="true"></i> Pourquoi ma réponse est fausse ?</button>
+          <p class="small quiz-erreur mt-2 mb-0 js-explication-erreur" role="alert" hidden></p>
+        </form>
+        {% endif %}
+      </div>
+      {% endif %}
+    {% endif %}
+    {% if montrer_corrige and question.explication %}<p class="small mb-0 mt-3"><strong>Explication de l'enseignant :</strong> {{ question.explication|linebreaksbr }}</p>{% endif %}
+  </div>
+</article>
+{% endwith %}
+{% endfor %}
+
+<a href="{% if proprietaire %}{% url 'mes-tentatives' %}{% else %}{% url 'resultats-quiz' quiz.pk %}{% endif %}" class="btn btn-outline-secondary mb-6">
+  <i class="icon-base ri ri-arrow-left-line me-1" aria-hidden="true"></i> {% if proprietaire %}Ma progression{% else %}Analytics du quiz{% endif %}
+</a>
+</div>
+{% endblock content %}
+
+{% block page_js %}
+<script>
+(function () {
+  // « Pourquoi ma réponse est fausse ? » sans recharger la page
+  document.querySelectorAll(".js-form-explication").forEach(function (form) {
+    form.addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const bouton = form.querySelector("button"), erreur = form.querySelector(".js-explication-erreur");
+      const zone = form.closest(".js-explication");
+      erreur.hidden = true; bouton.disabled = true;
+      const contenu = bouton.innerHTML;
+      bouton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> L\'IA rédige une explication…';
+      try {
+        const r = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { "X-Requested-With": "fetch", "Accept": "application/json" } });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.erreur || "Explication indisponible.");
+        zone.querySelector(".js-explication-texte").textContent = d.explication;
+        zone.querySelector(".qz-ia").hidden = false;
+        form.remove();
+      } catch (err) { erreur.textContent = err.message; erreur.hidden = false; bouton.disabled = false; bouton.innerHTML = contenu; }
+    });
+  });
+
+  // Suivi des corrections IA et du bilan : la page se recharge quand leur état change
+  const corrections = {{ nb_en_attente|default:0 }} > {{ nb_erreurs|default:0 }};
+  const bilanEnCours = "{{ etat_bilan }}" === "en_cours";
+  if (!corrections && !bilanEnCours) return;
+  const url = "{% url 'etat-tentative' tentative.pk %}";
+  const attenteInitiale = {{ nb_en_attente|default:0 }};
+  let essais = 0;
+  const minuteur = setInterval(async function () {
+    if (++essais > 80) { clearInterval(minuteur); return; }
+    try {
+      const r = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (!r.ok) return;
+      const d = await r.json();
+      const correctionsChangees = corrections && (d.en_attente !== attenteInitiale || d.en_cours_ia === 0);
+      const bilanFini = bilanEnCours && d.bilan !== "en_cours";
+      if (correctionsChangees || bilanFini) { clearInterval(minuteur); window.location.reload(); }
+    } catch (e) { /* on réessaie au prochain passage */ }
+  }, 3000);
+})();
+</script>
+{% endblock page_js %}

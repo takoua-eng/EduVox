@@ -1,0 +1,212 @@
+{% extends layout_path %}
+
+{% block title %}Analytics - {{ quiz.titre }} - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}
+<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module">
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'liste-quiz' %}">Quiz</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'detail-quiz' quiz.pk %}">{{ quiz.titre }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Analytics</li>
+  </ol>
+</nav>
+{% include "accounts/_messages.html" %}
+
+<section class="qz-hero mb-6" aria-labelledby="titre-page">
+  <div class="position-relative" style="z-index:1">
+    <span class="quiz-badge quiz-badge--ia mb-3"><i class="icon-base ri ri-bar-chart-box-line" aria-hidden="true"></i> Analytics d'évaluation</span>
+    <h1 id="titre-page" class="h3 mb-1">{{ quiz.titre }}</h1>
+    <p class="mb-3">Analyse d'items (difficulté, discrimination, distracteurs), fiabilité du quiz et analyse pédagogique de la classe par l'IA.</p>
+    {% if tentatives %}<a href="{% url 'export-resultats' quiz.pk %}" class="btn btn-light btn-sm"><i class="icon-base ri ri-file-excel-2-line me-1" aria-hidden="true"></i> Exporter les résultats (CSV / Excel)</a>{% endif %}
+  </div>
+</section>
+
+<!-- Indicateurs -->
+<section class="row g-4 mb-6" aria-label="Indicateurs clés">
+  <div class="col-6 col-xl-2"><div class="qz-kpi"><span class="qz-kpi-icone" aria-hidden="true"><i class="icon-base ri ri-group-line"></i></span><div><div class="qz-kpi-valeur">{{ analyse.n }}</div><div class="qz-kpi-libelle">tentatives soumises</div></div></div></div>
+  <div class="col-6 col-xl-2"><div class="qz-kpi"><span class="qz-kpi-icone qz-kpi-icone--vert" aria-hidden="true"><i class="icon-base ri ri-percent-line"></i></span><div><div class="qz-kpi-valeur">{% if analyse.moyenne is not None %}{{ analyse.moyenne }} %{% else %}—{% endif %}</div><div class="qz-kpi-libelle">score moyen</div></div></div></div>
+  <div class="col-6 col-xl-2"><div class="qz-kpi"><span class="qz-kpi-icone qz-kpi-icone--cyan" aria-hidden="true"><i class="icon-base ri ri-git-commit-line"></i></span><div><div class="qz-kpi-valeur">{% if analyse.mediane is not None %}{{ analyse.mediane }} %{% else %}—{% endif %}</div><div class="qz-kpi-libelle">médiane{% if analyse.ecart_type is not None %} · σ {{ analyse.ecart_type }}{% endif %}</div></div></div></div>
+  <div class="col-6 col-xl-2"><div class="qz-kpi"><span class="qz-kpi-icone qz-kpi-icone--vert" aria-hidden="true"><i class="icon-base ri ri-medal-line"></i></span><div><div class="qz-kpi-valeur">{% if analyse.reussite is not None %}{{ analyse.reussite }} %{% else %}—{% endif %}</div><div class="qz-kpi-libelle">ont au moins 50 %</div></div></div></div>
+  <div class="col-6 col-xl-2"><div class="qz-kpi"><span class="qz-kpi-icone qz-kpi-icone--ambre" aria-hidden="true"><i class="icon-base ri ri-shield-star-line"></i></span><div><div class="qz-kpi-valeur">{% if analyse.alpha is not None %}{{ analyse.alpha }}{% else %}—{% endif %}</div><div class="qz-kpi-libelle">fiabilité α (KR-20)</div></div></div></div>
+  <div class="col-6 col-xl-2"><div class="qz-kpi"><span class="qz-kpi-icone" aria-hidden="true"><i class="icon-base ri ri-timer-line"></i></span><div><div class="qz-kpi-valeur">{% if analyse.duree_moyenne_min is not None %}{{ analyse.duree_moyenne_min }} min{% else %}—{% endif %}</div><div class="qz-kpi-libelle">durée moyenne · indices {{ analyse.taux_indices|default_if_none:"—" }} %</div></div></div></div>
+</section>
+
+{% if not analyse.fiable and analyse.n %}
+<p class="alert alert-info" role="note"><i class="icon-base ri ri-information-line" aria-hidden="true"></i> Seulement {{ analyse.n }} tentative{{ analyse.n|pluralize }} : les indicateurs statistiques (discrimination, fiabilité) deviennent fiables à partir d'une dizaine de tentatives.</p>
+{% endif %}
+{% if nb_erreurs_ia %}
+<div class="alert alert-warning" role="alert">{{ nb_erreurs_ia }} réponse{{ nb_erreurs_ia|pluralize }} rédigée{{ nb_erreurs_ia|pluralize }} n'ont pas pu être corrigée{{ nb_erreurs_ia|pluralize }} par l'IA : ouvrez les tentatives concernées pour relancer ou noter vous-même.</div>
+{% endif %}
+
+<div class="row g-6 mb-6">
+  <div class="col-lg-6">
+    <section class="card h-100" aria-labelledby="titre-distribution">
+      <div class="card-body">
+        <h2 id="titre-distribution" class="qz-section-titre mb-3"><i class="icon-base ri ri-bar-chart-grouped-line" aria-hidden="true"></i> Distribution des scores</h2>
+        <div id="graphiqueDistribution" class="qz-graphique" role="img" aria-label="Histogramme du nombre de tentatives par tranche de score de 10 %"></div>
+      </div>
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="card h-100" aria-labelledby="titre-items-graph">
+      <div class="card-body">
+        <h2 id="titre-items-graph" class="qz-section-titre mb-3"><i class="icon-base ri ri-focus-2-line" aria-hidden="true"></i> Réussite par question</h2>
+        <div id="graphiqueItems" class="qz-graphique" role="img" aria-label="Taux de réussite de chaque question ; le détail chiffré est dans le tableau d'analyse des items"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Analyse IA de la classe -->
+{% if analyse.n %}
+<section id="analyse-ia" class="card mb-6" aria-labelledby="titre-analyse-ia">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+      <div>
+        <h2 id="titre-analyse-ia" class="qz-section-titre"><i class="icon-base ri ri-sparkling-2-line" aria-hidden="true"></i> Analyse pédagogique de la classe par l'IA</h2>
+        <p class="small quiz-aide mb-0">Idées fausses fréquentes et plan de remédiation, à partir de statistiques anonymisées (aucun nom n'est transmis).</p>
+      </div>
+      {% if peut_gerer and etat_analyse != 'en_cours' %}
+      <form method="post" action="{% url 'analyse-classe' quiz.pk %}">{% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-primary" {% if not ia_disponible %}disabled{% endif %}><i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> {% if etat_analyse == 'termine' %}Actualiser l'analyse{% else %}Analyser la classe{% endif %}</button>
+      </form>
+      {% endif %}
+    </div>
+    <div id="zoneAnalyse" role="status" aria-live="polite">
+    {% if etat_analyse == 'en_cours' %}
+      <div class="d-flex align-items-center gap-2"><span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span> L'IA analyse les réponses de la classe…</div>
+      <div class="qz-squelette" aria-hidden="true"></div><div class="qz-squelette w-75" aria-hidden="true"></div>
+    {% elif etat_analyse == 'termine' and analyse_ia %}
+      <p>{{ analyse_ia.synthese }}</p>
+      <div class="row g-4">
+        <div class="col-md-6">
+          <h3 class="h6"><i class="icon-base ri ri-error-warning-line text-danger" aria-hidden="true"></i> Idées fausses repérées</h3>
+          {% if analyse_ia.idees_fausses %}<ul class="d-grid gap-2 mb-0">{% for i in analyse_ia.idees_fausses %}<li><strong>Q{{ i.question }}</strong> — {{ i.constat }}</li>{% endfor %}</ul>
+          {% else %}<p class="quiz-aide small mb-0">Aucune idée fausse marquante.</p>{% endif %}
+        </div>
+        <div class="col-md-6">
+          <h3 class="h6"><i class="icon-base ri ri-road-map-line text-success" aria-hidden="true"></i> Plan de remédiation</h3>
+          <ol class="d-grid gap-2 mb-0">{% for r in analyse_ia.remediation %}<li>{{ r }}</li>{% endfor %}</ol>
+        </div>
+      </div>
+      {% if analyse_ia.questions_a_revoir %}<p class="small mt-3 mb-0"><strong>Formulations à revoir selon l'IA :</strong> {% for o in analyse_ia.questions_a_revoir %}Q{{ o }}{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    {% elif etat_analyse == 'erreur' %}
+      <p class="quiz-erreur mb-0">{{ message_analyse }}</p>
+    {% else %}
+      <p class="quiz-aide mb-0">{% if ia_disponible %}Lancez l'analyse pour obtenir une synthèse des difficultés de la classe.{% else %}IA non configurée sur ce serveur.{% endif %}</p>
+    {% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- Analyse des items -->
+<section class="card mb-6" aria-labelledby="titre-items">
+  <div class="card-body pb-0">
+    <h2 id="titre-items" class="qz-section-titre"><i class="icon-base ri ri-microscope-line" aria-hidden="true"></i> Analyse des items {% if analyse.nb_alertes %}<span class="quiz-badge quiz-badge--attente">{{ analyse.nb_alertes }} alerte{{ analyse.nb_alertes|pluralize }}</span>{% endif %}</h2>
+    <p class="small quiz-aide">Difficulté p = part moyenne des points obtenus. Discrimination D = écart de réussite entre les 27 % meilleurs et les 27 % plus faibles (≥ 0,3 bonne, &lt; 0,2 à revoir, négative = corrigé à vérifier).</p>
+  </div>
+  <div class="table-responsive">
+    <table class="table qz-tableau mb-0">
+      <caption class="visually-hidden">Analyse des items du quiz</caption>
+      <thead><tr><th scope="col">Question</th><th scope="col" style="min-width:160px">Réussite (p)</th><th scope="col">Discrimination (D)</th><th scope="col">Indices</th><th scope="col">Diagnostic</th></tr></thead>
+      <tbody>
+        {% for item in analyse.items %}
+        <tr>
+          <th scope="row" class="fw-normal"><strong>Q{{ item.question.ordre }}</strong> <span class="quiz-aide small">· {{ item.question.get_type_question_display }}</span><br /><span class="small">{{ item.question.enonce|truncatechars:80 }}</span>
+            {% if item.distracteurs %}
+            <details class="small mt-2"><summary>Réponses choisies</summary>
+              <ul class="list-unstyled d-grid gap-2 mt-2 mb-0" style="max-width:340px">
+                {% for d in item.distracteurs %}
+                <li><div class="d-flex justify-content-between"><span>{% if d.correct %}<i class="icon-base ri ri-check-line quiz-correct" aria-hidden="true"></i> <span class="visually-hidden">(bonne réponse)</span>{% endif %}{{ d.texte|truncatechars:45 }}</span><span>{{ d.pct }} % ({{ d.nb }})</span></div>
+                  <div class="qz-barre {% if d.correct %}qz-barre--vert{% else %}qz-barre--rouge{% endif %}"><span style="width: {{ d.pct }}%"></span></div></li>
+                {% endfor %}
+              </ul>
+            </details>
+            {% endif %}
+          </th>
+          <td>{% if item.p_pct is not None %}<div class="d-flex justify-content-between small"><span>{{ item.p_pct }} %</span><span class="quiz-aide">{{ item.n }} rép.</span></div>
+              <div class="qz-barre {% if item.p_pct >= 70 %}qz-barre--vert{% elif item.p_pct < 40 %}qz-barre--rouge{% else %}qz-barre--ambre{% endif %}"><span style="width: {{ item.p_pct }}%"></span></div>{% else %}—{% endif %}</td>
+          <td>{% if item.d is not None %}<strong>{{ item.d }}</strong> <span class="quiz-badge {% if item.niveau_d == 'Bonne' %}quiz-badge--succes{% elif item.niveau_d == 'Acceptable' %}quiz-badge--info{% elif item.niveau_d == 'Suspecte' %}quiz-badge--erreur{% else %}quiz-badge--attente{% endif %}">{{ item.niveau_d }}</span>{% else %}<span class="quiz-aide small">pas assez de données</span>{% endif %}</td>
+          <td>{{ item.indices }}</td>
+          <td>{% for texte, niveau in item.alertes %}<div class="quiz-badge quiz-badge--{{ niveau }} text-wrap text-start mb-1">{{ texte }}</div>{% empty %}<span class="quiz-badge quiz-badge--succes">RAS</span>{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Tentatives -->
+<section class="card" aria-labelledby="titre-tentatives">
+  <div class="card-body pb-0"><h2 id="titre-tentatives" class="qz-section-titre"><i class="icon-base ri ri-team-line" aria-hidden="true"></i> Tentatives des étudiants {% if nb_en_attente %}<span class="quiz-badge quiz-badge--attente">{{ nb_en_attente }} à corriger</span>{% endif %} {% if nb_en_cours %}<span class="quiz-badge quiz-badge--neutre">{{ nb_en_cours }} en cours</span>{% endif %}</h2></div>
+  {% if tentatives %}
+  <div class="table-responsive">
+    <table class="table table-hover qz-tableau mb-0">
+      <thead><tr><th scope="col">Étudiant</th><th scope="col">N°</th><th scope="col">Soumise le</th><th scope="col">Durée</th><th scope="col">État</th><th scope="col">Score</th><th scope="col">Intégrité</th><th scope="col" class="text-end">Détail</th></tr></thead>
+      <tbody>
+        {% for tentative in tentatives %}
+        <tr>
+          <td>{{ tentative.etudiant.get_full_name|default:tentative.etudiant.username }}</td>
+          <td>{{ tentative.numero }}</td>
+          <td>{{ tentative.date_soumission|date:"d/m/Y H:i" }}</td>
+          <td>{{ tentative.duree_texte|default:"—" }}</td>
+          <td>{% include "quizzes/_badge_tentative.html" %}</td>
+          <td>{% include "quizzes/_score.html" %}</td>
+          <td>{% with s=tentative.signaux_integrite %}{% if s %}<span class="quiz-badge quiz-badge--attente" title="{{ s|join:' · ' }}"><i class="icon-base ri ri-shield-user-line" aria-hidden="true"></i> À vérifier</span><span class="visually-hidden"> : {{ s|join:", " }}</span>{% else %}<span class="quiz-badge quiz-badge--succes">Normal</span>{% endif %}{% endwith %}</td>
+          <td class="text-end"><a href="{% url 'tentative' tentative.pk %}" class="btn btn-sm btn-outline-primary">{% if peut_gerer %}Voir / corriger{% else %}Voir{% endif %}<span class="visually-hidden"> la tentative de {{ tentative.etudiant.username }}</span></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="qz-vide"><div class="qz-vide-icone" aria-hidden="true"><i class="icon-base ri ri-hourglass-line"></i></div><p class="mb-0">Aucune tentative soumise pour l'instant.</p></div>
+  {% endif %}
+</section>
+</div>
+{{ graphique|json_script:"donnees-graphique" }}
+{% endblock content %}
+
+{% block page_js %}
+<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+<script>
+(function () {
+  if (typeof ApexCharts === "undefined") return;
+  const d = JSON.parse(document.getElementById("donnees-graphique").textContent);
+  const commun = { chart: { height: 260, toolbar: { show: false }, fontFamily: "Inter, sans-serif", animations: { enabled: !window.matchMedia("(prefers-reduced-motion: reduce)").matches } },
+                   dataLabels: { enabled: false }, grid: { borderColor: "#ece9f6" } };
+  new ApexCharts(document.getElementById("graphiqueDistribution"), Object.assign({}, commun, {
+    chart: Object.assign({}, commun.chart, { type: "bar" }),
+    series: [{ name: "Tentatives", data: d.distribution }],
+    xaxis: { categories: ["0-9", "10-19", "20-29", "30-39", "40-49", "50-59", "60-69", "70-79", "80-89", "90-100"], title: { text: "Score (%)" } },
+    yaxis: { labels: { formatter: function (v) { return Math.round(v); } }, title: { text: "Tentatives" } },
+    colors: ["#6d28d9"], plotOptions: { bar: { borderRadius: 6, columnWidth: "60%" } }
+  })).render();
+  new ApexCharts(document.getElementById("graphiqueItems"), Object.assign({}, commun, {
+    chart: Object.assign({}, commun.chart, { type: "bar" }),
+    series: [{ name: "Réussite (%)", data: d.items.map(function (i) { return i.p === null ? 0 : i.p; }) }],
+    xaxis: { categories: d.items.map(function (i) { return i.q; }) },
+    yaxis: { max: 100, labels: { formatter: function (v) { return v + " %"; } } },
+    plotOptions: { bar: { borderRadius: 6, columnWidth: "55%", distributed: true } }, legend: { show: false },
+    colors: d.items.map(function (i) { return i.p === null ? "#c9c8d3" : i.p >= 70 ? "#059669" : i.p < 40 ? "#dc2626" : "#d97706"; })
+  })).render();
+})();
+
+{% if etat_analyse == 'en_cours' %}
+(function () {
+  let essais = 0;
+  const minuteur = setInterval(async function () {
+    if (++essais > 80) { clearInterval(minuteur); return; }
+    try {
+      const r = await fetch("{% url 'etat-ia-quiz' quiz.pk %}", { headers: { "Accept": "application/json" } });
+      if (r.ok && (await r.json()).analyse !== "en_cours") { clearInterval(minuteur); window.location.reload(); }
+    } catch (e) { /* on réessaie */ }
+  }, 3000);
+})();
+{% endif %}
+</script>
+{% endblock page_js %}

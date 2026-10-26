@@ -60,14 +60,13 @@
     </li>
     {% endif %}
 
-    {% comment %} Module 3 : Quiz
-    <li class="menu-item">
+    <!-- Module 3 : Quiz -->
+    <li class="menu-item {% if request.path|slice:':6' == '/quiz/' %}active{% endif %}">
       <a href="{% url 'liste-quiz' %}" class="menu-link">
         <i class="menu-icon icon-base ri ri-question-answer-line"></i>
         <div class="text-truncate">Quiz</div>
       </a>
     </li>
-    {% endcomment %}
 
     {% comment %} Module 4 : Assistant vocal
     <li class="menu-item">

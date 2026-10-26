@@ -1,0 +1,46 @@
+{% extends layout_path %}
+
+{% block title %}{{ titre }} - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module row justify-content-center">
+  <div class="col-lg-8">
+    {% include "accounts/_messages.html" %}
+    <section class="card" aria-labelledby="titre-page">
+      <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <h1 id="titre-page" class="h5 mb-0">{{ titre }}</h1>
+        <a href="{% if quiz %}{% url 'detail-quiz' quiz.pk %}{% else %}{% url 'liste-quiz' %}{% endif %}" class="btn btn-sm btn-outline-secondary">
+          <i class="icon-base ri ri-arrow-left-line me-1" aria-hidden="true"></i> Retour
+        </a>
+      </div>
+      <div class="card-body">
+        {% if not form.fields.cours.queryset.exists %}
+        <div class="alert alert-warning" role="alert">
+          Vous n'avez encore aucun cours. <a href="{% url 'ajouter-cours' %}">Ajoutez un cours</a> pour pouvoir y rattacher un quiz.
+        </div>
+        {% endif %}
+        <p class="small quiz-aide">Les champs marqués d'un astérisque (*) sont obligatoires. Le quiz est créé en brouillon : il ne sera visible des étudiants qu'après publication.</p>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">{% for e in form.non_field_errors %}{{ e }} {% endfor %}</div>
+          {% endif %}
+          {% include "quizzes/_champ.html" with champ=form.titre %}
+          {% include "quizzes/_champ.html" with champ=form.description %}
+          {% include "quizzes/_champ.html" with champ=form.cours %}
+          <div class="row">
+            <div class="col-md-6">{% include "quizzes/_champ.html" with champ=form.difficulte %}</div>
+            <div class="col-md-6">{% include "quizzes/_champ.html" with champ=form.tentatives_max %}</div>
+          </div>
+          {% include "quizzes/_champ.html" with champ=form.afficher_corrige %}
+          <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <a href="{% if quiz %}{% url 'detail-quiz' quiz.pk %}{% else %}{% url 'liste-quiz' %}{% endif %}" class="btn btn-outline-secondary">Annuler</a>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,366 @@
+{% extends layout_path %}
+
+{% block title %}{{ quiz.titre }} - Tentative {{ tentative.numero }} - EduVox{% endblock title %}
+{% block page_css %}{% include "quizzes/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="quiz-module" id="lecteur" data-cle="eduvox-quiz-{{ tentative.pk }}" data-debut="{{ tentative.date_debut|date:'c' }}"
+     data-integrite="{% url 'integrite-tentative' tentative.pk %}">
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb mb-0">
+    <li class="breadcrumb-item"><a href="{% url 'liste-quiz' %}">Quiz</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'detail-quiz' quiz.pk %}">{{ quiz.titre }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Tentative {{ tentative.numero }}</li>
+  </ol>
+</nav>
+{% include "accounts/_messages.html" %}
+
+{% if not accessible %}
+<div class="alert alert-warning" role="alert">Ce quiz n'est plus disponible : cette tentative ne peut pas être soumise.</div>
+{% else %}
+
+<!-- En-tête collant : progression, chronomètre, indices -->
+<div class="qz-lecteur-entete">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-2">
+    <div>
+      <h1 class="h5 mb-0">{{ quiz.titre }}</h1>
+      <span class="small quiz-aide">Tentative {{ tentative.numero }}/{{ quiz.tentatives_max }} · <span id="compteurReponses">0</span>/{{ questions|length }} répondue{{ questions|length|pluralize }}</span>
+    </div>
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <span class="quiz-badge quiz-badge--neutre" title="Temps écoulé"><i class="icon-base ri ri-timer-line" aria-hidden="true"></i> <span id="chrono" role="timer" aria-label="Temps écoulé">00:00</span></span>
+      {% if ia_disponible %}<span class="quiz-badge quiz-badge--info"><i class="icon-base ri ri-lightbulb-flash-line" aria-hidden="true"></i> <span class="js-indices-restants">{{ tentative.indices_restants }}</span>/{{ indices_max }} indices</span>{% endif %}
+      <span class="small quiz-aide" id="etatSauvegarde" role="status" aria-live="polite"></span>
+    </div>
+  </div>
+  <div class="qz-barre" role="progressbar" aria-label="Progression" aria-valuemin="0" aria-valuemax="{{ questions|length }}" aria-valuenow="0" id="barreProgression"><span style="width:0%"></span></div>
+</div>
+
+{% if nb_erreurs %}
+<div class="alert alert-danger" role="alert" id="resume-erreurs" tabindex="-1">
+  {{ nb_erreurs }} réponse{{ nb_erreurs|pluralize }} invalide{{ nb_erreurs|pluralize }} : voir les questions signalées.
+</div>
+{% endif %}
+
+<div class="row g-6">
+  <div class="col-lg-8">
+    <form method="post" action="{% url 'tentative' tentative.pk %}" id="formTentative"
+          data-confirm="Vos réponses seront envoyées et ne pourront plus être modifiées."
+          data-confirm-titre="Soumettre le quiz ?" data-confirm-bouton="Soumettre" data-confirm-type="primary">
+      {% csrf_token %}
+      {% for question in questions %}
+      <fieldset class="qz-question-carte qz-etape mb-5 {% if question.erreur %}qz-question--erreur{% endif %}" id="q{{ question.pk }}"
+                data-index="{{ forloop.counter0 }}" data-question="{{ question.pk }}"
+                {% if question.erreur %}aria-describedby="erreur-q{{ question.pk }}"{% endif %}>
+        <legend>
+          <span class="d-flex flex-wrap gap-2 mb-2 fw-normal" style="font-size:.8125rem">
+            <span class="quiz-badge quiz-badge--info">Question {{ forloop.counter }}/{{ questions|length }}</span>
+            <span class="quiz-badge quiz-badge--neutre">{% if question.type == 'qcm' %}QCM · une réponse{% elif question.type == 'vrai_faux' %}Vrai ou faux{% else %}Réponse rédigée{% endif %}</span>
+            <span class="quiz-badge quiz-badge--neutre">{{ question.points|floatformat:"-2" }} pt{{ question.points|pluralize }}</span>
+          </span>
+          {{ question.enonce|linebreaksbr }}
+        </legend>
+
+        {% if question.type == 'ouverte' %}
+          <label for="r{{ question.pk }}" class="form-label">Ta réponse</label>
+          <textarea name="question_{{ question.pk }}" id="r{{ question.pk }}" rows="6" maxlength="3000" class="form-control js-reponse"
+                    aria-describedby="aide-r{{ question.pk }}">{{ question.valeur }}</textarea>
+          <div id="aide-r{{ question.pk }}" class="form-text quiz-aide d-flex justify-content-between">
+            <span>Notée avec l'aide de l'IA, révisable par l'enseignant.</span><span><span class="js-compte" data-pour="r{{ question.pk }}">0</span>/3000</span>
+          </div>
+        {% else %}
+          <div class="qz-choix">
+            {% for choix in question.choix %}
+            <label class="qz-choix-option" for="c{{ choix.pk }}">
+              <input type="radio" class="js-reponse" name="question_{{ question.pk }}" id="c{{ choix.pk }}" value="{{ choix.pk }}"
+                     {% if question.valeur == choix.pk|stringformat:"s" %}checked{% endif %} />
+              <span class="qz-lettre" aria-hidden="true">{% cycle 'A' 'B' 'C' 'D' 'E' 'F' %}</span>
+              <span>{{ choix.texte }}</span>
+              <i class="icon-base ri ri-checkbox-circle-fill qz-choix-coche" aria-hidden="true"></i>
+            </label>
+            {% endfor %}
+            {% resetcycle %}
+          </div>
+        {% endif %}
+        {% if question.erreur %}<p id="erreur-q{{ question.pk }}" class="quiz-erreur small mt-2 mb-0"><i class="icon-base ri ri-error-warning-line" aria-hidden="true"></i> {{ question.erreur }}</p>{% endif %}
+
+        <!-- Indice IA -->
+        {% if ia_disponible %}
+        <div class="mt-4">
+          <div class="qz-ia js-indice" {% if not question.indice %}hidden{% endif %} aria-live="polite">
+            <p class="qz-ia-titre mb-1"><i class="icon-base ri ri-lightbulb-flash-line" aria-hidden="true"></i> Indice de l'IA</p>
+            <p class="mb-1 js-indice-texte">{{ question.indice }}</p>
+            <p class="small quiz-aide mb-0">Question aidée : elle rapportera {{ coef_indice_pct }} % de ses points.</p>
+          </div>
+          {% if not question.indice %}
+          <button type="submit" class="btn btn-sm btn-outline-primary js-bouton-indice" formaction="{% url 'indice-question' tentative.pk question.pk %}" formnovalidate
+                  data-url="{% url 'indice-question' tentative.pk question.pk %}" {% if not tentative.indices_restants %}disabled{% endif %}>
+            <i class="icon-base ri ri-lightbulb-line me-1" aria-hidden="true"></i> Demander un indice <span class="quiz-aide">(<span class="js-indices-restants">{{ tentative.indices_restants }}</span> restant{{ tentative.indices_restants|pluralize }})</span>
+          </button>
+          <p class="small quiz-erreur mt-2 mb-0 js-indice-erreur" role="alert" hidden></p>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Navigation (activée par JavaScript) -->
+        <div class="d-flex flex-wrap justify-content-between gap-2 mt-5 js-seulement" hidden>
+          <button type="button" class="btn btn-outline-secondary js-precedent" {% if forloop.first %}disabled{% endif %}><i class="icon-base ri ri-arrow-left-line me-1" aria-hidden="true"></i> Précédente</button>
+          <button type="button" class="btn btn-outline-warning text-body js-marquer" aria-pressed="false"><i class="icon-base ri ri-flag-line me-1" aria-hidden="true"></i> <span>Marquer pour revoir</span></button>
+          <button type="button" class="btn btn-primary js-suivant">{% if forloop.last %}Vérifier et terminer{% else %}Suivante{% endif %} <i class="icon-base ri ri-arrow-right-line ms-1" aria-hidden="true"></i></button>
+        </div>
+      </fieldset>
+      {% endfor %}
+
+      <!-- Vérification finale -->
+      <section class="qz-question-carte qz-etape" id="verification" data-index="{{ questions|length }}" aria-labelledby="titre-verification">
+        <h2 id="titre-verification" class="h5 mb-3"><i class="icon-base ri ri-checkbox-multiple-line text-primary" aria-hidden="true"></i> Vérification avant l'envoi</h2>
+        <div id="resumeVerification" class="mb-4"><p class="quiz-aide mb-0">Relis tes réponses, puis soumets le quiz. Une question sans réponse vaut 0 point.</p></div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-outline-secondary js-precedent js-seulement" hidden><i class="icon-base ri ri-arrow-left-line me-1" aria-hidden="true"></i> Revenir aux questions</button>
+          <button type="submit" class="btn btn-primary btn-lg" id="btnSoumettre">
+            <span class="spinner-border spinner-border-sm me-1 d-none" aria-hidden="true" id="spinnerSoumission"></span>
+            <i class="icon-base ri ri-send-plane-2-line me-1" aria-hidden="true"></i> Soumettre mes réponses
+          </button>
+        </div>
+        <p id="etatSoumission" role="status" aria-live="polite" class="mt-2 mb-0"></p>
+      </section>
+    </form>
+  </div>
+
+  <!-- Navigateur de questions -->
+  <aside class="col-lg-4" aria-label="Navigation dans le quiz">
+    <div class="card" style="position: sticky; top: 6.5rem">
+      <div class="card-body">
+        <h2 class="qz-section-titre mb-3"><i class="icon-base ri ri-apps-2-line" aria-hidden="true"></i> Questions</h2>
+        <div class="qz-nav mb-3 js-seulement" id="navigateur" hidden>
+          {% for question in questions %}
+          <button type="button" data-aller="{{ forloop.counter0 }}" aria-label="Aller à la question {{ forloop.counter }}">{{ forloop.counter }}</button>
+          {% endfor %}
+        </div>
+        <ol class="small mb-3 js-sans-js">{% for question in questions %}<li><a href="#q{{ question.pk }}">Question {{ forloop.counter }}</a></li>{% endfor %}</ol>
+        <div class="qz-legende mb-4 js-seulement" hidden>
+          <span><span class="qz-touche" style="background:#ede9fe">1</span> répondue</span>
+          <span><span class="qz-touche">1</span> sans réponse</span>
+          <span><span class="qz-touche" style="border-color:#d97706">●</span> à revoir</span>
+        </div>
+        <details class="small js-seulement" hidden>
+          <summary class="fw-semibold">Raccourcis clavier</summary>
+          <ul class="list-unstyled mt-2 mb-0 d-grid gap-1">
+            <li><span class="qz-touche">1</span>–<span class="qz-touche">6</span> choisir une réponse</li>
+            <li><span class="qz-touche">→</span> / <span class="qz-touche">N</span> question suivante</li>
+            <li><span class="qz-touche">←</span> / <span class="qz-touche">P</span> question précédente</li>
+            <li><span class="qz-touche">M</span> marquer pour revoir</li>
+            {% if ia_disponible %}<li><span class="qz-touche">I</span> demander un indice</li>{% endif %}
+          </ul>
+        </details>
+      </div>
+    </div>
+  </aside>
+</div>
+{% endif %}
+</div>
+{% endblock content %}
+
+{% block page_js %}
+{% if accessible %}
+<script>
+(function () {
+  const racine = document.getElementById("lecteur");
+  const form = document.getElementById("formTentative");
+  if (!racine || !form) return;
+  racine.classList.add("js-lecteur");
+  document.querySelectorAll(".js-seulement").forEach(function (e) { e.hidden = false; });
+  document.querySelectorAll(".js-sans-js").forEach(function (e) { e.hidden = true; });
+
+  const etapes = Array.from(document.querySelectorAll(".qz-etape"));
+  const nbQuestions = etapes.length - 1;
+  const navBoutons = Array.from(document.querySelectorAll("[data-aller]"));
+  const cle = racine.dataset.cle;
+  const csrf = form.querySelector("[name=csrfmiddlewaretoken]").value;
+  let courante = 0;
+  let marquees = new Set();
+
+  // ---------- Sauvegarde automatique (sur cet appareil) ----------
+  function lireSauvegarde() { try { return JSON.parse(localStorage.getItem(cle)) || {}; } catch (e) { return {}; } }
+  function sauvegarder() {
+    const donnees = { reponses: {}, marquees: Array.from(marquees), courante: courante, signaux: lireSauvegarde().signaux };
+    new FormData(form).forEach(function (v, k) { if (k.startsWith("question_")) donnees.reponses[k] = v; });
+    try {
+      localStorage.setItem(cle, JSON.stringify(donnees));
+      const h = new Date();
+      document.getElementById("etatSauvegarde").textContent = "Sauvegardé à " + h.getHours().toString().padStart(2, "0") + ":" + h.getMinutes().toString().padStart(2, "0");
+    } catch (e) { /* stockage indisponible (navigation privée) : on continue sans sauvegarde */ }
+  }
+  const sauvegarde = lireSauvegarde();
+  Object.entries(sauvegarde.reponses || {}).forEach(function ([nom, valeur]) {
+    const champs = form.querySelectorAll("[name='" + nom + "']");
+    champs.forEach(function (champ) {
+      if (champ.type === "radio") { if (!form.querySelector("[name='" + nom + "']:checked") && champ.value === valeur) champ.checked = true; }
+      else if (!champ.value) champ.value = valeur;
+    });
+  });
+  marquees = new Set(sauvegarde.marquees || []);
+
+  // ---------- État des questions ----------
+  function estRepondue(etape) {
+    const champ = etape.querySelector(".js-reponse");
+    if (!champ) return false;
+    if (champ.type === "radio") return !!etape.querySelector(".js-reponse:checked");
+    return champ.value.trim().length > 0;
+  }
+  function majEtat() {
+    let repondues = 0;
+    etapes.slice(0, nbQuestions).forEach(function (etape, i) {
+      const ok = estRepondue(etape);
+      if (ok) repondues++;
+      const bouton = navBoutons[i];
+      bouton.classList.toggle("est-repondue", ok);
+      bouton.classList.toggle("est-courante", i === courante);
+      bouton.classList.toggle("est-marquee", marquees.has(i));
+      bouton.setAttribute("aria-label", "Question " + (i + 1) + (ok ? ", répondue" : ", sans réponse") + (marquees.has(i) ? ", à revoir" : ""));
+      if (i === courante) bouton.setAttribute("aria-current", "step"); else bouton.removeAttribute("aria-current");
+      const marquer = etape.querySelector(".js-marquer");
+      marquer.setAttribute("aria-pressed", marquees.has(i));
+      marquer.querySelector("span").textContent = marquees.has(i) ? "Marquée pour revoir" : "Marquer pour revoir";
+    });
+    document.getElementById("compteurReponses").textContent = repondues;
+    const barre = document.getElementById("barreProgression");
+    barre.setAttribute("aria-valuenow", repondues);
+    barre.firstElementChild.style.width = (nbQuestions ? repondues * 100 / nbQuestions : 0) + "%";
+    document.querySelectorAll(".js-compte").forEach(function (c) { c.textContent = document.getElementById(c.dataset.pour).value.length; });
+    return repondues;
+  }
+  function majVerification() {
+    const sans = [], aRevoir = [];
+    etapes.slice(0, nbQuestions).forEach(function (etape, i) {
+      if (!estRepondue(etape)) sans.push(i); if (marquees.has(i)) aRevoir.push(i);
+    });
+    const zone = document.getElementById("resumeVerification");
+    zone.replaceChildren();
+    const resume = document.createElement("p");
+    resume.className = "mb-2";
+    resume.textContent = (nbQuestions - sans.length) + " question(s) répondue(s) sur " + nbQuestions + ".";
+    zone.appendChild(resume);
+    [[sans, "Sans réponse (0 point) : ", "quiz-erreur"], [aRevoir, "Marquées pour revoir : ", "quiz-aide"]].forEach(function ([liste, libelle, classe]) {
+      if (!liste.length) return;
+      const p = document.createElement("p"); p.className = "mb-2 " + classe; p.append(libelle);
+      liste.forEach(function (i) {
+        const b = document.createElement("button"); b.type = "button"; b.className = "btn btn-sm btn-outline-secondary me-1 mb-1";
+        b.textContent = "Q" + (i + 1); b.addEventListener("click", function () { aller(i); }); p.appendChild(b);
+      });
+      zone.appendChild(p);
+    });
+  }
+
+  // ---------- Navigation ----------
+  function aller(index, focus) {
+    courante = Math.max(0, Math.min(index, nbQuestions));
+    etapes.forEach(function (etape, i) { etape.hidden = i !== courante; });
+    if (courante === nbQuestions) majVerification();
+    majEtat(); sauvegarder();
+    const cible = etapes[courante];
+    if (focus !== false) {
+      const titre = cible.querySelector("legend, h2");
+      if (titre) { titre.setAttribute("tabindex", "-1"); titre.focus({ preventScroll: true }); }
+      document.querySelector(".qz-lecteur-entete").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+  form.addEventListener("click", function (e) {
+    if (e.target.closest(".js-suivant")) aller(courante + 1);
+    else if (e.target.closest(".js-precedent")) aller(courante - 1);
+    else if (e.target.closest(".js-marquer")) { marquees.has(courante) ? marquees.delete(courante) : marquees.add(courante); majEtat(); sauvegarder(); }
+  });
+  navBoutons.forEach(function (b) { b.addEventListener("click", function () { aller(parseInt(b.dataset.aller, 10)); }); });
+  form.addEventListener("input", function () { majEtat(); sauvegarder(); });
+  form.addEventListener("change", function () { majEtat(); sauvegarder(); });
+
+  // ---------- Raccourcis clavier (désactivés pendant la saisie de texte) ----------
+  document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    // Entrée sur une réponse : question suivante (et jamais l'envoi implicite du formulaire)
+    if (e.key === "Enter" && t.matches("input[type=radio]")) { e.preventDefault(); aller(courante + 1); return; }
+    if (t.matches("textarea, input[type=text], input[type=search], select")) return;
+    if (document.querySelector(".modal.show")) return;
+    const etape = etapes[courante];
+    if (/^[1-6]$/.test(e.key) && courante < nbQuestions) {
+      const options = etape.querySelectorAll("input[type=radio]");
+      const option = options[parseInt(e.key, 10) - 1];
+      if (option) { option.checked = true; option.focus(); majEtat(); sauvegarder(); e.preventDefault(); }
+    } else if ((e.key === "ArrowRight" || e.key.toLowerCase() === "n") && !t.matches("input[type=radio]")) { aller(courante + 1); e.preventDefault(); }
+    else if ((e.key === "ArrowLeft" || e.key.toLowerCase() === "p") && !t.matches("input[type=radio]")) { aller(courante - 1); e.preventDefault(); }
+    else if (e.key.toLowerCase() === "m" && courante < nbQuestions) { etape.querySelector(".js-marquer").click(); }
+    else if (e.key.toLowerCase() === "i" && courante < nbQuestions) { const b = etape.querySelector(".js-bouton-indice"); if (b && !b.disabled) b.click(); }
+  });
+
+  // ---------- Indice IA ----------
+  form.addEventListener("click", async function (e) {
+    const bouton = e.target.closest(".js-bouton-indice");
+    if (!bouton) return;
+    e.preventDefault();
+    const etape = bouton.closest(".qz-etape");
+    const erreur = etape.querySelector(".js-indice-erreur");
+    erreur.hidden = true;
+    bouton.disabled = true;
+    const contenu = bouton.innerHTML;
+    bouton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> L\'IA réfléchit…';
+    try {
+      const reponse = await fetch(bouton.dataset.url, { method: "POST", headers: { "X-CSRFToken": csrf, "X-Requested-With": "fetch", "Accept": "application/json" } });
+      const d = await reponse.json();
+      if (!reponse.ok) throw new Error(d.erreur || "L'indice n'a pas pu être obtenu.");
+      const boite = etape.querySelector(".js-indice");
+      boite.querySelector(".js-indice-texte").textContent = d.indice;
+      boite.hidden = false;
+      bouton.remove();
+      document.querySelectorAll(".js-indices-restants").forEach(function (s) { s.textContent = d.restants; });
+      if (d.restants === 0) document.querySelectorAll(".js-bouton-indice").forEach(function (b) { b.disabled = true; });
+    } catch (err) {
+      erreur.textContent = err.message; erreur.hidden = false;
+      bouton.disabled = false; bouton.innerHTML = contenu;
+    }
+  });
+
+  // ---------- Chronomètre ----------
+  const debut = new Date(racine.dataset.debut);
+  const chrono = document.getElementById("chrono");
+  function tic() {
+    const s = Math.max(0, Math.floor((Date.now() - debut.getTime()) / 1000));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    chrono.textContent = (h ? h + ":" : "") + String(m).padStart(2, "0") + ":" + String(sec).padStart(2, "0");
+  }
+  tic(); setInterval(tic, 1000);
+
+  // ---------- Intégrité : compteurs seulement (aucun contenu n'est envoyé) ----------
+  const signaux = Object.assign({ sorties: 0, collages: 0 }, (lireSauvegarde().signaux || {}));
+  let envoiPrevu = null;
+  function envoyerSignaux() {
+    const corps = new URLSearchParams({ sorties: signaux.sorties, collages: signaux.collages });
+    fetch(racine.dataset.integrite, { method: "POST", body: corps, keepalive: true,
+      headers: { "X-CSRFToken": csrf, "X-Requested-With": "fetch" } }).catch(function () { /* réessayé au prochain signal */ });
+  }
+  function signaler(type) {
+    signaux[type]++;
+    try { const d = lireSauvegarde(); d.signaux = signaux; localStorage.setItem(cle, JSON.stringify(d)); } catch (e) { /* sans stockage */ }
+    clearTimeout(envoiPrevu); envoiPrevu = setTimeout(envoyerSignaux, 800);
+  }
+  document.addEventListener("visibilitychange", function () { if (document.hidden) signaler("sorties"); });
+  form.addEventListener("paste", function (e) { if (e.target.matches("textarea")) signaler("collages"); });
+
+  // ---------- Envoi ----------
+  const valider = document.getElementById("confirmationValider");
+  function envoiEnCours() {
+    document.getElementById("btnSoumettre").disabled = true;
+    document.getElementById("spinnerSoumission").classList.remove("d-none");
+    document.getElementById("etatSoumission").textContent = "Envoi de tes réponses…";
+    try { localStorage.removeItem(cle); } catch (e) { /* rien à nettoyer */ }
+  }
+  if (valider) valider.addEventListener("click", envoiEnCours); else form.addEventListener("submit", envoiEnCours);
+
+  // Démarrage : première question en erreur, sinon la dernière consultée
+  const premiereErreur = etapes.findIndex(function (e) { return e.classList.contains("qz-question--erreur"); });
+  aller(premiereErreur >= 0 ? premiereErreur : (sauvegarde.courante || 0), premiereErreur >= 0);
+  const resume = document.getElementById("resume-erreurs");
+  if (resume) resume.focus();
+})();
+</script>
+{% endif %}
+{% endblock page_js %}

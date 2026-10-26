@@ -1,0 +1,6 @@
+{% if tentative.statut == 'en_cours' %}<span class="quiz-aide">—</span>
+{% else %}
+  <strong>{{ tentative.score|floatformat:"-2" }} / {{ tentative.score_max|floatformat:"-2" }}</strong>
+  {% if tentative.pourcentage is not None %}<span class="quiz-aide">({{ tentative.pourcentage }} %)</span>{% endif %}
+  {% if tentative.statut == 'soumise' %}<span class="quiz-badge quiz-badge--attente ms-1">provisoire</span>{% endif %}
+{% endif %}
