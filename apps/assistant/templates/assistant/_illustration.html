@@ -1,4 +1,6 @@
 <article class="ast-illustration" id="illustration-{{ illustration.pk }}" data-statut="{{ illustration.statut }}"
+         data-titre="{{ illustration.demande }}" data-type="{{ illustration.get_type_illustration_display }}"
+         data-date="{{ illustration.date|date:'d/m/Y H:i' }}" data-alt="{{ illustration.texte_alternatif }}"
          data-url-etat="{% url 'etat-illustration-assistant' illustration.pk %}" aria-labelledby="ill-titre-{{ illustration.pk }}">
   {% if illustration.statut == 'TERMINEE' and illustration.type_illustration == 'IMAGE' and illustration.image %}
     <figure>
@@ -41,6 +43,7 @@
       {{ illustration.get_type_illustration_display }}{% if illustration.duree_ms and illustration.statut == 'TERMINEE' %} · {{ illustration.duree_ms|floatformat:"0" }} ms{% endif %}
     </span>
     <span class="d-flex gap-1">
+      {% if illustration.statut == 'TERMINEE' %}<button type="button" class="btn btn-sm btn-outline-secondary ast-js-seul" data-export-pdf-carte aria-label="Exporter en PDF"><i class="icon-base ri ri-file-pdf-2-line" aria-hidden="true"></i></button>{% endif %}
       {% if illustration.image %}<a class="btn btn-sm btn-outline-secondary" href="{{ illustration.image.url }}" download aria-label="Télécharger l'image"><i class="icon-base ri ri-download-line" aria-hidden="true"></i></a>{% endif %}
       {% if illustration.statut != 'EN_COURS' %}
       <form method="post" action="{% url 'supprimer-illustration-assistant' illustration.pk %}" class="ast-form-supprimer-ill">

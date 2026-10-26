@@ -5,22 +5,26 @@
   'use strict';
   const racine = document.getElementById('assistant-session');
   if (!racine) return;
-  document.documentElement.classList.add('ast-js');
 
   const cfg = racine.dataset;
-  const chat = document.getElementById('ast-chat');
-  const form = document.getElementById('form-question');
-  const zone = document.getElementById('id_texte');
-  const champMessage = document.getElementById('id_message_id');
-  const btnEnvoyer = document.getElementById('btn-envoyer');
-  const btnArreter = document.getElementById('btn-arreter');
-  const btnMicro = document.getElementById('btn-micro');
-  const minuterieEl = document.getElementById('ast-minuterie');
-  const etat = document.getElementById('ast-etat');
-  const indicateur = document.getElementById('ast-connexion');
-  const autoEnvoi = document.getElementById('ast-auto-envoi');
-  const formIll = document.getElementById('form-illustration');
-  const listeIll = document.getElementById('ast-liste-illustrations');
+  const $ = (id) => document.getElementById(id);
+  const chat = $('ast-chat');
+  const form = $('form-question');
+  const zone = $('id_texte');
+  const champMessage = $('id_message_id');
+  const btnEnvoyer = $('btn-envoyer');
+  const btnArreter = $('btn-arreter');
+  const btnMicro = $('btn-micro');
+  const barreSaisie = $('ast-barre-saisie');
+  const barreEnr = $('ast-barre-enregistrement');
+  const minuterieEl = $('ast-minuterie');
+  const niveauEl = $('ast-niveau');
+  const etat = $('ast-etat');
+  const indicateur = $('ast-connexion');
+  const btnBas = $('ast-bas');
+  const formIll = $('form-illustration');
+  const listeIll = $('ast-liste-illustrations');
+  const btnPdfTout = $('btn-pdf-tout');
   const csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
   const AJAX = { 'X-Requested-With': 'XMLHttpRequest' };
 
@@ -34,9 +38,12 @@
     etat.classList.toggle('ast-erreur', !!erreur);
   }
   const url = (modele, id) => modele.replace('/0/', '/' + id + '/');
-  const defiler = () => { chat.scrollTop = chat.scrollHeight; };
   const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
-  function retirerVide() { const v = document.getElementById('ast-vide'); if (v) v.remove(); }
+  const presDuBas = () => chat.scrollHeight - chat.scrollTop - chat.clientHeight < 120;
+  function defiler(force) { if (force || presDuBas()) chat.scrollTop = chat.scrollHeight; majBoutonBas(); }
+  function majBoutonBas() { if (btnBas) btnBas.hidden = presDuBas(); }
+  function retirerVide() { const v = $('ast-vide'); if (v) v.remove(); }
+  function ajusterHauteur() { if (!zone) return; zone.style.height = 'auto'; zone.style.height = Math.min(zone.scrollHeight, 152) + 'px'; }
 
   async function fragment(id) {
     const r = await fetch(url(cfg.urlFragment, id), { headers: AJAX });
@@ -50,7 +57,7 @@
   async function inserer(id, cible, avant) {
     try {
       const el = await fragment(id);
-      const existant = document.getElementById('message-' + id);
+      const existant = $('message-' + id);
       if (cible && cible.isConnected) cible.replaceWith(el);
       else if (existant) existant.replaceWith(el);
       else if (avant && avant.isConnected) chat.insertBefore(el, avant);
@@ -62,24 +69,28 @@
 
   function occupe(v) {
     enCours = v;
+    if (btnEnvoyer) btnEnvoyer.hidden = v && wsPret;
     if (btnEnvoyer) btnEnvoyer.disabled = v;
     if (btnArreter) btnArreter.hidden = !v || !wsPret; // l'arrêt n'existe qu'en streaming
     if (btnMicro) btnMicro.disabled = v;
     chat.setAttribute('aria-busy', v ? 'true' : 'false');
   }
 
-  function bulleAttente() {
+  function bulle(question, contenu) {
     retirerVide();
     const a = document.createElement('article');
-    a.className = 'ast-message';
-    a.setAttribute('aria-label', "Réponse de l'assistant en cours de rédaction");
+    a.className = 'ast-message' + (question ? ' ast-message--question' : '');
     a.innerHTML = '<div class="ast-avatar" aria-hidden="true"><i class="icon-base ri ri-robot-2-line"></i></div>' +
-      '<div class="ast-bulle"><div class="ast-entete"><strong>Assistant</strong>' +
-      '<span class="ast-badge ast-badge--attente">Rédige sa réponse…</span></div>' +
-      '<div class="ast-contenu ast-flux"><span class="ast-points" aria-hidden="true"><span></span><span></span><span></span></span></div></div>';
+      '<div class="ast-bulle"><div class="ast-contenu ast-flux">' + contenu + '</div></div>';
     chat.appendChild(a);
-    defiler();
+    defiler(true);
     return a;
+  }
+  const POINTS = '<span class="ast-points" aria-hidden="true"><span></span><span></span><span></span></span>';
+  function bulleAttente() {
+    const b = bulle(false, POINTS);
+    b.setAttribute('aria-label', "L'assistant rédige sa réponse");
+    return b;
   }
 
   function finErreur(message, reponseId) {
@@ -88,17 +99,18 @@
     occupe(false);
     if (reponseId) inserer(reponseId, b);
     else if (b) b.remove();
-    if (!reponseId && zone && !zone.value) zone.value = dernierTexte; // rien n'a été enregistré : on rend le texte
+    if (!reponseId && zone && !zone.value) { zone.value = dernierTexte; ajusterHauteur(); } // rien d'enregistré : on rend le texte
     annoncer(message, true);
     if (zone) zone.focus();
   }
 
   // ---------- WebSocket (streaming) ----------
   function connecter() {
-    if (cfg.active !== '1' || !('WebSocket' in window)) { if (cfg.active === '1') repli(); return; }
+    if (cfg.active !== '1' || !indicateur) return;
+    if (!('WebSocket' in window)) { repli(); return; }
     const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
     ws = new WebSocket(proto + location.host + cfg.wsUrl);
-    ws.onopen = () => { wsPret = true; essaisWs = 0; indicateur.dataset.etat = 'ok'; indicateur.textContent = 'Réponses en direct'; };
+    ws.onopen = () => { wsPret = true; essaisWs = 0; indicateur.dataset.etat = 'ok'; indicateur.textContent = 'En ligne'; };
     ws.onmessage = (ev) => { try { traiter(JSON.parse(ev.data)); } catch (e) { /* message illisible ignoré */ } };
     ws.onclose = (ev) => {
       wsPret = false;
@@ -109,7 +121,7 @@
       setTimeout(connecter, 1500 * essaisWs);
     };
   }
-  function repli() { indicateur.dataset.etat = 'repli'; indicateur.textContent = 'Mode sans streaming'; }
+  function repli() { if (indicateur) { indicateur.dataset.etat = 'repli'; indicateur.textContent = 'Mode simplifié'; } }
 
   function traiter(d) {
     if (d.type === 'debut') {
@@ -126,8 +138,7 @@
       bulleFlux = null;
       occupe(false);
       inserer(d.reponse_id, b); // rendu Markdown final côté serveur
-      const s = d.duree_ms ? ' en ' + (d.duree_ms / 1000).toFixed(1).replace('.', ',') + ' s' : '';
-      annoncer(d.interrompue ? 'Réponse interrompue.' : 'Réponse reçue' + s + '.');
+      annoncer(d.interrompue ? 'Réponse interrompue.' : '');
       if (zone) zone.focus();
     } else if (d.type === 'erreur') {
       finErreur(d.message, d.reponse_id);
@@ -144,11 +155,12 @@
     dernierTexte = texte;
     zone.value = '';
     champMessage.value = '';
+    ajusterHauteur();
+    annoncer('');
     if (wsPret) { ws.send(JSON.stringify({ action: 'question', texte: texte, message_id: messageId })); return; }
 
     // Repli HTTP : réponse complète d'un coup
     const b = bulleAttente();
-    annoncer("L'assistant rédige sa réponse…");
     const donnees = new FormData();
     donnees.append('texte', texte);
     if (messageId) donnees.append('message_id', messageId);
@@ -156,11 +168,10 @@
     try {
       const r = await fetch(cfg.urlQuestion, { method: 'POST', body: donnees, headers: AJAX });
       const d = await r.json();
-      if (!r.ok) { bulleFlux = b; finErreur(d.erreur || 'La question n\'a pas pu être envoyée.'); return; }
+      if (!r.ok) { bulleFlux = b; finErreur(d.erreur || "La question n'a pas pu être envoyée."); return; }
       await inserer(d.question.id, null, b);
       await inserer(d.reponse_id, b);
       occupe(false);
-      annoncer('Réponse reçue.');
       zone.focus();
     } catch (e) {
       bulleFlux = b;
@@ -173,15 +184,46 @@
     zone.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); envoyer(); }
     });
+    zone.addEventListener('input', () => { ajusterHauteur(); if (!zone.value) champMessage.value = ''; });
     btnArreter.addEventListener('click', () => { if (wsPret) ws.send(JSON.stringify({ action: 'arreter' })); });
   }
   chat.addEventListener('click', (e) => {
     const s = e.target.closest('[data-suggestion]');
-    if (s && zone) { zone.value = s.dataset.suggestion; zone.focus(); }
+    if (s && zone) { zone.value = s.dataset.suggestion; ajusterHauteur(); envoyer(); }
   });
+  chat.addEventListener('scroll', majBoutonBas, { passive: true });
+  if (btnBas) btnBas.addEventListener('click', () => { defiler(true); chat.focus(); });
 
-  // ---------- Dictée : MediaRecorder → WAV 16 kHz → Whisper ----------
-  let enregistreur = null, fluxMicro = null, morceaux = [], minuterie = null, debutEnr = 0;
+  // ---------- Dictée : MediaRecorder → WAV 16 kHz → Whisper → envoi automatique ----------
+  let enregistreur = null, fluxMicro = null, morceaux = [], minuterie = null, debutEnr = 0, annule = false;
+  let audioCtx = null, analyseur = null, animation = null;
+
+  function afficherEnregistrement(actif) {
+    barreSaisie.hidden = actif;
+    barreEnr.hidden = !actif;
+    if (actif) $('btn-valider-enr').focus(); else if (zone) zone.focus();
+  }
+
+  function dessinerNiveau() {
+    if (!analyseur) return;
+    const ctx = niveauEl.getContext('2d');
+    const largeur = niveauEl.width = niveauEl.clientWidth * (window.devicePixelRatio || 1);
+    const hauteur = niveauEl.height = 40 * (window.devicePixelRatio || 1);
+    const donnees = new Uint8Array(analyseur.frequencyBinCount);
+    const barres = Math.max(12, Math.floor(largeur / (6 * (window.devicePixelRatio || 1))));
+    (function boucle() {
+      analyseur.getByteFrequencyData(donnees);
+      ctx.clearRect(0, 0, largeur, hauteur);
+      ctx.fillStyle = '#b91c1c';
+      const pas = largeur / barres;
+      for (let i = 0; i < barres; i++) {
+        const v = donnees[Math.floor(i * donnees.length / barres / 2)] / 255;
+        const h = Math.max(hauteur * 0.08, v * hauteur * 0.95);
+        ctx.fillRect(i * pas + pas * 0.2, (hauteur - h) / 2, pas * 0.6, h);
+      }
+      animation = requestAnimationFrame(boucle);
+    })();
+  }
 
   async function demarrer() {
     if (!navigator.mediaDevices || !window.MediaRecorder) {
@@ -190,36 +232,48 @@
     try {
       fluxMicro = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
     } catch (e) {
-      annoncer('Accès au micro refusé : autorise le micro dans ton navigateur ou écris ta question.', true); return;
+      annoncer('Accès au micro refusé : autorise-le dans ton navigateur ou écris ta question.', true); return;
     }
     morceaux = [];
+    annule = false;
     enregistreur = new MediaRecorder(fluxMicro);
     enregistreur.ondataavailable = (ev) => { if (ev.data.size) morceaux.push(ev.data); };
-    enregistreur.onstop = transcrire;
+    enregistreur.onstop = () => { if (!annule) transcrire(); };
     enregistreur.start();
     debutEnr = Date.now();
-    btnMicro.setAttribute('aria-pressed', 'true');
-    btnMicro.setAttribute('aria-label', "Arrêter l'enregistrement");
-    annoncer('Enregistrement en cours… clique à nouveau sur le micro (ou Alt+M) pour arrêter.');
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyseur = audioCtx.createAnalyser();
+      analyseur.fftSize = 256;
+      audioCtx.createMediaStreamSource(fluxMicro).connect(analyseur);
+    } catch (e) { analyseur = null; }
+    afficherEnregistrement(true);
+    dessinerNiveau();
+    annoncer('Enregistrement en cours. Valide pour envoyer, ou annule.');
     const max = parseInt(cfg.audioMax, 10) || 120;
+    minuterieEl.textContent = '0:00';
     minuterie = setInterval(() => {
       const s = Math.floor((Date.now() - debutEnr) / 1000);
-      minuterieEl.textContent = '● ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-      if (s >= max) arreter();
+      minuterieEl.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      if (s >= max) arreter(false);
     }, 250);
   }
 
-  function arreter() {
+  function arreter(annuler) {
+    annule = !!annuler;
     clearInterval(minuterie);
-    minuterieEl.textContent = '';
+    cancelAnimationFrame(animation);
+    if (audioCtx) { audioCtx.close(); audioCtx = null; analyseur = null; }
     if (enregistreur && enregistreur.state === 'recording') enregistreur.stop();
     if (fluxMicro) fluxMicro.getTracks().forEach((t) => t.stop());
-    btnMicro.setAttribute('aria-pressed', 'false');
-    btnMicro.setAttribute('aria-label', 'Dicter une question');
+    afficherEnregistrement(false);
+    if (annule) annoncer('Enregistrement annulé.');
   }
 
   async function transcrire() {
-    annoncer('Transcription en cours (Whisper)…');
+    const attente = bulle(true, '<i class="icon-base ri ri-mic-line me-1" aria-hidden="true"></i>' + POINTS);
+    attente.setAttribute('aria-label', 'Transcription de ta question en cours');
+    annoncer('Transcription en cours…');
     btnMicro.disabled = true;
     try {
       const wav = await versWav(new Blob(morceaux, { type: enregistreur.mimeType }));
@@ -231,11 +285,12 @@
       if (!r.ok) throw new Error(d.erreur || "L'enregistrement n'a pas pu être envoyé.");
       const res = await attendreTranscription(d.url_etat);
       if (res.statut !== 'PRET') throw new Error(res.erreur || 'La transcription a échoué.');
+      attente.remove();
       champMessage.value = res.id;
       zone.value = res.texte;
-      if (autoEnvoi && autoEnvoi.checked) { annoncer('Transcrit : « ' + res.texte + ' »'); envoyer(); }
-      else { annoncer('Transcription prête : vérifie-la, corrige-la si besoin, puis envoie.'); zone.focus(); }
+      envoyer();
     } catch (e) {
+      attente.remove();
       annoncer(e.message || 'La transcription a échoué.', true);
     } finally {
       btnMicro.disabled = enCours;
@@ -247,7 +302,7 @@
       const r = await fetch(urlEtat, { headers: AJAX });
       const d = await r.json();
       if (d.fini) return d;
-      await pause(1000);
+      await pause(800);
     }
     throw new Error('La transcription prend trop de temps. Réessaie ou écris ta question.');
   }
@@ -278,16 +333,21 @@
   }
 
   if (btnMicro) {
-    btnMicro.addEventListener('click', () => (enregistreur && enregistreur.state === 'recording' ? arreter() : demarrer()));
+    btnMicro.addEventListener('click', demarrer);
+    $('btn-valider-enr').addEventListener('click', () => arreter(false));
+    $('btn-annuler-enr').addEventListener('click', () => arreter(true));
     document.addEventListener('keydown', (e) => {
-      if (e.altKey && (e.key === 'm' || e.key === 'M') && !btnMicro.disabled) { e.preventDefault(); btnMicro.click(); }
+      const enregistrement = enregistreur && enregistreur.state === 'recording';
+      if (e.altKey && (e.key === 'm' || e.key === 'M')) {
+        e.preventDefault();
+        if (enregistrement) arreter(false); else if (!btnMicro.disabled) demarrer();
+      } else if (e.key === 'Escape' && enregistrement) {
+        arreter(true);
+      }
     });
-    try { autoEnvoi.checked = localStorage.getItem('ast-auto-envoi') === '1'; } catch (e) { /* stockage indisponible */ }
-    autoEnvoi.addEventListener('change', () => { try { localStorage.setItem('ast-auto-envoi', autoEnvoi.checked ? '1' : '0'); } catch (e) { /* */ } });
   }
 
   // ---------- Actions sur les réponses ----------
-  let lecture = null;
   chat.addEventListener('click', async (e) => {
     const bouton = e.target.closest('[data-action]');
     if (!bouton) return;
@@ -299,7 +359,7 @@
       speechSynthesis.cancel();
       chat.querySelectorAll('[data-action="lire"]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
       if (actif) return;
-      lecture = new SpeechSynthesisUtterance(texte);
+      const lecture = new SpeechSynthesisUtterance(texte);
       lecture.lang = document.documentElement.lang || 'fr-FR';
       lecture.onend = () => bouton.setAttribute('aria-pressed', 'false');
       bouton.setAttribute('aria-pressed', 'true');
@@ -311,8 +371,8 @@
       const sujet = question && question.dataset.role === 'UTILISATEUR' ? question.querySelector('.ast-contenu').innerText.trim() : texte;
       formIll.querySelector('#id_ill_message').value = article.dataset.id;
       formIll.querySelector('#id_demande').value = sujet.slice(0, 200);
-      document.getElementById('ill-lien').textContent = "Basé sur la réponse sélectionnée : l'IA s'appuie sur son contenu.";
-      formIll.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('ill-lien').textContent = "Basé sur la réponse choisie.";
+      formIll.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       formIll.querySelector('#id_demande').focus();
     }
   });
@@ -341,6 +401,18 @@
   });
 
   // ---------- Illustrations ----------
+  function majPdf() { if (btnPdfTout) btnPdfTout.disabled = !listeIll.querySelector('[data-statut="TERMINEE"]'); }
+
+  function remplacerCarte(carte, html) {
+    const t = document.createElement('template');
+    t.innerHTML = html.trim();
+    const nouvelle = t.content.firstElementChild;
+    carte.replaceWith(nouvelle);
+    window.astRendreDiagrammes(nouvelle);
+    majPdf();
+    return nouvelle;
+  }
+
   async function suivreIllustration(carte) {
     const urlEtat = carte.dataset.urlEtat;
     for (let i = 0; i < 150; i++) {
@@ -350,12 +422,8 @@
         if (!r.ok) return;
         const d = await r.json();
         if (d.fini) {
-          const t = document.createElement('template');
-          t.innerHTML = d.html.trim();
-          const nouvelle = t.content.firstElementChild;
-          carte.replaceWith(nouvelle);
-          window.astRendreDiagrammes(nouvelle);
-          annoncer(d.statut === 'TERMINEE' ? 'Illustration prête.' : 'La génération de l\'illustration a échoué.', d.statut !== 'TERMINEE');
+          remplacerCarte(carte, d.html);
+          annoncer(d.statut === 'TERMINEE' ? 'Illustration prête.' : "La génération de l'illustration a échoué.", d.statut !== 'TERMINEE');
           return;
         }
       } catch (e) { /* nouvel essai */ }
@@ -371,19 +439,17 @@
         const r = await fetch(formIll.action, { method: 'POST', body: new FormData(formIll), headers: AJAX });
         const d = await r.json();
         if (!r.ok) { annoncer(d.erreur || 'Génération impossible.', true); return; }
-        const etatR = await fetch(d.url_etat, { headers: AJAX });
-        const etatD = await etatR.json();
-        const t = document.createElement('template');
-        t.innerHTML = etatD.html.trim();
-        const carte = t.content.firstElementChild;
-        const vide = document.getElementById('ast-ill-vide');
+        const etatD = await (await fetch(d.url_etat, { headers: AJAX })).json();
+        const vide = $('ast-ill-vide');
         if (vide) vide.remove();
-        listeIll.prepend(carte);
-        formIll.reset();
+        const temporaire = document.createElement('div');
+        listeIll.prepend(temporaire);
+        const carte = remplacerCarte(temporaire, etatD.html);
+        formIll.querySelector('#id_demande').value = '';
         formIll.querySelector('#id_ill_message').value = '';
-        document.getElementById('ill-lien').textContent = '';
-        if (etatD.fini) { window.astRendreDiagrammes(carte); annoncer(etatD.statut === 'TERMINEE' ? 'Illustration prête.' : 'La génération a échoué.', etatD.statut !== 'TERMINEE'); }
-        else { annoncer('Génération lancée…'); suivreIllustration(carte); }
+        $('ill-lien').textContent = '';
+        if (!etatD.fini) suivreIllustration(carte);
+        else annoncer(etatD.statut === 'TERMINEE' ? 'Illustration prête.' : 'La génération a échoué.', etatD.statut !== 'TERMINEE');
       } catch (err) {
         annoncer('Impossible de joindre le serveur.', true);
       } finally { bouton.disabled = false; }
@@ -397,6 +463,7 @@
   }
 
   connecter();
-  defiler();
+  ajusterHauteur();
+  defiler(true);
 })();
 </script>

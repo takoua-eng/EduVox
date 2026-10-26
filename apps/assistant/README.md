@@ -12,14 +12,15 @@ explication par un diagramme ou une image.
 |---|---|---|
 | Sessions (CRUD) | `/assistant/` | Créer, lister (recherche, filtres ouvertes / fermées), consulter, renommer / changer de cours, **fermer / rouvrir**, supprimer (avec les fichiers audio et images), **exporter en Markdown** |
 | Question écrite | page de session | Envoi par Entrée ; réponse **en streaming** (WebSocket), bouton **Arrêter** (la réponse partielle est conservée) |
-| Question orale | bouton micro ou **Alt+M** | `MediaRecorder` → conversion **WAV 16 kHz** dans le navigateur → **Whisper** (tâche Celery) → transcription **modifiable** avant envoi (ou envoi automatique) |
+| Question orale | bouton micro ou **Alt+M** | `MediaRecorder` (indicateur de niveau sonore, minuteur, Annuler / Échap) → conversion **WAV 16 kHz** dans le navigateur → **Whisper** (tâche Celery) → question **envoyée automatiquement** |
 | Contexte du cours | choix du cours | Le résumé (ou la transcription) du cours est injecté dans le prompt système ; uniquement si l'utilisateur a le droit de voir ce cours |
 | Historique | page de session | Conversation complète, mémoire des 10 derniers messages envoyée à Gemini, suppression d'un échange |
 | Lecture à voix haute | bouton haut-parleur | Synthèse vocale du navigateur (Web Speech API) |
 | Avis utile / pas utile | sous chaque réponse | Sert de **métrique qualitative** du modèle génératif |
 | Diagrammes | panneau Illustrations ou « Illustrer » sous une réponse | Gemini écrit du **Mermaid** (sortie JSON structurée, code validé côté serveur), rendu en SVG dans le navigateur (`securityLevel: strict`) |
 | Illustrations | idem | Gemini rédige un prompt anglais + un **texte alternatif**, puis **Hugging Face** (FLUX.1-schnell par défaut) génère l'image (tâche Celery) |
-| Galerie | `/assistant/illustrations/` | Toutes mes illustrations, filtrables par type |
+| Export PDF | panneau Illustrations, menu de la session, chaque carte, galerie | PDF A4 généré dans le navigateur (jsPDF) : titre, type, date, visuel et description de chaque illustration ou diagramme |
+| Galerie | `/assistant/illustrations/` | Toutes mes illustrations, filtrables par type, exportables en PDF |
 | Pilotage IA (admin) | `/assistant/statistiques/` | Taux de succès, latence médiane / p95, délai du 1er morceau, satisfaction, facteur temps réel Whisper |
 
 > **Pourquoi Mermaid pour les diagrammes ?** Les modèles texte → image dessinent des schémas illisibles (texte

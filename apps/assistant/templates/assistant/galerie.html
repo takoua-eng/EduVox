@@ -15,16 +15,22 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-5">
   <h1 class="h4 mb-0">Mes illustrations et diagrammes</h1>
+  <div class="d-flex flex-wrap align-items-center gap-3">
+  {% if liste_illustrations %}
+  <button type="button" class="btn btn-sm btn-outline-primary ast-js-seul" data-export-pdf="#ast-galerie" data-titre-pdf="Mes illustrations">
+    <i class="icon-base ri ri-file-pdf-2-line me-1" aria-hidden="true"></i> Exporter la page en PDF</button>
+  {% endif %}
   <nav class="ast-onglets" aria-label="Filtrer par type">
     <a href="?" {% if not filtre %}aria-current="page"{% endif %}>Tout</a>
     {% for valeur, libelle in types %}
     <a href="?type={{ valeur }}" {% if filtre == valeur %}aria-current="page"{% endif %}>{{ libelle }}s</a>
     {% endfor %}
   </nav>
+  </div>
 </div>
 
 {% if liste_illustrations %}
-<div class="ast-illustrations" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))">
+<div class="ast-illustrations" id="ast-galerie" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))">
   {% for illustration in liste_illustrations %}
   <div class="d-flex flex-column">
     {% include "assistant/_illustration.html" %}
@@ -51,4 +57,4 @@
 </div>
 {% endblock content %}
 
-{% block page_js %}{% include "assistant/_mermaid.html" %}{% endblock page_js %}
+{% block page_js %}{% include "assistant/_mermaid.html" %}{% include "assistant/_export_pdf.html" %}{% endblock page_js %}
