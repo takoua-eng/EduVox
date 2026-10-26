@@ -3,7 +3,7 @@
 from django.contrib.auth.signals import user_logged_in, user_login_failed
 from django.dispatch import receiver
 
-from .securite import enregistrer_connexion
+from .securite import bloquer_si_necessaire, enregistrer_connexion
 
 
 @receiver(user_logged_in)
@@ -26,3 +26,5 @@ def connexion_echouee(sender, credentials, request=None, **kwargs):
     utilisateur = Utilisateur.objects.filter(username__iexact=nom).first()
     enregistrer_connexion(request, utilisateur=utilisateur, nom_saisi=nom, succes=False,
                           motif="Mot de passe incorrect" if utilisateur else "Compte inconnu")
+    if utilisateur:
+        bloquer_si_necessaire(request, utilisateur)

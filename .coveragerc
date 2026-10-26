@@ -1,0 +1,17 @@
+[run]
+source =
+    apps.accounts
+    ai_services.visage
+omit =
+    */migrations/*
+    */tests.py
+    */management/commands/modeles_visage.py
+
+[report]
+show_missing = True
+skip_covered = False
+precision = 0
+
+[html]
+directory = htmlcov
+title = EduVox - Couverture du module Utilisateurs

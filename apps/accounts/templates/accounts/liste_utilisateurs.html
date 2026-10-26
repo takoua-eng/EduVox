@@ -107,12 +107,25 @@
           <td>
             {% if u.is_active %}<span class="badge bg-label-success">Actif</span>
             {% else %}<span class="badge bg-label-secondary">Inactif</span>{% endif %}
+            {% if u.est_bloque %}<br /><span class="badge bg-label-danger mt-1" title="Jusqu'à {{ u.bloque_jusqua|time:'H:i' }}"><i class="icon-base ri ri-forbid-line me-1"></i>Bloqué</span>{% endif %}
           </td>
           <td class="text-end">
             <div class="d-inline-flex gap-1">
               <a href="{% url 'modifier-utilisateur' u.pk %}" class="btn btn-sm btn-icon btn-text-secondary" title="Modifier">
                 <i class="icon-base ri ri-edit-box-line icon-20px"></i>
               </a>
+                            {% if u.est_bloque %}
+              <form method="post" action="{% url 'debloquer-utilisateur' u.pk %}"
+                    data-confirm="{{ u.get_full_name|default:u.username }} pourra de nouveau essayer de se connecter immédiatement."
+                    data-confirm-titre="Débloquer ce compte ?"
+                    data-confirm-bouton="Débloquer"
+                    data-confirm-type="success">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-icon btn-text-success" title="Débloquer (trop d'essais)">
+                  <i class="icon-base ri ri-shield-check-line icon-20px"></i>
+                </button>
+              </form>
+              {% endif %}
               {% if u != request.user %}
               <form method="post" action="{% url 'activer-utilisateur' u.pk %}"
                     {% if u.is_active %}

@@ -175,6 +175,8 @@ class ConnexionVisageView(SansMenuMixin, TemplateView):
 
         if not user.email_verifie and not user.is_superuser:
             return erreur("Vous devez d'abord confirmer votre adresse e-mail.", 403)
+        if user.est_bloque:
+            return erreur("Compte temporairement bloqué après trop d'essais. Réessayez plus tard.", 403)
 
         profil.derniere_utilisation = timezone.now()
         profil.save(update_fields=["derniere_utilisation"])
