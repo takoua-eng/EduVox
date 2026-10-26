@@ -1,9 +1,12 @@
 """Règles d'accès du module assistant.
 
 - Poser des questions : permission « accounts.poser_question » (rôles Étudiant et Administrateur, cf. roles.py).
-- Chaque utilisateur ne voit QUE ses propres sessions, messages et illustrations : un objet d'un autre
-  utilisateur renvoie 404 (on ne révèle pas son existence), même pour l'administrateur (vie privée).
-- Statistiques du module : permission « accounts.voir_statistiques » (administrateur), données agrégées seulement.
+- Chaque utilisateur ne voit et ne modifie QUE ses propres sessions, messages et illustrations : un objet
+  d'un autre utilisateur renvoie 404 (on ne révèle pas son existence).
+- Modération : l'administrateur (permission « accounts.gerer_utilisateurs ») consulte toutes les conversations
+  en LECTURE SEULE, dans un espace dédié (/assistant/moderation/) ; il ne peut ni y écrire ni les modifier.
+  Les étudiants en sont informés sur la page de l'assistant.
+- Statistiques du module : permission « accounts.voir_statistiques » (administrateur).
 """
 
 from django.contrib.auth.mixins import PermissionRequiredMixin
@@ -15,6 +18,7 @@ from .models import Illustration, MessageVocal, SessionAssistant
 
 PERMISSION_ASSISTANT = "accounts.poser_question"
 PERMISSION_STATISTIQUES = "accounts.voir_statistiques"
+PERMISSION_MODERATION = "accounts.gerer_utilisateurs"
 
 
 def peut_utiliser(user):
@@ -47,3 +51,13 @@ class AssistantRequisMixin(PermissionRequiredMixin):
 
 class StatistiquesRequisMixin(PermissionRequiredMixin):
     permission_required = PERMISSION_STATISTIQUES
+
+
+class ModerationRequisMixin(PermissionRequiredMixin):
+    """Consultation en lecture seule de toutes les conversations (administrateur)."""
+
+    permission_required = PERMISSION_MODERATION
+
+    def get_session(self, pk=None):
+        return get_object_or_404(SessionAssistant.objects.select_related("cours", "utilisateur"),
+                                 pk=pk or self.kwargs["pk"])

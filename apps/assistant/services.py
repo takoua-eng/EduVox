@@ -14,6 +14,7 @@ import time
 from datetime import timedelta
 from statistics import median
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
@@ -21,6 +22,7 @@ from markdown_it import MarkdownIt
 
 from ai_services.gemini import MODELE_PAR_DEFAUT
 
+from .forms import nettoyer_espaces, valider_question
 from .models import Illustration, JournalIA, MessageVocal
 from .permissions import cours_utilisables
 from .reglages import reglage
@@ -193,10 +195,12 @@ def preparer_question(session, texte="", message_id=None):
         raise ErreurAssistant("Cette session est fermée : rouvrez-la pour poser une question.", "session_fermee")
     if not gemini_configure():
         raise ErreurAssistant("L'assistant n'est pas configuré sur ce serveur (clé Gemini absente).", "configuration")
-    texte = (texte or "").strip()
-    maximum = reglage("ASSISTANT_QUESTION_MAX_CARACTERES")
-    if len(texte) > maximum:
-        raise ErreurAssistant(f"La question est trop longue ({maximum} caractères au maximum).", "validation")
+    texte = nettoyer_espaces(texte)
+    if texte or not message_id:  # une question dictée peut arriver sans texte (on garde la transcription)
+        try:
+            texte = valider_question(texte)
+        except ValidationError as erreur:
+            raise ErreurAssistant(erreur.messages[0], "validation")
 
     with transaction.atomic():
         if message_id:
@@ -213,8 +217,6 @@ def preparer_question(session, texte="", message_id=None):
             if not question.texte:
                 raise ErreurAssistant("La question est vide.", "validation")
         else:
-            if not texte:
-                raise ErreurAssistant("Écrivez ou dictez une question.", "validation")
             verifier_quota_questions(session.utilisateur)
             question = MessageVocal.objects.create(session=session, role=MessageVocal.Role.UTILISATEUR, texte=texte)
         reponse = MessageVocal.objects.create(session=session, role=MessageVocal.Role.ASSISTANT,

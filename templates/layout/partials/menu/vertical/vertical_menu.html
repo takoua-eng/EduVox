@@ -78,7 +78,7 @@
 
     <!-- Module 4 : Assistant vocal et illustrations -->
     {% if perms.accounts.poser_question %}
-    <li class="menu-item {% if request.path|slice:':11' == '/assistant/' and request.resolver_match.url_name != 'statistiques-assistant' %}active{% endif %}">
+    <li class="menu-item {% if request.path|slice:':11' == '/assistant/' and request.resolver_match.url_name != 'statistiques-assistant' and 'moderation' not in request.resolver_match.url_name %}active{% endif %}">
       <a href="{% url 'assistant' %}" class="menu-link">
         <i class="menu-icon icon-base ri ri-mic-line" aria-hidden="true"></i>
         <div class="text-truncate">Assistant vocal</div>
@@ -155,6 +155,12 @@
       <a href="{% url 'journal-connexions' %}" class="menu-link">
         <i class="menu-icon icon-base ri ri-history-line"></i>
         <div class="text-truncate">Journal des connexions</div>
+      </a>
+    </li>
+    <li class="menu-item {% if request.resolver_match.url_name == 'moderation-assistant' or request.resolver_match.url_name == 'moderation-session-assistant' %}active{% endif %}">
+      <a href="{% url 'moderation-assistant' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-chat-history-line" aria-hidden="true"></i>
+        <div class="text-truncate">Conversations assistant</div>
       </a>
     </li>
     <li class="menu-item {% if request.resolver_match.url_name == 'statistiques-assistant' %}active{% endif %}">

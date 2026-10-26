@@ -8,10 +8,17 @@ from django.utils import timezone
 class SessionAssistant(models.Model):
     """Conversation d'un utilisateur avec l'assistant, éventuellement rattachée à un cours (contexte)."""
 
+    class ModeReponse(models.TextChoices):
+        TEXTE = "TEXTE", "Écrit"
+        VOCAL = "VOCAL", "Parole"
+
     utilisateur = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="sessions_assistant")
     titre = models.CharField(max_length=150)
     cours = models.ForeignKey("courses.Cours", on_delete=models.SET_NULL, null=True, blank=True,
                               related_name="sessions_assistant", help_text="Le résumé du cours sert de contexte à l'IA")
+    mode_reponse = models.CharField("Réponse de l'assistant", max_length=5, choices=ModeReponse.choices,
+                                    default=ModeReponse.TEXTE,
+                                    help_text="Parole : la réponse est aussi lue à voix haute au fur et à mesure")
     active = models.BooleanField(default=True)
     date_ouverture = models.DateTimeField(auto_now_add=True)
     date_fermeture = models.DateTimeField(null=True, blank=True)

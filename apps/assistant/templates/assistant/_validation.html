@@ -1,0 +1,52 @@
+<script>
+/* Contrôle de saisie côté navigateur pour les formulaires [data-valider].
+   Mêmes règles que le serveur (forms.py) : required, minlength, maxlength, au moins une lettre.
+   Le message s'affiche sous le champ (élément « <id>_erreur »), le champ passe en aria-invalid,
+   et le focus va au premier champ en erreur. Le serveur revalide toujours. */
+(function () {
+  'use strict';
+  const LETTRE = /\p{L}/u;
+
+  function message(champ) {
+    const v = (champ.value || '').trim().replace(/\s+/g, ' ');
+    const libelle = (champ.labels && champ.labels[0] ? champ.labels[0].textContent : 'Ce champ').replace(/\*|\(obligatoire\)/g, '').trim();
+    if (champ.required && !v) return 'Ce champ est obligatoire.';
+    if (!v) return '';
+    const min = parseInt(champ.getAttribute('minlength'), 10);
+    const max = parseInt(champ.getAttribute('maxlength'), 10);
+    if (min && v.length < min) return libelle + ' : au moins ' + min + ' caractères.';
+    if (max && v.length > max) return libelle + ' : ' + max + ' caractères au maximum.';
+    if (champ.type !== 'select-one' && champ.type !== 'radio' && !LETTRE.test(v)) return libelle + ' doit contenir au moins une lettre.';
+    return '';
+  }
+
+  function afficher(champ, texte) {
+    const zone = document.getElementById(champ.id + '_erreur');
+    if (zone) zone.textContent = texte;
+    if (texte) {
+      champ.setAttribute('aria-invalid', 'true');
+      if (zone) champ.setAttribute('aria-errormessage', zone.id);
+    } else {
+      champ.removeAttribute('aria-invalid');
+      champ.removeAttribute('aria-errormessage');
+    }
+  }
+
+  document.querySelectorAll('form[data-valider]').forEach(function (form) {
+    const champs = Array.from(form.querySelectorAll('input[type=text], textarea')).filter(function (c) { return c.id; });
+    champs.forEach(function (champ) {
+      champ.addEventListener('blur', function () { if (champ.value) afficher(champ, message(champ)); });
+      champ.addEventListener('input', function () { if (champ.getAttribute('aria-invalid')) afficher(champ, message(champ)); });
+    });
+    form.addEventListener('submit', function (e) {
+      let premier = null;
+      champs.forEach(function (champ) {
+        const texte = message(champ);
+        afficher(champ, texte);
+        if (texte && !premier) premier = champ;
+      });
+      if (premier) { e.preventDefault(); premier.focus(); }
+    });
+  });
+})();
+</script>

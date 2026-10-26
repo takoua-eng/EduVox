@@ -45,7 +45,7 @@
     <span class="d-flex gap-1">
       {% if illustration.statut == 'TERMINEE' %}<button type="button" class="btn btn-sm btn-outline-secondary ast-js-seul" data-export-pdf-carte aria-label="Exporter en PDF"><i class="icon-base ri ri-file-pdf-2-line" aria-hidden="true"></i></button>{% endif %}
       {% if illustration.image %}<a class="btn btn-sm btn-outline-secondary" href="{{ illustration.image.url }}" download aria-label="Télécharger l'image"><i class="icon-base ri ri-download-line" aria-hidden="true"></i></a>{% endif %}
-      {% if illustration.statut != 'EN_COURS' %}
+      {% if illustration.statut != 'EN_COURS' and not lecture_seule %}
       <form method="post" action="{% url 'supprimer-illustration-assistant' illustration.pk %}" class="ast-form-supprimer-ill">
         {% csrf_token %}
         <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="Supprimer cette illustration"><i class="icon-base ri ri-delete-bin-line" aria-hidden="true"></i></button>

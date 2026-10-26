@@ -11,6 +11,7 @@ urlpatterns = [
     path("sessions/<int:pk>/fermer/", views.FermerSessionView.as_view(), name="fermer-session-assistant"),
     path("sessions/<int:pk>/rouvrir/", views.RouvrirSessionView.as_view(), name="rouvrir-session-assistant"),
     path("sessions/<int:pk>/exporter/", views.ExporterSessionView.as_view(), name="exporter-session-assistant"),
+    path("sessions/<int:pk>/mode-reponse/", views.ModeReponseView.as_view(), name="mode-reponse-assistant"),
 
     # Questions (écrites, orales) et réponses
     path("sessions/<int:pk>/question/", views.QuestionView.as_view(), name="question-assistant"),
@@ -28,4 +29,10 @@ urlpatterns = [
          name="supprimer-illustration-assistant"),
 
     path("statistiques/", views.StatistiquesView.as_view(), name="statistiques-assistant"),
+
+    # Modération (administrateur) : consultation en lecture seule
+    path("moderation/", views.ModerationListeView.as_view(), name="moderation-assistant"),
+    path("moderation/sessions/<int:pk>/", views.ModerationSessionView.as_view(), name="moderation-session-assistant"),
+    path("moderation/sessions/<int:pk>/exporter/", views.ModerationExporterView.as_view(),
+         name="moderation-exporter-assistant"),
 ]

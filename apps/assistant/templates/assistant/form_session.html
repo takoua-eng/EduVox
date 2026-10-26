@@ -18,18 +18,42 @@
     <div class="card">
       <div class="card-header"><h1 class="h4 mb-0">{{ titre_page }}</h1></div>
       <div class="card-body">
-        <form method="post" novalidate>
+        <form method="post" novalidate data-valider>
           {% csrf_token %}
           {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ form.non_field_errors|join:" " }}</div>{% endif %}
-          {% for champ in form %}
+
+          {# Django ajoute aria-invalid et aria-describedby aux champs en erreur #}
           <div class="mb-5">
-            <label for="{{ champ.id_for_label }}" class="form-label">{{ champ.label }}{% if champ.field.required %} <span aria-hidden="true">*</span><span class="visually-hidden">(obligatoire)</span>{% endif %}</label>
-            {# Django ajoute lui-même aria-invalid et aria-describedby (aide) au champ #}
-            {{ champ }}
-            {% if champ.help_text %}<div id="{{ champ.auto_id }}_helptext" class="form-text">{{ champ.help_text }}</div>{% endif %}
-            {% for erreur in champ.errors %}<div class="ast-erreur small mt-1" role="alert">{{ erreur }}</div>{% endfor %}
+            <label for="{{ form.titre.id_for_label }}" class="form-label">{{ form.titre.label }} <span aria-hidden="true">*</span><span class="visually-hidden">(obligatoire)</span></label>
+            {{ form.titre }}
+            <div class="form-text" id="titre-aide">Entre 3 et 150 caractères.</div>
+            <p class="ast-champ-erreur" id="{{ form.titre.auto_id }}_erreur" role="alert">{{ form.titre.errors|first|default:"" }}</p>
           </div>
-          {% endfor %}
+
+          <div class="mb-5">
+            <label for="{{ form.cours.id_for_label }}" class="form-label">{{ form.cours.label }}</label>
+            {{ form.cours }}
+            <div id="{{ form.cours.auto_id }}_helptext" class="form-text">{{ form.cours.help_text }}</div>
+            <p class="ast-champ-erreur" role="alert">{{ form.cours.errors|first|default:"" }}</p>
+          </div>
+
+          <fieldset class="mb-5">
+            <legend class="form-label fs-6">{{ form.mode_reponse.label }}</legend>
+            <div class="ast-choix-mode">
+              {% for choix in form.mode_reponse %}
+              <div>
+                <input type="radio" class="btn-check" name="{{ choix.data.name }}" id="{{ choix.id_for_label }}" value="{{ choix.data.value }}" {% if choix.data.selected %}checked{% endif %} />
+                <label for="{{ choix.id_for_label }}">
+                  <i class="icon-base ri {% if choix.data.value == 'VOCAL' %}ri-volume-up-line{% else %}ri-text{% endif %}" aria-hidden="true"></i>
+                  <span><strong class="d-block">{{ choix.choice_label }}</strong>
+                    <span class="small ast-doux">{% if choix.data.value == 'VOCAL' %}La réponse est écrite et lue à voix haute.{% else %}La réponse s'affiche à l'écran.{% endif %}</span></span>
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+            <p class="ast-champ-erreur" role="alert">{{ form.mode_reponse.errors|first|default:"" }}</p>
+          </fieldset>
+
           <div class="d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-primary"><i class="icon-base ri ri-check-line me-1" aria-hidden="true"></i> {% if session %}Enregistrer{% else %}Ouvrir la session{% endif %}</button>
             <a href="{% if session %}{% url 'session-assistant' session.pk %}{% else %}{% url 'assistant' %}{% endif %}" class="btn btn-outline-secondary">Annuler</a>
@@ -41,3 +65,5 @@
 </div>
 </div>
 {% endblock content %}
+
+{% block page_js %}{% include "assistant/_validation.html" %}{% endblock page_js %}

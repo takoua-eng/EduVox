@@ -1,6 +1,7 @@
 import logging
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.db.models import Count, Max, Q
 from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import redirect
@@ -13,9 +14,9 @@ from django.views.generic import ListView, TemplateView
 
 from web_project import TemplateLayout
 
-from .forms import IllustrationForm, QuestionForm, SessionForm
+from .forms import IllustrationForm, ModeReponseForm, QuestionForm, SessionForm
 from .models import Illustration, MessageVocal, SessionAssistant
-from .permissions import AssistantRequisMixin, StatistiquesRequisMixin, sessions_de
+from .permissions import AssistantRequisMixin, ModerationRequisMixin, StatistiquesRequisMixin, sessions_de
 from .reglages import reglage
 from .services import (
     ErreurAssistant,
@@ -179,27 +180,52 @@ class DetailSessionView(AssistantRequisMixin, LayoutMixin, TemplateView):
             "gemini_configure": gemini_configure(),
             "hf_configure": hugging_face_configure(),
             "max_caracteres": reglage("ASSISTANT_QUESTION_MAX_CARACTERES"),
+            "modes_reponse": SessionAssistant.ModeReponse.choices,
             "audio_max_s": reglage("ASSISTANT_AUDIO_MAX_S"),
         })
         return context
+
+
+def exporter_markdown(session):
+    """Historique de la session au format Markdown, en pièce jointe."""
+    lignes = [f"# {session.titre}", "", f"Ouverte le {timezone.localtime(session.date_ouverture):%d/%m/%Y à %H:%M}"]
+    if session.cours_id:
+        lignes.append(f"Cours : {session.cours.titre}")
+    for message in session.messages.filter(statut=MessageVocal.Statut.PRET):
+        if message.est_question:
+            auteur = "Vous (à l'oral)" if message.mode == MessageVocal.Mode.VOCAL else "Vous"
+        else:
+            auteur = "Assistant"
+        lignes += ["", f"## {auteur} – {timezone.localtime(message.date):%d/%m/%Y %H:%M}", "", message.texte]
+    reponse = HttpResponse("\n".join(lignes) + "\n", content_type="text/markdown; charset=utf-8")
+    nom = slugify(session.titre) or f"session-{session.pk}"
+    reponse["Content-Disposition"] = f'attachment; filename="{nom}.md"'
+    return reponse
 
 
 class ExporterSessionView(AssistantRequisMixin, View):
     """Téléchargement de l'historique au format Markdown."""
 
     def get(self, request, pk):
+        return exporter_markdown(self.get_session())
+
+
+class ModeReponseView(AssistantRequisMixin, View):
+    """Choix du mode de réponse de la session : écrit, ou écrit et lu à voix haute."""
+
+    def post(self, request, pk):
         session = self.get_session()
-        lignes = [f"# {session.titre}", "", f"Ouverte le {timezone.localtime(session.date_ouverture):%d/%m/%Y à %H:%M}"]
-        if session.cours_id:
-            lignes.append(f"Cours : {session.cours.titre}")
-        for message in session.messages.filter(statut=MessageVocal.Statut.PRET):
-            auteur = "Vous" + (" (à l'oral)" if message.mode == MessageVocal.Mode.VOCAL else "") \
-                if message.est_question else "Assistant"
-            lignes += ["", f"## {auteur} – {timezone.localtime(message.date):%d/%m/%Y %H:%M}", "", message.texte]
-        reponse = HttpResponse("\n".join(lignes) + "\n", content_type="text/markdown; charset=utf-8")
-        nom = slugify(session.titre) or f"session-{session.pk}"
-        reponse["Content-Disposition"] = f'attachment; filename="{nom}.md"'
-        return reponse
+        form = ModeReponseForm(request.POST)
+        if not form.is_valid():
+            if attend_json(request):
+                return JsonResponse({"erreur": "Mode de réponse inconnu."}, status=400)
+            messages.error(request, "Mode de réponse inconnu.")
+            return redirect("session-assistant", pk=pk)
+        session.mode_reponse = form.cleaned_data["mode_reponse"]
+        session.save(update_fields=["mode_reponse", "date_maj"])
+        if attend_json(request):
+            return JsonResponse({"mode_reponse": session.mode_reponse})
+        return redirect("session-assistant", pk=pk)
 
 
 # ---------- Messages ----------
@@ -215,9 +241,10 @@ class QuestionView(AssistantRequisMixin, View):
         message_id = request.POST.get("message_id")
         message_id = int(message_id) if message_id and message_id.isdigit() else None
         if not form.is_valid() and not message_id:
+            erreur = form.errors["texte"][0]
             if attend_json(request):
-                return JsonResponse({"erreur": "Écrivez une question (2000 caractères au maximum)."}, status=400)
-            messages.error(request, "Écrivez une question avant de l'envoyer.")
+                return JsonResponse({"erreur": erreur}, status=400)
+            messages.error(request, erreur)
             return redirect("session-assistant", pk=pk)
         texte = form.cleaned_data.get("texte", "") if form.is_valid() else request.POST.get("texte", "")
         try:
@@ -343,7 +370,7 @@ class IllustrationView(AssistantRequisMixin, View):
         if not session.active:
             erreur = "Cette session est fermée."
         elif not form.is_valid():
-            erreur = "Décrivez ce que vous voulez visualiser (3 à 500 caractères)."
+            erreur = form.premiere_erreur()
         else:
             try:
                 verifier_quota_illustrations(request.user)
@@ -359,7 +386,7 @@ class IllustrationView(AssistantRequisMixin, View):
         if form.cleaned_data.get("message"):
             message = session.messages.filter(pk=form.cleaned_data["message"]).first()
         illustration = Illustration.objects.create(
-            session=session, message=message, demande=form.cleaned_data["demande"].strip(),
+            session=session, message=message, demande=form.cleaned_data["demande"],
             type_illustration=form.cleaned_data["type_illustration"],
         )
 
@@ -418,6 +445,73 @@ class GalerieView(AssistantRequisMixin, LayoutMixin, ListView):
         context["filtre"] = self.filtre
         context["types"] = Illustration.Type.choices
         return context
+
+
+# ---------- Modération (administrateur, lecture seule) ----------
+
+class ModerationListeView(ModerationRequisMixin, LayoutMixin, ListView):
+    """Toutes les conversations de la plateforme, avec recherche et filtre par utilisateur."""
+
+    template_name = "assistant/moderation_liste.html"
+    context_object_name = "liste_sessions"
+    paginate_by = 25
+
+    def get_queryset(self):
+        g = self.request.GET
+        self.recherche = g.get("q", "").strip()[:100]
+        self.filtre = g.get("etat", "")
+        self.utilisateur_id = g.get("utilisateur", "")
+        sessions = SessionAssistant.objects.select_related("utilisateur", "cours").annotate(
+            nb_questions=Count("messages", filter=Q(messages__role=MessageVocal.Role.UTILISATEUR), distinct=True),
+            nb_illustrations=Count("illustrations", distinct=True),
+            dernier_message=Max("messages__date"),
+        ).order_by("-date_maj", "-pk")
+        if self.utilisateur_id.isdigit():
+            sessions = sessions.filter(utilisateur_id=int(self.utilisateur_id))
+        if self.filtre == "ouvertes":
+            sessions = sessions.filter(active=True)
+        elif self.filtre == "fermees":
+            sessions = sessions.filter(active=False)
+        if self.recherche:
+            sessions = sessions.filter(
+                Q(titre__icontains=self.recherche) | Q(utilisateur__username__icontains=self.recherche)
+                | Q(utilisateur__first_name__icontains=self.recherche)
+                | Q(utilisateur__last_name__icontains=self.recherche)
+                | Q(utilisateur__email__icontains=self.recherche) | Q(messages__texte__icontains=self.recherche)
+            ).distinct()
+        return sessions
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({
+            "recherche": self.recherche, "filtre": self.filtre, "utilisateur_id": self.utilisateur_id,
+            "utilisateurs": get_user_model().objects.filter(sessions_assistant__isnull=False).distinct()
+            .order_by("username"),
+            "total": SessionAssistant.objects.count(),
+            "total_questions": MessageVocal.objects.filter(role=MessageVocal.Role.UTILISATEUR).count(),
+        })
+        return context
+
+
+class ModerationSessionView(ModerationRequisMixin, LayoutMixin, TemplateView):
+    """Conversation d'un utilisateur, en lecture seule (aucun formulaire, aucune action)."""
+
+    template_name = "assistant/detail.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        session = self.get_session()
+        context.update({
+            "session": session, "lecture_seule": True,
+            "liste_messages": session.messages.prefetch_related("illustrations"),
+            "illustrations": session.illustrations.select_related("message"),
+        })
+        return context
+
+
+class ModerationExporterView(ModerationRequisMixin, View):
+    def get(self, request, pk):
+        return exporter_markdown(self.get_session())
 
 
 # ---------- Statistiques (administrateur) ----------

@@ -18,6 +18,7 @@
     {% if message.message_erreur %}<p class="ast-erreur small mb-0">{{ message.message_erreur }}</p>{% endif %}
     {% if message.audio %}<audio class="ast-audio" controls preload="none" src="{{ message.audio.url }}" aria-label="Écouter l'enregistrement de cette question"></audio>{% endif %}
 
+    {% if not lecture_seule %}
     <div class="ast-actions">
       {% if message.est_question %}
         <form method="post" action="{% url 'supprimer-message-assistant' message.pk %}" class="ast-form-supprimer">
@@ -38,5 +39,6 @@
         {% include "assistant/_evaluer.html" with valeur=-1 icone="ri-thumb-down-line" libelle="Réponse pas utile" %}
       {% endif %}
     </div>
+    {% endif %}
   </div>
 </article>

@@ -201,6 +201,28 @@ html:not(.ast-js) .ast-js-seul { display: none !important; } /* commandes qui n'
   text-align: center; padding: 1rem; font-size: .875rem; }
 .ast-ill-corps .btn { padding: .15rem .45rem; }
 
+/* ---------- Mode de réponse, lecture seule, contrôle de saisie ---------- */
+.ast-mode { flex: 0 0 auto; }
+.ast-segments--compact { display: inline-grid; grid-template-columns: auto auto; margin: 0; padding: .2rem; }
+.ast-segments--compact label { padding: .25rem .6rem; font-size: .8125rem; display: inline-flex; align-items: center; gap: .3rem; }
+@media (max-width: 575.98px) { .ast-mode-libelle { display: none; } }
+.ast-parle .ast-conv-avatar { animation: ast-parle 1.2s infinite ease-in-out; }
+@keyframes ast-parle { 50% { box-shadow: 0 0 0 6px rgba(4, 120, 87, .18) } }
+.ast-bandeau-lecture { display: flex; gap: .6rem; align-items: center; padding: .75rem 1rem; border-radius: .875rem;
+  background: #fffbeb; border: 1px solid #fcd34d; color: #78350f; }
+.ast-compteur { font-size: .75rem; color: var(--ast-doux); margin-top: .35rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ast-compteur.ast-compteur--limite { color: var(--ast-rouge); font-weight: 600; }
+.ast-champ-erreur { color: var(--ast-rouge); font-size: .8125rem; font-weight: 500; margin: .35rem 0 0; }
+.ast-champ-erreur:empty { display: none; }
+.ast-barre.ast-invalide { border-color: var(--ast-rouge); box-shadow: 0 0 0 3px rgba(185, 28, 28, .12); }
+.assistant-module .form-control[aria-invalid="true"], .assistant-module .form-select[aria-invalid="true"] { border-color: var(--ast-rouge); }
+.ast-choix-mode { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.ast-choix-mode label { display: flex; gap: .75rem; align-items: flex-start; padding: .875rem 1rem; border: 1px solid var(--ast-bord);
+  border-radius: .875rem; cursor: pointer; margin: 0; }
+.ast-choix-mode input:checked + label { border-color: var(--ast-vert); background: #f0faf5; box-shadow: 0 0 0 1px var(--ast-vert); }
+.ast-choix-mode i { font-size: 1.35rem; color: var(--ast-vert); }
+@media (max-width: 575.98px) { .ast-choix-mode { grid-template-columns: 1fr; } }
+
 /* ---------- Statistiques ---------- */
 .ast-kpi { border: 1px solid var(--ast-bord); border-radius: .875rem; padding: 1rem 1.25rem; background: #fff; height: 100%; }
 .ast-kpi strong { display: block; font-size: 1.75rem; font-family: 'Poppins', sans-serif; color: var(--ast-texte); }

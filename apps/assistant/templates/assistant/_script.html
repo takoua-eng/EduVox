@@ -25,6 +25,10 @@
   const formIll = $('form-illustration');
   const listeIll = $('ast-liste-illustrations');
   const btnPdfTout = $('btn-pdf-tout');
+  const compteur = $('ast-compteur');
+  const formMode = $('form-mode');
+  const LETTRE = /\p{L}/u;
+  const MAX_QUESTION = parseInt(cfg.questionMax, 10) || 2000;
   const csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
   const AJAX = { 'X-Requested-With': 'XMLHttpRequest' };
 
@@ -104,6 +108,76 @@
     if (zone) zone.focus();
   }
 
+  // ---------- Réponse à voix haute (mode « Parole ») ----------
+  const TTS = 'speechSynthesis' in window;
+  let voixFr = null, lu = 0;
+  function choisirVoix() {
+    const fr = speechSynthesis.getVoices().filter((v) => (v.lang || '').toLowerCase().startsWith('fr'));
+    voixFr = fr.find((v) => /natural|neural|online|google/i.test(v.name)) || fr[0] || null;
+  }
+  if (TTS) { choisirVoix(); speechSynthesis.addEventListener('voiceschanged', choisirVoix); }
+  const modeVocal = () => TTS && cfg.modeReponse === 'VOCAL';
+
+  /** Retire la syntaxe Markdown pour que la synthèse vocale lise un texte naturel. */
+  function textePourParole(t) {
+    return t.replace(/```[\s\S]*?```/g, ' ').replace(/`([^`]*)`/g, '$1').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/^\s{0,3}#{1,6}\s*/gm, '').replace(/^\s*([-*+]|\d+[.)])\s+/gm, '').replace(/[*_~|>#]/g, '')
+      .replace(/\s+/g, ' ').trim();
+  }
+  function dire(texte) {
+    const t = textePourParole(texte);
+    if (!t) return;
+    const u = new SpeechSynthesisUtterance(t);
+    u.lang = voixFr ? voixFr.lang : 'fr-FR';
+    if (voixFr) u.voice = voixFr;
+    u.onstart = () => racine.classList.add('ast-parle');
+    u.onend = u.onerror = () => { if (!speechSynthesis.speaking && !speechSynthesis.pending) racine.classList.remove('ast-parle'); };
+    speechSynthesis.speak(u);
+  }
+  function taire() { if (TTS) speechSynthesis.cancel(); racine.classList.remove('ast-parle'); lu = 0; }
+  /** Lit chaque phrase terminée dès qu'elle arrive ; `final` : lit aussi la fin du texte. */
+  function lireAuFil(final) {
+    if (!modeVocal()) return;
+    const reste = texteFlux.slice(lu);
+    let coupe = final ? reste.length : -1;
+    if (!final) { const re = /[.!?:;](\s|$)|\n/g; let m; while ((m = re.exec(reste))) coupe = m.index + 1; }
+    if (coupe > 0) { dire(reste.slice(0, coupe)); lu += coupe; }
+  }
+
+  if (formMode) {
+    formMode.addEventListener('change', async () => {
+      const choix = formMode.querySelector('input:checked').value;
+      cfg.modeReponse = choix;
+      if (choix !== 'VOCAL') taire();
+      try {
+        const r = await fetch(cfg.urlMode, { method: 'POST', body: new FormData(formMode), headers: AJAX });
+        if (!r.ok) throw new Error();
+        annoncer(choix === 'VOCAL' ? "L'assistant lira ses réponses à voix haute." : "L'assistant répondra par écrit.");
+        if (choix === 'VOCAL' && !TTS) annoncer("Ton navigateur ne sait pas lire à voix haute : la réponse restera écrite.", true);
+      } catch (e) { annoncer("Le mode de réponse n'a pas pu être enregistré.", true); }
+    });
+  }
+
+  // ---------- Contrôle de saisie de la question ----------
+  function erreurSaisie(texte) {
+    if (barreSaisie) barreSaisie.classList.toggle('ast-invalide', !!texte);
+    if (zone) { if (texte) zone.setAttribute('aria-invalid', 'true'); else zone.removeAttribute('aria-invalid'); }
+    if (texte) annoncer(texte, true);
+  }
+  function validerQuestion(texte) {
+    if (!texte) return 'Écris ou dicte une question.';
+    if (texte.length < 2) return 'La question est trop courte.';
+    if (texte.length > MAX_QUESTION) return 'La question est trop longue (' + MAX_QUESTION + ' caractères au maximum).';
+    if (!LETTRE.test(texte)) return 'La question doit contenir au moins une lettre.';
+    return '';
+  }
+  function majCompteur() {
+    if (!compteur || !zone) return;
+    const n = zone.value.length;
+    compteur.textContent = n > MAX_QUESTION * 0.8 ? n + ' / ' + MAX_QUESTION : '';
+    compteur.classList.toggle('ast-compteur--limite', n >= MAX_QUESTION);
+  }
+
   // ---------- WebSocket (streaming) ----------
   function connecter() {
     if (cfg.active !== '1' || !indicateur) return;
@@ -127,17 +201,20 @@
     if (d.type === 'debut') {
       bulleFlux = bulleAttente();
       texteFlux = '';
+      taire();
       inserer(d.question.id, null, bulleFlux); // la question s'affiche juste avant la réponse
       annoncer("L'assistant rédige sa réponse…");
     } else if (d.type === 'morceau' && bulleFlux) {
       texteFlux += d.texte;
       bulleFlux.querySelector('.ast-contenu').textContent = texteFlux; // texte brut pendant le flux
       defiler();
+      lireAuFil(false);
     } else if (d.type === 'fin') {
       const b = bulleFlux;
       bulleFlux = null;
       occupe(false);
       inserer(d.reponse_id, b); // rendu Markdown final côté serveur
+      if (d.interrompue) taire(); else lireAuFil(true);
       annoncer(d.interrompue ? 'Réponse interrompue.' : '');
       if (zone) zone.focus();
     } else if (d.type === 'erreur') {
@@ -150,12 +227,16 @@
     if (!zone || enCours) return;
     const texte = zone.value.trim();
     const messageId = champMessage.value ? parseInt(champMessage.value, 10) : null;
-    if (!texte) { annoncer('Écris ou dicte une question.', true); zone.focus(); return; }
+    const erreur = validerQuestion(texte);
+    if (erreur) { erreurSaisie(erreur); zone.focus(); return; }
+    erreurSaisie('');
+    taire();
     occupe(true);
     dernierTexte = texte;
     zone.value = '';
     champMessage.value = '';
     ajusterHauteur();
+    majCompteur();
     annoncer('');
     if (wsPret) { ws.send(JSON.stringify({ action: 'question', texte: texte, message_id: messageId })); return; }
 
@@ -170,8 +251,9 @@
       const d = await r.json();
       if (!r.ok) { bulleFlux = b; finErreur(d.erreur || "La question n'a pas pu être envoyée."); return; }
       await inserer(d.question.id, null, b);
-      await inserer(d.reponse_id, b);
+      const el = await inserer(d.reponse_id, b);
       occupe(false);
+      if (el && modeVocal()) dire(el.querySelector('.ast-contenu').innerText);
       zone.focus();
     } catch (e) {
       bulleFlux = b;
@@ -184,8 +266,13 @@
     zone.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); envoyer(); }
     });
-    zone.addEventListener('input', () => { ajusterHauteur(); if (!zone.value) champMessage.value = ''; });
-    btnArreter.addEventListener('click', () => { if (wsPret) ws.send(JSON.stringify({ action: 'arreter' })); });
+    zone.addEventListener('input', () => {
+      ajusterHauteur();
+      majCompteur();
+      if (!zone.value) champMessage.value = '';
+      if (zone.getAttribute('aria-invalid') && !validerQuestion(zone.value.trim())) { erreurSaisie(''); annoncer(''); }
+    });
+    btnArreter.addEventListener('click', () => { taire(); if (wsPret) ws.send(JSON.stringify({ action: 'arreter' })); });
   }
   chat.addEventListener('click', (e) => {
     const s = e.target.closest('[data-suggestion]');
@@ -234,6 +321,7 @@
     } catch (e) {
       annoncer('Accès au micro refusé : autorise-le dans ton navigateur ou écris ta question.', true); return;
     }
+    taire(); // ne pas enregistrer la voix de l'assistant
     morceaux = [];
     annule = false;
     enregistreur = new MediaRecorder(fluxMicro);
@@ -276,6 +364,7 @@
     annoncer('Transcription en cours…');
     btnMicro.disabled = true;
     try {
+      if (Date.now() - debutEnr < 800) throw new Error('Enregistrement trop court : parle au moins une seconde.');
       const wav = await versWav(new Blob(morceaux, { type: enregistreur.mimeType }));
       const donnees = new FormData();
       donnees.append('audio', wav, 'question.wav');
@@ -431,14 +520,28 @@
   }
 
   if (formIll) {
+    const champDemande = formIll.querySelector('#id_demande');
+    const erreurIll = $('ill-erreur');
+    function erreurDemande(texte) {
+      erreurIll.textContent = texte || '';
+      if (texte) champDemande.setAttribute('aria-invalid', 'true'); else champDemande.removeAttribute('aria-invalid');
+    }
+    champDemande.addEventListener('input', () => { if (champDemande.getAttribute('aria-invalid')) erreurDemande(''); });
     formIll.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const demande = champDemande.value.trim().replace(/\s+/g, ' ');
+      const erreur = !demande ? 'Décris ce que tu veux visualiser.'
+        : demande.length < 3 ? 'La description doit contenir au moins 3 caractères.'
+        : demande.length > 500 ? '500 caractères au maximum.'
+        : !LETTRE.test(demande) ? 'La description doit contenir au moins une lettre.' : '';
+      if (erreur) { erreurDemande(erreur); champDemande.focus(); return; }
+      erreurDemande('');
       const bouton = formIll.querySelector('[type=submit]');
       bouton.disabled = true;
       try {
         const r = await fetch(formIll.action, { method: 'POST', body: new FormData(formIll), headers: AJAX });
         const d = await r.json();
-        if (!r.ok) { annoncer(d.erreur || 'Génération impossible.', true); return; }
+        if (!r.ok) { erreurDemande(d.erreur || 'Génération impossible.'); champDemande.focus(); return; }
         const etatD = await (await fetch(d.url_etat, { headers: AJAX })).json();
         const vide = $('ast-ill-vide');
         if (vide) vide.remove();
@@ -464,6 +567,7 @@
 
   connecter();
   ajusterHauteur();
+  majCompteur();
   defiler(true);
 })();
 </script>

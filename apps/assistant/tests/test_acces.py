@@ -58,11 +58,52 @@ class AccesTests(BaseAssistantTestCase):
         self.assertTrue(MessageVocal.objects.filter(pk=self.question.pk).exists())
         self.assertTrue(Illustration.objects.filter(pk=self.illustration.pk).exists())
 
-    def test_admin_ne_lit_pas_les_conversations(self):
-        """Vie privée : l'administrateur voit les statistiques agrégées, pas les sessions des étudiants."""
+    def test_admin_consulte_en_lecture_seule(self):
+        """L'admin lit toutes les conversations dans l'espace de modération, sans pouvoir y écrire."""
         self.connecter(self.admin)
+        liste = self.client.get(reverse("moderation-assistant"))
+        self.assertContains(liste, "Révisions")
+        self.assertContains(liste, "etudiant@eduvox.test")
+
+        page = self.client.get(reverse("moderation-session-assistant", args=[self.session.pk]))
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "lecture seule")
+        self.assertContains(page, f'id="message-{self.question.pk}"')
+        for absent in ('id="form-question"', 'id="form-illustration"', 'id="form-mode"', "ast-form-supprimer",
+                       "ast-form-evaluer", reverse("supprimer-session-assistant", args=[self.session.pk])):
+            self.assertNotContains(page, absent)
+
+        export = self.client.get(reverse("moderation-exporter-assistant", args=[self.session.pk]))
+        self.assertIn("# Révisions", export.content.decode())
+
+        # Les URL de l'utilisateur restent fermées : l'admin ne peut ni écrire ni modifier
         self.assertEqual(self.client.get(reverse("session-assistant", args=[self.session.pk])).status_code, 404)
-        self.assertEqual(self.client.get(reverse("statistiques-assistant")).status_code, 200)
+        for url in self.urls_post:
+            self.assertEqual(self.client.post(url, {"texte": "x", "titre": "Modifiée", "evaluation": 1}).status_code,
+                             404, url)
+        self.session.refresh_from_db()
+        self.assertEqual(self.session.titre, "Révisions")
+
+    def test_moderation_filtres(self):
+        SessionAssistant.objects.create(utilisateur=self.autre_etudiant, titre="Chimie organique", active=False)
+        self.connecter(self.admin)
+        url = reverse("moderation-assistant")
+        self.assertNotContains(self.client.get(url, {"utilisateur": self.etudiant.pk}), "Chimie organique")
+        self.assertContains(self.client.get(url, {"q": "autre_etudiant"}), "Chimie organique")
+        self.assertContains(self.client.get(url, {"etat": "fermees"}), "Chimie organique")
+        self.assertNotContains(self.client.get(url, {"etat": "fermees"}), ">Révisions<")
+        self.assertEqual(self.client.get(url, {"utilisateur": "abc"}).status_code, 200)
+
+    def test_moderation_reservee_a_l_admin(self):
+        for user in (self.etudiant, self.prof):
+            self.connecter(user)
+            for url in (reverse("moderation-assistant"), reverse("moderation-session-assistant", args=[self.session.pk]),
+                        reverse("moderation-exporter-assistant", args=[self.session.pk])):
+                self.assertEqual(self.client.get(url).status_code, 403, url)
+
+    def test_etudiant_informe_de_la_consultation(self):
+        self.connecter()
+        self.assertContains(self.client.get(reverse("assistant")), "peuvent consulter les conversations")
 
     def test_statistiques_reservees_a_l_admin(self):
         for user in (self.etudiant, self.prof):

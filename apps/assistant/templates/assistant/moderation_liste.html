@@ -1,0 +1,86 @@
+{% extends layout_path %}
+
+{% block title %}Conversations des utilisateurs - EduVox{% endblock title %}
+{% block page_css %}{% include "assistant/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="assistant-module">
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-5">
+  <div>
+    <h1 class="h4 mb-1">Conversations des utilisateurs</h1>
+    <p class="ast-doux mb-0">{{ total }} session{{ total|pluralize }} · {{ total_questions }} question{{ total_questions|pluralize }} posée{{ total_questions|pluralize }} · consultation en lecture seule</p>
+  </div>
+  <a href="{% url 'statistiques-assistant' %}" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-bar-chart-2-line me-1" aria-hidden="true"></i> Performance de l'IA</a>
+</div>
+
+<form method="get" class="card mb-5" role="search" aria-label="Filtrer les conversations">
+  <div class="card-body d-flex flex-wrap gap-3 align-items-end">
+    <div class="flex-grow-1" style="min-width: 220px">
+      <label for="f-q" class="form-label small">Rechercher</label>
+      <input type="search" id="f-q" name="q" value="{{ recherche }}" maxlength="100" class="form-control" placeholder="Titre, utilisateur, e-mail ou contenu…" />
+    </div>
+    <div style="min-width: 200px">
+      <label for="f-utilisateur" class="form-label small">Utilisateur</label>
+      <select id="f-utilisateur" name="utilisateur" class="form-select">
+        <option value="">Tous</option>
+        {% for u in utilisateurs %}<option value="{{ u.pk }}" {% if utilisateur_id == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.get_full_name|default:u.username }} ({{ u.username }})</option>{% endfor %}
+      </select>
+    </div>
+    <div style="min-width: 150px">
+      <label for="f-etat" class="form-label small">État</label>
+      <select id="f-etat" name="etat" class="form-select">
+        <option value="">Toutes</option>
+        <option value="ouvertes" {% if filtre == 'ouvertes' %}selected{% endif %}>Ouvertes</option>
+        <option value="fermees" {% if filtre == 'fermees' %}selected{% endif %}>Fermées</option>
+      </select>
+    </div>
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">Filtrer</button>
+      {% if recherche or filtre or utilisateur_id %}<a href="{% url 'moderation-assistant' %}" class="btn btn-outline-secondary">Réinitialiser</a>{% endif %}
+    </div>
+  </div>
+</form>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <caption class="visually-hidden">Liste des conversations</caption>
+      <thead><tr>
+        <th scope="col">Session</th><th scope="col">Utilisateur</th><th scope="col">Cours</th>
+        <th scope="col" class="text-center">Questions</th><th scope="col" class="text-center">Illustrations</th>
+        <th scope="col">Dernière activité</th><th scope="col"><span class="visually-hidden">Actions</span></th>
+      </tr></thead>
+      <tbody>
+        {% for s in liste_sessions %}
+        <tr>
+          <td>
+            <a href="{% url 'moderation-session-assistant' s.pk %}" class="fw-medium">{{ s.titre }}</a>
+            {% if not s.active %}<span class="ast-badge ast-badge--fermee ms-1">Fermée</span>{% endif %}
+          </td>
+          <td><span class="d-block">{{ s.utilisateur.get_full_name|default:s.utilisateur.username }}</span>
+            <span class="small ast-doux">{{ s.utilisateur.get_role_display }} · {{ s.utilisateur.email }}</span></td>
+          <td class="small">{{ s.cours.titre|default:"—" }}</td>
+          <td class="text-center">{{ s.nb_questions }}</td>
+          <td class="text-center">{{ s.nb_illustrations }}</td>
+          <td class="small">{{ s.dernier_message|default:s.date_maj|date:"d/m/Y H:i" }}</td>
+          <td class="text-end"><a href="{% url 'moderation-session-assistant' s.pk %}" class="btn btn-sm btn-outline-primary" aria-label="Consulter « {{ s.titre }} »"><i class="icon-base ri ri-eye-line" aria-hidden="true"></i></a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7" class="text-center ast-doux py-6">Aucune conversation{% if recherche or filtre or utilisateur_id %} ne correspond à ces critères{% endif %}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if is_paginated %}
+<nav class="mt-6" aria-label="Pagination des conversations">
+  <ul class="pagination justify-content-center">
+    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ recherche|urlencode }}&etat={{ filtre }}&utilisateur={{ utilisateur_id }}">Précédent</a></li>{% endif %}
+    <li class="page-item active" aria-current="page"><span class="page-link">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ recherche|urlencode }}&etat={{ filtre }}&utilisateur={{ utilisateur_id }}">Suivant</a></li>{% endif %}
+  </ul>
+</nav>
+{% endif %}
+</div>
+{% endblock content %}

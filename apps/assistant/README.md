@@ -15,13 +15,15 @@ explication par un diagramme ou une image.
 | Question orale | bouton micro ou **Alt+M** | `MediaRecorder` (indicateur de niveau sonore, minuteur, Annuler / Échap) → conversion **WAV 16 kHz** dans le navigateur → **Whisper** (tâche Celery) → question **envoyée automatiquement** |
 | Contexte du cours | choix du cours | Le résumé (ou la transcription) du cours est injecté dans le prompt système ; uniquement si l'utilisateur a le droit de voir ce cours |
 | Historique | page de session | Conversation complète, mémoire des 10 derniers messages envoyée à Gemini, suppression d'un échange |
-| Lecture à voix haute | bouton haut-parleur | Synthèse vocale du navigateur (Web Speech API) |
+| Mode de réponse | bascule **Écrit / Parole** en haut de la conversation (ou à la création) | Enregistré par session. En « Parole », chaque phrase est **lue à voix haute dès qu'elle arrive** dans le flux (Web Speech API, voix française du navigateur, Markdown retiré) ; la voix se coupe quand on dicte ou qu'on arrête la réponse |
+| Lecture à voix haute | bouton haut-parleur sous une réponse | Relire une réponse à la demande |
 | Avis utile / pas utile | sous chaque réponse | Sert de **métrique qualitative** du modèle génératif |
 | Diagrammes | panneau Illustrations ou « Illustrer » sous une réponse | Gemini écrit du **Mermaid** (sortie JSON structurée, code validé côté serveur), rendu en SVG dans le navigateur (`securityLevel: strict`) |
 | Illustrations | idem | Gemini rédige un prompt anglais + un **texte alternatif**, puis **Hugging Face** (FLUX.1-schnell par défaut) génère l'image (tâche Celery) |
 | Export PDF | panneau Illustrations, menu de la session, chaque carte, galerie | PDF A4 généré dans le navigateur (jsPDF) : titre, type, date, visuel et description de chaque illustration ou diagramme |
 | Galerie | `/assistant/illustrations/` | Toutes mes illustrations, filtrables par type, exportables en PDF |
 | Pilotage IA (admin) | `/assistant/statistiques/` | Taux de succès, latence médiane / p95, délai du 1er morceau, satisfaction, facteur temps réel Whisper |
+| Conversations (admin) | `/assistant/moderation/` | Toutes les sessions (recherche par titre, utilisateur, e-mail ou contenu ; filtres utilisateur et état), consultation et export **en lecture seule** |
 
 > **Pourquoi Mermaid pour les diagrammes ?** Les modèles texte → image dessinent des schémas illisibles (texte
 > déformé, flèches incohérentes). Un diagramme Mermaid généré par Gemini est exact, net, modifiable et
@@ -43,7 +45,7 @@ apps/assistant/
 ├── tasks.py           Celery : transcrire_message, generer_illustration
 ├── views.py / urls.py CRUD, question (repli HTTP sans streaming), audio, illustrations, statistiques
 ├── management/commands/evaluer_whisper.py   mesure du WER sur un jeu de test
-└── tests/             90 tests (SQLite en mémoire, IA simulée)
+└── tests/             108 tests (SQLite en mémoire, IA simulée)
 ```
 
 - **ASGI** : `config/asgi.py` route HTTP vers Django et WebSocket vers Channels (`AuthMiddlewareStack` +
@@ -58,10 +60,11 @@ apps/assistant/
 | Règle | Mise en œuvre |
 |---|---|
 | Rôles | `PermissionRequiredMixin` sur `accounts.poser_question` (Étudiant, Admin) ; l'enseignant reçoit 403 |
-| Données privées | Toutes les requêtes filtrent `session__utilisateur=request.user` → **404** pour l'objet d'un autre, y compris pour l'admin (qui ne voit que des statistiques agrégées) |
+| Données privées | Toutes les requêtes filtrent `session__utilisateur=request.user` → **404** pour l'objet d'un autre utilisateur |
+| Modération | L'admin (`accounts.gerer_utilisateurs`) lit toutes les conversations dans un espace séparé, **en lecture seule** : aucun formulaire, et les URL d'écriture lui renvoient 404. Les étudiants en sont informés sur la page de l'assistant |
 | WebSocket | Même contrôle à la connexion (refus code 4403), vérification de l'origine (anti-CSWSH) |
 | Contexte de cours | Un cours non visible (brouillon, masqué) n'est jamais envoyé à Gemini |
-| Entrées | Question ≤ 2 000 caractères ; audio : en-tête `RIFF/WAVE` vérifié, ≤ 8 Mo, ≤ 120 s ; demande d'illustration 3–500 caractères |
+| Contrôle de saisie | Mêmes règles côté navigateur (message sous le champ, `aria-invalid`, focus sur l'erreur) et côté serveur (`forms.py`, aussi appliqué au WebSocket) : titre 3–150 caractères, au moins une lettre, **unique par utilisateur** ; question 2–2 000 caractères avec au moins une lettre (compteur affiché près de la limite) ; demande d'illustration 3–500 caractères ; espaces superflus supprimés ; audio : en-tête `RIFF/WAVE` vérifié, 0,5 à 120 s, ≤ 8 Mo |
 | Abus / coûts | 30 questions et 10 illustrations par heure et par utilisateur (configurable) |
 | XSS | Réponses rendues en Markdown **sans HTML brut** (markdown-it, liens `javascript:` refusés) ; Mermaid en mode strict, code validé |
 | Secrets | `GEMINI_API_KEY`, `HF_TOKEN` dans `.env` uniquement |

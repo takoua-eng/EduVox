@@ -9,17 +9,32 @@
      data-url-question="{% url 'question-assistant' session.pk %}"
      data-url-audio="{% url 'audio-assistant' session.pk %}"
      data-url-fragment="{% url 'fragment-message-assistant' 0 %}"
+     data-url-mode="{% url 'mode-reponse-assistant' session.pk %}"
+     data-mode-reponse="{{ session.mode_reponse }}"
+     data-question-max="{{ max_caracteres }}"
      data-audio-max="{{ audio_max_s }}"
-     data-active="{{ session.active|yesno:'1,0' }}">
+     data-active="{% if session.active and not lecture_seule %}1{% else %}0{% endif %}">
 {% include "accounts/_messages.html" %}
 
 <nav aria-label="Fil d'Ariane" class="mb-4">
   <ol class="breadcrumb mb-0">
+    {% if lecture_seule %}
+    <li class="breadcrumb-item"><a href="{% url 'moderation-assistant' %}">Conversations des utilisateurs</a></li>
+    {% else %}
     <li class="breadcrumb-item"><a href="{% url 'assistant' %}">Assistant vocal</a></li>
+    {% endif %}
     <li class="breadcrumb-item active" aria-current="page">{{ session.titre }}</li>
   </ol>
 </nav>
 
+{% if lecture_seule %}
+<div class="ast-bandeau-lecture mb-4" role="note">
+  <i class="icon-base ri ri-eye-line" aria-hidden="true"></i>
+  <span>Consultation en lecture seule de la conversation de
+    <strong>{{ session.utilisateur.get_full_name|default:session.utilisateur.username }}</strong>
+    ({{ session.utilisateur.username }} · {{ session.utilisateur.email }}).</span>
+</div>
+{% endif %}
 <div class="ast-app">
   <!-- Conversation -->
   <section class="ast-conv" aria-labelledby="titre-session">
@@ -31,18 +46,39 @@
           {% if session.cours %}
           <a class="ast-puce" href="{% url 'detail-cours' session.cours.pk %}"><i class="icon-base ri ri-book-2-line" aria-hidden="true"></i> {{ session.cours.titre }}</a>
           {% endif %}
-          {% if session.active %}
+          {% if session.active and not lecture_seule %}
           <span class="ast-connexion" id="ast-connexion" data-etat="">Connexion…</span>
+          {% elif session.active %}
+          <span class="ast-badge ast-badge--ouverte">Ouverte</span>
           {% else %}
           <span class="ast-badge ast-badge--fermee"><i class="icon-base ri ri-lock-line" aria-hidden="true"></i> Fermée</span>
           {% endif %}
         </div>
       </div>
+      {% if not lecture_seule %}
+      <form method="post" action="{% url 'mode-reponse-assistant' session.pk %}" class="ast-mode" id="form-mode">
+        {% csrf_token %}
+        <fieldset class="ast-segments ast-segments--compact mb-0">
+          <legend class="visually-hidden">L'assistant répond</legend>
+          {% for valeur, libelle in modes_reponse %}
+          <input type="radio" class="btn-check" name="mode_reponse" id="mode-{{ valeur }}" value="{{ valeur }}" {% if session.mode_reponse == valeur %}checked{% endif %} />
+          <label for="mode-{{ valeur }}" title="{% if valeur == 'VOCAL' %}Réponse écrite et lue à voix haute{% else %}Réponse écrite{% endif %}">
+            <i class="icon-base ri {% if valeur == 'VOCAL' %}ri-volume-up-line{% else %}ri-text{% endif %}" aria-hidden="true"></i><span class="ast-mode-libelle">{{ libelle }}</span>
+          </label>
+          {% endfor %}
+        </fieldset>
+        <noscript><button type="submit" class="btn btn-sm btn-outline-secondary">OK</button></noscript>
+      </form>
+      {% endif %}
       <div class="dropdown">
         <button type="button" class="btn btn-icon btn-text-secondary rounded-pill" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Actions de la session">
           <i class="icon-base ri ri-more-2-fill" aria-hidden="true"></i>
         </button>
         <ul class="dropdown-menu dropdown-menu-end">
+          {% if lecture_seule %}
+          <li><a class="dropdown-item" href="{% url 'moderation-exporter-assistant' session.pk %}"><i class="icon-base ri ri-markdown-line me-2" aria-hidden="true"></i>Exporter la conversation</a></li>
+          <li><button type="button" class="dropdown-item ast-js-seul" data-export-pdf="#ast-liste-illustrations" data-titre-pdf="{{ session.titre }}"><i class="icon-base ri ri-file-pdf-2-line me-2" aria-hidden="true"></i>Illustrations en PDF</button></li>
+          {% else %}
           <li><a class="dropdown-item" href="{% url 'modifier-session-assistant' session.pk %}"><i class="icon-base ri ri-edit-line me-2" aria-hidden="true"></i>Modifier</a></li>
           <li><a class="dropdown-item" href="{% url 'exporter-session-assistant' session.pk %}"><i class="icon-base ri ri-markdown-line me-2" aria-hidden="true"></i>Exporter la conversation</a></li>
           <li><button type="button" class="dropdown-item ast-js-seul" data-export-pdf="#ast-liste-illustrations" data-titre-pdf="{{ session.titre }}"><i class="icon-base ri ri-file-pdf-2-line me-2" aria-hidden="true"></i>Illustrations en PDF</button></li>
@@ -53,6 +89,7 @@
           </li>
           <li><hr class="dropdown-divider"></li>
           <li><a class="dropdown-item text-danger" href="{% url 'supprimer-session-assistant' session.pk %}"><i class="icon-base ri ri-delete-bin-line me-2" aria-hidden="true"></i>Supprimer</a></li>
+          {% endif %}
         </ul>
       </div>
     </header>
@@ -62,6 +99,9 @@
       {% for message in liste_messages %}
         {% include "assistant/_message.html" %}
       {% empty %}
+        {% if lecture_seule %}
+        <div class="ast-vide"><p class="ast-doux mb-0">Aucun message dans cette session.</p></div>
+        {% else %}
         <div class="ast-vide" id="ast-vide">
           <div class="ast-vide-icone" aria-hidden="true"><i class="icon-base ri ri-mic-2-line"></i></div>
           <p class="h5 mb-1">Bonjour {{ request.user.first_name|default:request.user.username }} !</p>
@@ -79,12 +119,14 @@
           </div>
           {% endif %}
         </div>
+        {% endif %}
       {% endfor %}
     </div>
     <button type="button" class="ast-bas ast-js-seul" id="ast-bas" hidden aria-label="Aller au dernier message"><i class="icon-base ri ri-arrow-down-line" aria-hidden="true"></i></button>
 
-    {% if session.active %}
-    <form method="post" action="{% url 'question-assistant' session.pk %}" id="form-question" class="ast-composer" aria-label="Poser une question">
+    {% if lecture_seule %}
+    {% elif session.active %}
+    <form method="post" action="{% url 'question-assistant' session.pk %}" id="form-question" class="ast-composer" aria-label="Poser une question" novalidate>
       {% csrf_token %}
       <input type="hidden" name="message_id" id="id_message_id" value="" />
 
@@ -109,8 +151,11 @@
         <button type="button" id="btn-valider-enr" class="ast-rond" aria-label="Terminer et envoyer la question"><i class="icon-base ri ri-check-line" aria-hidden="true"></i></button>
       </div>
 
-      <p id="aide-saisie" class="visually-hidden">Entrée pour envoyer, Maj+Entrée pour aller à la ligne, Alt+M pour dicter.</p>
-      <p id="ast-etat" class="ast-etat" role="status" aria-live="polite"></p>
+      <div class="d-flex justify-content-between gap-2">
+        <p id="ast-etat" class="ast-etat" role="status" aria-live="polite"></p>
+        <span id="ast-compteur" class="ast-compteur" aria-hidden="true"></span>
+      </div>
+      <p id="aide-saisie" class="visually-hidden">Entrée pour envoyer, Maj+Entrée pour aller à la ligne, Alt+M pour dicter. {{ max_caracteres }} caractères au maximum.</p>
       {% if not gemini_configure %}<p class="ast-erreur small mb-0">L'IA n'est pas configurée sur ce serveur (clé Gemini absente).</p>{% endif %}
     </form>
     {% else %}
@@ -130,8 +175,8 @@
         <i class="icon-base ri ri-file-pdf-2-line me-1" aria-hidden="true"></i> PDF
       </button>
     </div>
-    {% if session.active %}
-    <form method="post" action="{% url 'illustrer-assistant' session.pk %}" id="form-illustration" class="ast-ill-form">
+    {% if session.active and not lecture_seule %}
+    <form method="post" action="{% url 'illustrer-assistant' session.pk %}" id="form-illustration" class="ast-ill-form" novalidate>
       {% csrf_token %}
       <input type="hidden" name="message" id="id_ill_message" value="" />
       <fieldset class="ast-segments">
@@ -144,9 +189,10 @@
       <label for="id_demande" class="visually-hidden">Que veux-tu visualiser ?</label>
       <div class="ast-ill-saisie">
         <input type="text" name="demande" id="id_demande" class="form-control" minlength="3" maxlength="500" required
-               placeholder="Que veux-tu visualiser ?" />
+               placeholder="Que veux-tu visualiser ?" aria-describedby="ill-erreur" />
         <button type="submit" class="btn btn-success" aria-label="Générer l'illustration"><i class="icon-base ri ri-sparkling-2-line" aria-hidden="true"></i></button>
       </div>
+      <p id="ill-erreur" class="ast-champ-erreur" role="alert"></p>
       <p id="ill-lien" class="ast-ill-lien" aria-live="polite"></p>
     </form>
     {% endif %}
@@ -163,5 +209,5 @@
 {% block page_js %}
 {% include "assistant/_mermaid.html" %}
 {% include "assistant/_export_pdf.html" %}
-{% include "assistant/_script.html" %}
+{% if not lecture_seule %}{% include "assistant/_script.html" %}{% endif %}
 {% endblock page_js %}
