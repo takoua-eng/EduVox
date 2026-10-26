@@ -3,6 +3,7 @@
 {% block title %}Mon profil - EduVox{% endblock title %}
 
 {% block content %}
+<h1 class="visually-hidden">Mon profil</h1>
 {% include "accounts/_messages.html" %}
 
 <div class="row g-6">
@@ -14,7 +15,7 @@
         <div class="avatar avatar-xl mx-auto mb-4" style="width: 110px; height: 110px;">
           {% include "partials/avatar.html" with utilisateur=request.user %}
         </div>
-        <h5 class="mb-1">{{ request.user.get_full_name|default:request.user.username }}</h5>
+        <h2 class="h5 mb-1">{{ request.user.get_full_name|default:request.user.username }}</h2>
         <span class="badge rounded-pill {% if request.user.role == 'ADMIN' %}bg-label-danger{% elif request.user.role == 'ENSEIGNANT' %}bg-label-success{% else %}bg-label-info{% endif %}">
           {{ request.user.get_role_display }}
         </span>
@@ -22,28 +23,28 @@
       <div class="card-body border-top">
         <ul class="list-unstyled mb-0">
           <li class="d-flex align-items-center mb-3">
-            <i class="icon-base ri ri-user-line me-2"></i>
+            <i class="icon-base ri ri-user-line me-2" aria-hidden="true"></i>
             <span class="fw-medium me-1">Nom d'utilisateur :</span> {{ request.user.username }}
           </li>
           <li class="d-flex align-items-center mb-3">
-            <i class="icon-base ri ri-mail-line me-2"></i>
+            <i class="icon-base ri ri-mail-line me-2" aria-hidden="true"></i>
             <span class="fw-medium me-1">E-mail :</span> {{ request.user.email|default:"—" }}
           </li>
           <li class="d-flex align-items-center mb-3">
-            <i class="icon-base ri ri-calendar-line me-2"></i>
+            <i class="icon-base ri ri-calendar-line me-2" aria-hidden="true"></i>
             <span class="fw-medium me-1">Membre depuis :</span> {{ request.user.date_inscription|date:"d/m/Y" }}
           </li>
           <li class="d-flex align-items-center mb-3">
-            <i class="icon-base ri ri-time-line me-2"></i>
+            <i class="icon-base ri ri-time-line me-2" aria-hidden="true"></i>
             <span class="fw-medium me-1">Dernière connexion :</span> {{ request.user.last_login|date:"d/m/Y H:i"|default:"—" }}
           </li>
           <li class="mt-3">
             <a href="{% url 'mes-connexions' %}" class="btn btn-sm btn-outline-primary w-100">
-              <i class="icon-base ri ri-history-line me-1"></i> Voir mes connexions
+              <i class="icon-base ri ri-history-line me-1" aria-hidden="true"></i> Voir mes connexions
             </a>
           </li>
           <li class="d-flex align-items-center">
-            <i class="icon-base ri ri-shield-check-line me-2"></i>
+            <i class="icon-base ri ri-shield-check-line me-2" aria-hidden="true"></i>
             <span class="fw-medium me-1">Double authentification :</span>
             {% if request.user.double_auth_active %}
               <span class="badge bg-label-success">Activée</span>
@@ -61,7 +62,7 @@
 
     <!-- Carte 1 : Informations personnelles -->
     <div class="card mb-6">
-      <h5 class="card-header">Informations personnelles</h5>
+      <h2 class="h5 card-header">Informations personnelles</h2>
       <div class="card-body">
         <form method="post" enctype="multipart/form-data" novalidate>
           {% csrf_token %}
@@ -72,15 +73,15 @@
                   <div class="d-flex align-items-center gap-5">
                     <div class="avatar avatar-xl">
                       {% if request.user.photo_profil %}
-                        <img id="apercuPhoto" src="{{ request.user.photo_profil.url }}" class="rounded-circle" style="width: 100%; height: 100%; object-fit: cover;" />
+                        <img id="apercuPhoto" src="{{ request.user.photo_profil.url }}" alt="Ma photo de profil" class="rounded-circle" style="width: 100%; height: 100%; object-fit: cover;" />
                       {% else %}
-                        <img id="apercuPhoto" src="" class="rounded-circle d-none" style="width: 100%; height: 100%; object-fit: cover;" />
-                        <span id="apercuVide" class="avatar-initial rounded-circle bg-label-secondary"><i class="icon-base ri ri-user-line icon-28px"></i></span>
+                        <img id="apercuPhoto" src="" alt="Aperçu de la nouvelle photo" class="rounded-circle d-none" style="width: 100%; height: 100%; object-fit: cover;" />
+                        <span id="apercuVide" class="avatar-initial rounded-circle bg-label-secondary"><i class="icon-base ri ri-user-line icon-28px" aria-hidden="true"></i></span>
                       {% endif %}
                     </div>
                     <div>
                       <label for="id_photo_profil" class="btn btn-sm btn-outline-primary mb-2">
-                        <i class="icon-base ri ri-upload-2-line me-1"></i> Changer la photo
+                        <i class="icon-base ri ri-upload-2-line me-1" aria-hidden="true"></i> Changer la photo
                       </label>
                       <input type="file" name="photo_profil" id="id_photo_profil" accept="image/*" class="d-none" />
                       <div class="small text-body-secondary">JPG ou PNG, carrée de préférence.</div>
@@ -110,7 +111,7 @@
 
     <!-- Carte 2 : Mot de passe -->
     <div class="card mb-6">
-      <h5 class="card-header">Changer le mot de passe</h5>
+      <h2 class="h5 card-header">Changer le mot de passe</h2>
       <div class="card-body">
         <form method="post" novalidate>
           {% csrf_token %}
@@ -149,7 +150,7 @@
     <!-- Carte 3 : Double authentification -->
     <div class="card mb-6">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Double authentification (2FA)</h5>
+        <h2 class="h5 mb-0">Double authentification (2FA)</h2>
         {% if request.user.double_auth_active %}
           <span class="badge bg-label-success">Activée</span>
         {% else %}
@@ -177,7 +178,7 @@
                   <label for="mdp_regenerer">Mot de passe</label>
                 </div>
                 <button type="submit" class="btn btn-outline-primary w-100">
-                  <i class="icon-base ri ri-refresh-line me-1"></i> Nouveaux codes de récupération
+                  <i class="icon-base ri ri-refresh-line me-1" aria-hidden="true"></i> Nouveaux codes de récupération
                 </button>
               </form>
             </div>
@@ -193,7 +194,7 @@
                   <label for="mdp_desactiver">Mot de passe</label>
                 </div>
                 <button type="submit" class="btn btn-outline-danger w-100">
-                  <i class="icon-base ri ri-shield-cross-line me-1"></i> Désactiver la 2FA
+                  <i class="icon-base ri ri-shield-cross-line me-1" aria-hidden="true"></i> Désactiver la 2FA
                 </button>
               </form>
             </div>
@@ -201,7 +202,7 @@
         {% else %}
           <p class="mb-5">Ajoutez une protection supplémentaire : en plus du mot de passe, un code temporaire généré par votre téléphone sera demandé à chaque connexion.</p>
           <a href="{% url 'activer-2fa' %}" class="btn btn-primary">
-            <i class="icon-base ri ri-shield-check-line me-1"></i> Activer la double authentification
+            <i class="icon-base ri ri-shield-check-line me-1" aria-hidden="true"></i> Activer la double authentification
           </a>
         {% endif %}
       </div>
@@ -210,7 +211,7 @@
         <!-- Carte : Reconnaissance faciale -->
     <div class="card mb-6">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Reconnaissance faciale</h5>
+        <h2 class="h5 mb-0">Reconnaissance faciale</h2>
         {% if request.user.profil_facial %}
           <span class="badge bg-label-success">Activée</span>
         {% else %}
@@ -226,7 +227,7 @@
           </p>
           <div class="d-flex flex-wrap gap-3">
             <a href="{% url 'enregistrer-visage' %}" class="btn btn-outline-primary">
-              <i class="icon-base ri ri-refresh-line me-1"></i> Mettre à jour mon visage
+              <i class="icon-base ri ri-refresh-line me-1" aria-hidden="true"></i> Mettre à jour mon visage
             </a>
             <form method="post" action="{% url 'supprimer-visage' %}"
                   data-confirm="Vous ne pourrez plus vous connecter avec la caméra. Vos données faciales seront effacées définitivement."
@@ -234,14 +235,14 @@
                   data-confirm-bouton="Supprimer">
               {% csrf_token %}
               <button type="submit" class="btn btn-outline-danger">
-                <i class="icon-base ri ri-delete-bin-line me-1"></i> Supprimer mes données faciales
+                <i class="icon-base ri ri-delete-bin-line me-1" aria-hidden="true"></i> Supprimer mes données faciales
               </button>
             </form>
           </div>
         {% else %}
           <p class="mb-5">Enregistrez votre visage pour vous connecter avec la caméra. Aucune photo n'est conservée : seule une signature numérique de votre visage est enregistrée.</p>
           <a href="{% url 'enregistrer-visage' %}" class="btn btn-primary">
-            <i class="icon-base ri ri-camera-line me-1"></i> Enregistrer mon visage
+            <i class="icon-base ri ri-camera-line me-1" aria-hidden="true"></i> Enregistrer mon visage
           </a>
         {% endif %}
       </div>
@@ -249,7 +250,7 @@
 
     <!-- Carte 4 : Supprimer le compte -->
     <div class="card border border-danger">
-      <h5 class="card-header text-danger">Supprimer mon compte</h5>
+      <h2 class="h5 card-header text-danger">Supprimer mon compte</h2>
       <div class="card-body">
         <div class="alert alert-warning mb-5">
           <strong>Attention :</strong> cette action est définitive. Toutes vos données seront supprimées.
@@ -268,7 +269,7 @@
             </div>
             <div class="col-md-5 d-grid">
               <button type="submit" class="btn btn-danger">
-                <i class="icon-base ri ri-delete-bin-line me-1"></i> Supprimer mon compte
+                <i class="icon-base ri ri-delete-bin-line me-1" aria-hidden="true"></i> Supprimer mon compte
               </button>
             </div>
           </div>

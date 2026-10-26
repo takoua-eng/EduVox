@@ -3,26 +3,26 @@
 {% block title %}Journal des connexions - EduVox{% endblock title %}
 
 {% block content %}
-<h4 class="mb-1">Journal des connexions</h4>
+<h1 class="h4 mb-1">Journal des connexions</h1>
 <p class="mb-6 text-body-secondary">Toutes les tentatives de connexion, analysées par l'IA de détection des connexions suspectes.</p>
 
 <!-- Statistiques des 7 derniers jours -->
 <div class="row g-6 mb-6">
   <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-    <div><p class="mb-1">Connexions (7 j)</p><h4 class="mb-0">{{ stat_total }}</h4></div>
-    <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-login-box-line icon-24px"></i></span></div>
+    <div><p class="mb-1">Connexions (7 j)</p><p class="h4 mb-0">{{ stat_total }}</p></div>
+    <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-login-box-line icon-24px" aria-hidden="true"></i></span></div>
   </div></div></div>
   <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-    <div><p class="mb-1">Échecs</p><h4 class="mb-0">{{ stat_echecs }}</h4></div>
-    <div class="avatar"><span class="avatar-initial rounded bg-label-danger"><i class="icon-base ri ri-close-circle-line icon-24px"></i></span></div>
+    <div><p class="mb-1">Échecs</p><p class="h4 mb-0">{{ stat_echecs }}</p></div>
+    <div class="avatar"><span class="avatar-initial rounded bg-label-danger"><i class="icon-base ri ri-close-circle-line icon-24px" aria-hidden="true"></i></span></div>
   </div></div></div>
   <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-    <div><p class="mb-1">Suspectes (IA)</p><h4 class="mb-0">{{ stat_suspectes }}</h4></div>
-    <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-alarm-warning-line icon-24px"></i></span></div>
+    <div><p class="mb-1">Suspectes (IA)</p><p class="h4 mb-0">{{ stat_suspectes }}</p></div>
+    <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-alarm-warning-line icon-24px" aria-hidden="true"></i></span></div>
   </div></div></div>
   <div class="col-sm-6 col-xl-3"><div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-    <div><p class="mb-1">Par visage</p><h4 class="mb-0">{{ stat_visage }}</h4></div>
-    <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-user-smile-line icon-24px"></i></span></div>
+    <div><p class="mb-1">Par visage</p><p class="h4 mb-0">{{ stat_visage }}</p></div>
+    <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-user-smile-line icon-24px" aria-hidden="true"></i></span></div>
   </div></div></div>
 </div>
 
@@ -30,10 +30,10 @@
   <div class="card-body">
     <form method="get" class="row g-4">
       <div class="col-md-6">
-        <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Rechercher (utilisateur, adresse IP…)" />
+        <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Rechercher (utilisateur, adresse IP…)" aria-label="Rechercher une connexion" />
       </div>
       <div class="col-md-4">
-        <select name="filtre" class="form-select">
+        <select name="filtre" class="form-select" aria-label="Filtrer les connexions">
           <option value="">Toutes les connexions</option>
           <option value="succes" {% if filtre == "succes" %}selected{% endif %}>Réussies</option>
           <option value="echec" {% if filtre == "echec" %}selected{% endif %}>Échouées</option>
@@ -46,7 +46,7 @@
   </div>
   <div class="table-responsive">
     <table class="table table-hover mb-0">
-      <thead><tr><th>Date</th><th>Utilisateur</th><th>Méthode</th><th>Appareil</th><th>Résultat</th><th>Analyse IA</th></tr></thead>
+      <thead><tr><th scope="col">Date</th><th scope="col">Utilisateur</th><th scope="col">Méthode</th><th scope="col">Appareil</th><th scope="col">Résultat</th><th scope="col">Analyse IA</th></tr></thead>
       <tbody>
         {% for c in connexions %}
           {% include "accounts/_ligne_connexion.html" with afficher_utilisateur=True %}

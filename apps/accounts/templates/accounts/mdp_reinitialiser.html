@@ -16,7 +16,7 @@
         <div class="card-body mt-1">
 
           {% if validlink %}
-            <h4 class="mb-1">Nouveau mot de passe 🔑</h4>
+            <h1 class="h4 mb-1">Nouveau mot de passe 🔑</h1>
             <p class="mb-5">Choisissez votre nouveau mot de passe.</p>
 
             <form method="post" class="mb-5" novalidate>
@@ -39,9 +39,9 @@
           {% else %}
             <div class="text-center">
               <div class="avatar avatar-xl mx-auto mb-4">
-                <span class="avatar-initial rounded-circle bg-label-danger"><i class="icon-base ri ri-error-warning-line icon-32px"></i></span>
+                <span class="avatar-initial rounded-circle bg-label-danger"><i class="icon-base ri ri-error-warning-line icon-32px" aria-hidden="true"></i></span>
               </div>
-              <h4 class="mb-2">Lien invalide ou expiré</h4>
+              <h1 class="h4 mb-2">Lien invalide ou expiré</h1>
               <p class="mb-5">Ce lien a déjà été utilisé ou a expiré. Faites une nouvelle demande.</p>
               <a href="{% url 'mdp-oublie' %}" class="btn btn-primary w-100">Nouvelle demande</a>
             </div>

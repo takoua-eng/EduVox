@@ -31,33 +31,33 @@
 {% endblock page_js %}
 
 {% block content %}
-<h4 class="mb-1">Tableau de bord administrateur</h4>
+<h1 class="h4 mb-1">Tableau de bord administrateur</h1>
 <p class="mb-6 text-body-secondary">Vue d'ensemble de la plateforme EduVox.</p>
 
 <!-- Indicateurs -->
 <div class="row g-6 mb-6">
   <div class="col-sm-6 col-xl-3">
     <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Utilisateurs</p><h4 class="mb-0">{{ stat_total }}</h4></div>
-      <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-group-line icon-24px"></i></span></div>
+      <div><p class="mb-1">Utilisateurs</p><p class="h4 mb-0">{{ stat_total }}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-group-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
     <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Étudiants</p><h4 class="mb-0">{{ stat_etudiants }}</h4></div>
-      <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-graduation-cap-line icon-24px"></i></span></div>
+      <div><p class="mb-1">Étudiants</p><p class="h4 mb-0">{{ stat_etudiants }}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-graduation-cap-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
     <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Enseignants</p><h4 class="mb-0">{{ stat_enseignants }}</h4></div>
-      <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-presentation-line icon-24px"></i></span></div>
+      <div><p class="mb-1">Enseignants</p><p class="h4 mb-0">{{ stat_enseignants }}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-presentation-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
     <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Nouveaux (7 jours)</p><h4 class="mb-0">{{ stat_nouveaux }}</h4></div>
-      <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-user-add-line icon-24px"></i></span></div>
+      <div><p class="mb-1">Nouveaux (7 jours)</p><p class="h4 mb-0">{{ stat_nouveaux }}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-user-add-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
 </div>
@@ -66,7 +66,7 @@
   <!-- Répartition des rôles -->
   <div class="col-lg-4">
     <div class="card h-100">
-      <div class="card-header"><h5 class="mb-0">Répartition des rôles</h5></div>
+      <div class="card-header"><h2 class="h5 mb-0">Répartition des rôles</h2></div>
       <div class="card-body"><div id="graphiqueRoles"></div></div>
     </div>
   </div>
@@ -75,12 +75,12 @@
   <div class="col-lg-8">
     <div class="card h-100">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Dernières inscriptions</h5>
+        <h2 class="h5 mb-0">Dernières inscriptions</h2>
         <a href="{% url 'liste-utilisateurs' %}" class="btn btn-sm btn-outline-primary">Tout voir</a>
       </div>
       <div class="table-responsive text-nowrap">
         <table class="table">
-          <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Inscrit le</th></tr></thead>
+          <thead><tr><th scope="col">Utilisateur</th><th scope="col">Rôle</th><th scope="col">Inscrit le</th></tr></thead>
           <tbody>
             {% for u in derniers_inscrits %}
             <tr>

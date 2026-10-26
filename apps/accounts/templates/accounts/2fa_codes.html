@@ -8,7 +8,7 @@
 <div class="row justify-content-center">
   <div class="col-lg-7">
     <div class="card">
-      <h5 class="card-header">Vos codes de récupération</h5>
+      <h1 class="h5 card-header">Vos codes de récupération</h1>
       <div class="card-body">
         <div class="alert alert-warning">
           <strong>Notez ces codes maintenant :</strong> ils ne seront plus jamais affichés.
@@ -25,10 +25,10 @@
 
         <div class="d-flex flex-wrap gap-3">
           <button type="button" class="btn btn-outline-primary" id="copierCodes">
-            <i class="icon-base ri ri-file-copy-line me-1"></i> Copier
+            <i class="icon-base ri ri-file-copy-line me-1" aria-hidden="true"></i> Copier
           </button>
           <button type="button" class="btn btn-outline-primary" id="telechargerCodes">
-            <i class="icon-base ri ri-download-2-line me-1"></i> Télécharger (.txt)
+            <i class="icon-base ri ri-download-2-line me-1" aria-hidden="true"></i> Télécharger (.txt)
           </button>
           <a href="{% url 'mon-profil' %}" class="btn btn-primary ms-auto">J'ai noté mes codes</a>
         </div>
@@ -43,7 +43,7 @@
 
   document.getElementById("copierCodes").addEventListener("click", function () {
     navigator.clipboard.writeText(texteCodes);
-    this.innerHTML = '<i class="icon-base ri ri-check-line me-1"></i> Copié !';
+    this.innerHTML = '<i class="icon-base ri ri-check-line me-1" aria-hidden="true"></i> Copié !';
   });
 
   document.getElementById("telechargerCodes").addEventListener("click", function () {

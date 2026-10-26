@@ -19,7 +19,7 @@
     <div class="authentication-inner py-6">
       <div class="card p-md-7 p-1">
         <div class="card-body mt-1">
-          <h4 class="mb-1">Connexion par visage 📷</h4>
+          <h1 class="h4 mb-1">Connexion par visage 📷</h1>
           <p class="mb-5">Regardez la caméra : EduVox vous reconnaît automatiquement. Le nom d'utilisateur est facultatif.</p>          {% csrf_token %}
 
           <div class="form-floating form-floating-outline mb-4">
@@ -28,18 +28,18 @@
           </div>
 
           <div class="position-relative mx-auto mb-4 rounded overflow-hidden bg-dark" style="aspect-ratio: 4 / 3;">
-            <video id="video" playsinline muted class="w-100 h-100" style="object-fit: cover; transform: scaleX(-1);"></video>
+            <video id="video" playsinline muted aria-label="Aperçu de votre caméra" class="w-100 h-100" style="object-fit: cover; transform: scaleX(-1);"></video>
             <div class="position-absolute top-50 start-50 translate-middle border border-3 border-white rounded-circle opacity-50"
                  style="width: 55%; aspect-ratio: 3 / 4;"></div>
             <span id="decompte" class="position-absolute top-50 start-50 translate-middle display-1 fw-bold text-white d-none"></span>
           </div>
 
-          <div id="statut" class="alert alert-secondary small" role="alert">
+          <div id="statut" class="alert alert-secondary small" role="status" aria-live="polite">
             Étape 1 : regardez la caméra. Étape 2 : tournez légèrement la tête vers la gauche ou la droite.
           </div>
 
           <button id="demarrer" class="btn btn-primary d-grid w-100 mb-4">
-            <span><i class="icon-base ri ri-user-smile-line me-1"></i> Me connecter</span>
+            <span><i class="icon-base ri ri-user-smile-line me-1" aria-hidden="true"></i> Me connecter</span>
           </button>
 
           <p class="text-center mb-0">

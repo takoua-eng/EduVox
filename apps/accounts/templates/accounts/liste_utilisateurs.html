@@ -9,26 +9,26 @@
 <div class="row g-6 mb-6">
   <div class="col-sm-6 col-xl-3">
     <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Total</p><h4 class="mb-0">{{ stat_total }}</h4></div>
-      <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-group-line icon-24px"></i></span></div>
+      <div><p class="mb-1">Total</p><p class="h4 mb-0">{{ stat_total }}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-group-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
     <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Étudiants</p><h4 class="mb-0">{{ stat_etudiants }}</h4></div>
-      <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-graduation-cap-line icon-24px"></i></span></div>
+      <div><p class="mb-1">Étudiants</p><p class="h4 mb-0">{{ stat_etudiants }}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-graduation-cap-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
     <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Enseignants</p><h4 class="mb-0">{{ stat_enseignants }}</h4></div>
-      <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-presentation-line icon-24px"></i></span></div>
+      <div><p class="mb-1">Enseignants</p><p class="h4 mb-0">{{ stat_enseignants }}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-presentation-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
     <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Comptes inactifs</p><h4 class="mb-0">{{ stat_inactifs }}</h4></div>
-      <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-user-forbid-line icon-24px"></i></span></div>
+      <div><p class="mb-1">Comptes inactifs</p><p class="h4 mb-0">{{ stat_inactifs }}</p></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-user-forbid-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
 </div>
@@ -36,23 +36,23 @@
 <div class="card">
   <!-- En-tête + filtres -->
   <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-4">
-    <h5 class="mb-0">Liste des utilisateurs</h5>
+    <h1 class="h5 mb-0">Liste des utilisateurs</h1>
     <div class="d-flex gap-2">
       <a href="{% url 'importer-utilisateurs' %}" class="btn btn-outline-primary">
-        <i class="icon-base ri ri-file-excel-2-line me-1"></i> Importer
+        <i class="icon-base ri ri-file-excel-2-line me-1" aria-hidden="true"></i> Importer
       </a>
       <a href="{% url 'ajouter-utilisateur' %}" class="btn btn-primary">
-        <i class="icon-base ri ri-user-add-line me-1"></i> Ajouter
+        <i class="icon-base ri ri-user-add-line me-1" aria-hidden="true"></i> Ajouter
       </a>
     </div>
   </div>
   <div class="card-body pt-0">
     <form method="get" class="row g-4">
       <div class="col-md-5">
-        <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Rechercher (nom, e-mail…)" />
+        <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Rechercher (nom, e-mail…)" aria-label="Rechercher un utilisateur" />
       </div>
       <div class="col-md-3">
-        <select name="role" class="form-select">
+        <select name="role" class="form-select" aria-label="Filtrer par rôle">
           <option value="">Tous les rôles</option>
           {% for value, label in roles %}
             <option value="{{ value }}" {% if role_choisi == value %}selected{% endif %}>{{ label }}</option>
@@ -60,7 +60,7 @@
         </select>
       </div>
       <div class="col-md-2">
-        <select name="statut" class="form-select">
+        <select name="statut" class="form-select" aria-label="Filtrer par statut">
           <option value="">Tous</option>
           <option value="actif" {% if statut_choisi == 'actif' %}selected{% endif %}>Actifs</option>
           <option value="inactif" {% if statut_choisi == 'inactif' %}selected{% endif %}>Inactifs</option>
@@ -77,11 +77,11 @@
     <table class="table table-hover">
       <thead>
         <tr>
-          <th>Utilisateur</th>
-          <th>Rôle</th>
-          <th>Inscrit le</th>
-          <th>Statut</th>
-          <th class="text-end">Actions</th>
+          <th scope="col">Utilisateur</th>
+          <th scope="col">Rôle</th>
+          <th scope="col">Inscrit le</th>
+          <th scope="col">Statut</th>
+          <th scope="col" class="text-end">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -107,12 +107,12 @@
           <td>
             {% if u.is_active %}<span class="badge bg-label-success">Actif</span>
             {% else %}<span class="badge bg-label-secondary">Inactif</span>{% endif %}
-            {% if u.est_bloque %}<br /><span class="badge bg-label-danger mt-1" title="Jusqu'à {{ u.bloque_jusqua|time:'H:i' }}"><i class="icon-base ri ri-forbid-line me-1"></i>Bloqué</span>{% endif %}
+            {% if u.est_bloque %}<br /><span class="badge bg-label-danger mt-1" title="Jusqu'à {{ u.bloque_jusqua|time:'H:i' }}"><i class="icon-base ri ri-forbid-line me-1" aria-hidden="true"></i>Bloqué</span>{% endif %}
           </td>
           <td class="text-end">
             <div class="d-inline-flex gap-1">
-              <a href="{% url 'modifier-utilisateur' u.pk %}" class="btn btn-sm btn-icon btn-text-secondary" title="Modifier">
-                <i class="icon-base ri ri-edit-box-line icon-20px"></i>
+              <a href="{% url 'modifier-utilisateur' u.pk %}" class="btn btn-sm btn-icon btn-text-secondary" title="Modifier" aria-label="Modifier">
+                <i class="icon-base ri ri-edit-box-line icon-20px" aria-hidden="true"></i>
               </a>
                             {% if u.est_bloque %}
               <form method="post" action="{% url 'debloquer-utilisateur' u.pk %}"
@@ -121,8 +121,8 @@
                     data-confirm-bouton="Débloquer"
                     data-confirm-type="success">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-icon btn-text-success" title="Débloquer (trop d'essais)">
-                  <i class="icon-base ri ri-shield-check-line icon-20px"></i>
+                <button type="submit" class="btn btn-sm btn-icon btn-text-success" title="Débloquer (trop d'essais)" aria-label="Débloquer (trop d'essais)">
+                  <i class="icon-base ri ri-shield-check-line icon-20px" aria-hidden="true"></i>
                 </button>
               </form>
               {% endif %}
@@ -139,8 +139,8 @@
                       data-confirm-bouton="Réactiver"
                       data-confirm-type="success"
                     {% endif %}>                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-icon btn-text-secondary" title="{% if u.is_active %}Désactiver{% else %}Activer{% endif %}">
-                  <i class="icon-base ri {% if u.is_active %}ri-lock-line{% else %}ri-lock-unlock-line{% endif %} icon-20px"></i>
+                <button type="submit" class="btn btn-sm btn-icon btn-text-secondary" title="{% if u.is_active %}Désactiver{% else %}Activer{% endif %}" aria-label="{% if u.is_active %}Désactiver{% else %}Activer{% endif %}">
+                  <i class="icon-base ri {% if u.is_active %}ri-lock-line{% else %}ri-lock-unlock-line{% endif %} icon-20px" aria-hidden="true"></i>
                 </button>
               </form>
                             <form method="post" action="{% url 'supprimer-utilisateur' u.pk %}"
@@ -148,8 +148,8 @@
                     data-confirm-titre="Supprimer cet utilisateur ?"
                     data-confirm-bouton="Oui, supprimer">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-icon btn-text-danger" title="Supprimer">
-                  <i class="icon-base ri ri-delete-bin-line icon-20px"></i>
+                <button type="submit" class="btn btn-sm btn-icon btn-text-danger" title="Supprimer" aria-label="Supprimer">
+                  <i class="icon-base ri ri-delete-bin-line icon-20px" aria-hidden="true"></i>
                 </button>
               </form>
               {% endif %}

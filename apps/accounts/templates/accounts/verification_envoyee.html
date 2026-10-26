@@ -15,15 +15,15 @@
       <div class="card p-md-7 p-1">
         <div class="card-body mt-1 text-center">
           <div class="avatar avatar-xl mx-auto mb-4">
-            <span class="avatar-initial rounded-circle bg-label-primary"><i class="icon-base ri ri-mail-check-line icon-32px"></i></span>
+            <span class="avatar-initial rounded-circle bg-label-primary"><i class="icon-base ri ri-mail-check-line icon-32px" aria-hidden="true"></i></span>
           </div>
-          <h4 class="mb-2">Confirmez votre adresse e-mail 📩</h4>
+          <h1 class="h4 mb-2">Confirmez votre adresse e-mail 📩</h1>
           <p class="mb-5">
             Nous vous avons envoyé un lien de confirmation. Cliquez dessus pour activer votre compte,
             puis connectez-vous. Le lien est valable 1 heure.
           </p>
           <a href="{% url 'connexion' %}" class="btn btn-primary w-100 mb-4">Aller à la connexion</a>
-          <a href="{% url 'renvoyer-verification' %}">Je n'ai rien reçu, renvoyer l'e-mail</a>
+          <a href="{% url 'renvoyer-verification' %}" class="text-decoration-underline">Je n'ai rien reçu, renvoyer l'e-mail</a>
         </div>
       </div>
     </div>

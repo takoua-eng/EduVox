@@ -14,7 +14,7 @@
     <div class="authentication-inner py-6">
       <div class="card p-md-7 p-1">
         <div class="card-body mt-1">
-          <h4 class="mb-1">Bienvenue sur EduVox 👋</h4>
+          <h1 class="h4 mb-1">Bienvenue sur EduVox 👋</h1>
           <p class="mb-5">Connectez-vous pour continuer</p>
             {% include "accounts/_messages.html" %}
 
@@ -45,7 +45,7 @@
           </form>
 
           <a href="{% url 'connexion-visage' %}" class="btn btn-outline-primary d-grid w-100 mb-5">
-            <span><i class="icon-base ri ri-user-smile-line me-1"></i> Se connecter avec mon visage</span>
+            <span><i class="icon-base ri ri-user-smile-line me-1" aria-hidden="true"></i> Se connecter avec mon visage</span>
           </a>
 
         <p class="text-center small mb-2">
