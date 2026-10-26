@@ -193,3 +193,6 @@ src/node_modules/
 # Modèles IA téléchargés automatiquement
 ai_services/modeles/
 donnees*.json
+
+# EduSprint : livrables deposes par les etudiants (stockage prive)
+stockage_prive/

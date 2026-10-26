@@ -1,0 +1,33 @@
+{# Champs du défi, groupés en sections (réutilisés par la création manuelle et l'aperçu du brief IA) #}
+<fieldset class="es-panneau mb-4">
+  <legend class="h6 mb-3">Brief de la mission</legend>
+  {% include "challenges/_champ.html" with champ=form.titre %}
+  {% include "challenges/_champ.html" with champ=form.description %}
+  {% include "challenges/_champ.html" with champ=form.contexte %}
+  <div class="row">
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.objectifs %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.competences %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.livrables_attendus %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.contraintes %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.budget %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.niveau %}</div>
+  </div>
+</fieldset>
+<fieldset class="es-panneau mb-4">
+  <legend class="h6 mb-3">Calendrier</legend>
+  <p class="es-aide small">Ordre imposé : ouverture des inscriptions &lt; clôture ≤ début du défi &lt; fin du défi.</p>
+  <div class="row">
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.inscriptions_debut %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.inscriptions_fin %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.date_debut %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.date_fin %}</div>
+  </div>
+</fieldset>
+<fieldset class="es-panneau mb-4">
+  <legend class="h6 mb-3">Équipes et permissions</legend>
+  <div class="row">
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.taille_min %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.taille_max %}</div>
+  </div>
+  {% if form.co_enseignants %}{% include "challenges/_champ.html" with champ=form.co_enseignants classe="mb-0" %}{% endif %}
+</fieldset>

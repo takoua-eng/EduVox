@@ -1,0 +1,94 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Tâches – {{ equipe.nom }}{% endblock %}
+{% block corps %}
+{% include "challenges/_entete_equipe.html" %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <h2 class="h5 mb-0">Tableau des tâches</h2>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    <nav class="es-filtres d-flex gap-2" aria-label="Filtrer les tâches">
+      <a href="?" {% if not filtre %}aria-current="true"{% endif %}>Toutes</a>
+      {% if membre %}<a href="?filtre=moi" {% if filtre == 'moi' %}aria-current="true"{% endif %}>Mes tâches</a>{% endif %}
+      <a href="?filtre=non_affectees" {% if filtre == 'non_affectees' %}aria-current="true"{% endif %}>Non affectées</a>
+    </nav>
+    {% if peut_contribuer %}<a href="{% url 'creer-tache' equipe.pk %}" class="btn btn-primary btn-sm"><i class="icon-base ri ri-add-line me-1" aria-hidden="true"></i> Nouvelle tâche</a>{% endif %}
+  </div>
+</div>
+{% if peut_contribuer %}<p class="es-aide small">Déplacez une tâche avec ses boutons « ← » et « → » (clavier) ou par glisser-déposer. Seuls son créateur, son responsable et le coordinateur peuvent la faire avancer.</p>{% endif %}
+<p id="annonce-kanban" class="visually-hidden" role="status" aria-live="polite"></p>
+
+<div class="es-kanban" data-kanban>
+  {% for statut, libelle, taches in colonnes %}
+  <section class="es-colonne" aria-labelledby="col-{{ statut }}" data-colonne="{{ statut }}">
+    <h3 id="col-{{ statut }}">{% badge statut libelle %} <span class="small text-body-secondary">{{ taches|length }}<span class="visually-hidden"> tâche{{ taches|length|pluralize }}</span></span></h3>
+    <ol>
+      {% for tache in taches %}
+      <li class="es-tache" id="tache-{{ tache.pk }}" {% if tache.modifiable %}draggable="true" data-deplacer="{% url 'deplacer-tache' tache.pk %}"{% endif %}>
+        <h4><a href="{% url 'detail-tache' tache.pk %}">{{ tache.titre }}</a></h4>
+        <div class="es-meta">
+          {% badge tache.priorite tache.get_priorite_display %}
+          <span><i class="icon-base ri ri-user-line" aria-hidden="true"></i> {% if tache.responsable %}{{ tache.responsable|nom_utilisateur }}{% else %}Non affectée{% endif %}</span>
+          {% if tache.echeance %}<span class="{% if tache.en_retard %}es-retard{% endif %}"><i class="icon-base ri ri-calendar-line" aria-hidden="true"></i> {{ tache.echeance|date:"d/m" }}{% if tache.en_retard %} (en retard){% endif %}</span>{% endif %}
+          {% if tache.jalon %}<span><i class="icon-base ri ri-flag-line" aria-hidden="true"></i> {{ tache.jalon.titre|truncatechars:22 }}</span>{% endif %}
+          {% if tache.nb_commentaires %}<span><i class="icon-base ri ri-chat-3-line" aria-hidden="true"></i> {{ tache.nb_commentaires }}<span class="visually-hidden"> commentaire{{ tache.nb_commentaires|pluralize }}</span></span>{% endif %}
+        </div>
+        {% if tache.modifiable %}
+        <div class="es-tache-actions">
+          {% if tache.precedent %}
+          <form method="post" action="{% url 'deplacer-tache' tache.pk %}">{% csrf_token %}<input type="hidden" name="statut" value="{{ tache.precedent }}">
+            <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="Déplacer « {{ tache.titre }} » vers {% for s, l in libelles_statuts.items %}{% if s == tache.precedent %}{{ l }}{% endif %}{% endfor %}">←</button></form>
+          {% else %}<span></span>{% endif %}
+          {% if tache.suivant %}
+          <form method="post" action="{% url 'deplacer-tache' tache.pk %}">{% csrf_token %}<input type="hidden" name="statut" value="{{ tache.suivant }}">
+            <button type="submit" class="btn btn-sm btn-outline-primary" aria-label="Déplacer « {{ tache.titre }} » vers {% for s, l in libelles_statuts.items %}{% if s == tache.suivant %}{{ l }}{% endif %}{% endfor %}">→</button></form>
+          {% endif %}
+        </div>
+        {% endif %}
+      </li>
+      {% empty %}
+      <li class="small text-body-secondary text-center py-3">Aucune tâche</li>
+      {% endfor %}
+    </ol>
+  </section>
+  {% endfor %}
+</div>
+{% endblock corps %}
+
+{% block scripts %}
+<script>
+/* Glisser-déposer : simple amélioration, les boutons restent la voie accessible (clavier, lecteur d'écran). */
+document.addEventListener("DOMContentLoaded", function () {
+  var kanban = document.querySelector("[data-kanban]");
+  if (!kanban) return;
+  var annonce = document.getElementById("annonce-kanban");
+  var jeton = (document.querySelector("[name=csrfmiddlewaretoken]") || {}).value;
+  var enCours = null;
+  kanban.querySelectorAll(".es-tache[draggable=true]").forEach(function (carte) {
+    carte.addEventListener("dragstart", function (e) { enCours = carte; carte.classList.add("es-deplacement"); e.dataTransfer.effectAllowed = "move"; });
+    carte.addEventListener("dragend", function () { carte.classList.remove("es-deplacement"); });
+  });
+  kanban.querySelectorAll("[data-colonne]").forEach(function (colonne) {
+    colonne.addEventListener("dragover", function (e) { if (enCours) { e.preventDefault(); colonne.classList.add("es-survol"); } });
+    colonne.addEventListener("dragleave", function () { colonne.classList.remove("es-survol"); });
+    colonne.addEventListener("drop", function (e) {
+      e.preventDefault();
+      colonne.classList.remove("es-survol");
+      if (!enCours || !jeton) return;
+      var corps = new FormData();
+      corps.append("statut", colonne.dataset.colonne);
+      corps.append("csrfmiddlewaretoken", jeton);
+      fetch(enCours.dataset.deplacer, { method: "POST", body: corps, credentials: "same-origin",
+                                        headers: { "Accept": "application/json", "X-CSRFToken": jeton } })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          annonce.textContent = d.message;
+          if (d.ok) window.location.reload();
+        })
+        .catch(function () { annonce.textContent = "Déplacement impossible : réessayez avec les boutons."; });
+      enCours = null;
+    });
+  });
+});
+</script>
+{% endblock scripts %}

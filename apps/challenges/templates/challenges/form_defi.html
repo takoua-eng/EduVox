@@ -1,0 +1,18 @@
+{% extends "challenges/_base.html" %}
+{% block titre_page %}{% if defi %}Modifier le défi{% else %}Créer un défi{% endif %}{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a>{% if defi %} › <a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a>{% endif %} › {% if defi %}Modifier{% else %}Créer{% endif %}</nav>
+<h1 class="h3 mb-2">{% if defi %}Modifier « {{ defi.titre }} »{% else %}Créer un défi{% endif %}</h1>
+<p class="es-aide mb-5">Le défi reste en <strong>brouillon</strong> tant que vous n'ouvrez pas les inscriptions. Les champs marqués * sont obligatoires.{% if defi.statut == 'inscriptions' %} Les inscriptions sont ouvertes : prévenez les étudiants de tout changement.{% endif %}</p>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% include "challenges/_erreurs_formulaire.html" %}
+  {% include "challenges/_form_defi_champs.html" %}
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary" data-chargement="Enregistrement…"><i class="icon-base ri ri-save-line me-1" aria-hidden="true"></i> Enregistrer</button>
+    <a href="{% if defi %}{% url 'detail-defi' defi.pk %}{% else %}{% url 'catalogue-defis' %}{% endif %}" class="btn btn-outline-secondary">Annuler</a>
+  </div>
+</form>
+{% endblock corps %}
+{% block scripts %}{% include "challenges/_chargement.html" %}{% endblock %}

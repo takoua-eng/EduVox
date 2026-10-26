@@ -1,0 +1,22 @@
+{% extends "challenges/_base.html" %}
+{% block titre_page %}Nouveau livrable{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › <a href="{% url 'livrables-equipe' equipe.pk %}">Livrables de {{ equipe.nom }}</a> › Nouveau</nav>
+<h1 class="h3 mb-2">Nouveau livrable</h1>
+<p class="es-aide mb-5">La première version est enregistrée en <strong>brouillon</strong>, visible uniquement par votre équipe. Le coordinateur la soumet ensuite à l'enseignant.</p>
+<form method="post" enctype="multipart/form-data" novalidate class="es-panneau" style="max-width: 860px">
+  {% csrf_token %}
+  {% include "challenges/_erreurs_formulaire.html" %}
+  <div class="row">
+    <div class="col-md-7">{% include "challenges/_champ.html" with champ=form.titre %}</div>
+    <div class="col-md-5">{% include "challenges/_champ.html" with champ=form.jalon %}</div>
+  </div>
+  {% include "challenges/_champ.html" with champ=form.description %}
+  {% include "challenges/_version_champs.html" %}
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary" data-chargement="Envoi…">Enregistrer le brouillon</button>
+    <a href="{% url 'livrables-equipe' equipe.pk %}" class="btn btn-outline-secondary">Annuler</a>
+  </div>
+</form>
+{% endblock corps %}
+{% block scripts %}{% include "challenges/_chargement.html" %}{% endblock %}

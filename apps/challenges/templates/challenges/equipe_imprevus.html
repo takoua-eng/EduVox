@@ -1,0 +1,35 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Imprévus – {{ equipe.nom }}{% endblock %}
+{% block corps %}
+{% include "challenges/_entete_equipe.html" %}
+<h2 class="h5 mb-2">Imprévus du client</h2>
+<p class="es-aide mb-4">Chaque imprévu publié par l'enseignant concerne toutes les équipes. Analysez son impact, décidez et adaptez votre planning.</p>
+{% for e in evenements %}
+<article class="es-panneau" aria-labelledby="evt-{{ e.pk }}">
+  <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+    <h3 id="evt-{{ e.pk }}" class="mb-0">{{ e.titre }}</h3>
+    <div class="d-flex flex-wrap gap-2">
+      <span class="es-badge es-badge--fin">{{ e.get_type_contrainte_display }}</span>
+      {% if e.reponse_equipe %}{% badge e.reponse_equipe.etat e.reponse_equipe.get_etat_display %}{% else %}{% badge 'en_attente' 'Réponse à préparer' %}{% endif %}
+    </div>
+  </div>
+  <p class="small text-body-secondary mb-2">Publié le {{ e.date_publication|date:"d/m/Y H:i" }}{% if e.echeance_reponse %} · réponse attendue avant le <strong>{{ e.echeance_reponse|date:"d/m/Y H:i" }}</strong>{% endif %}</p>
+  <p class="es-texte-long">{{ e.description }}</p>
+  {% if e.modifications_appliquees %}
+  <div class="alert alert-info small" role="note">
+    <strong>Changement appliqué :</strong>
+    {% if e.modifications_appliquees.jalon %}échéance du jalon « {{ e.modifications_appliquees.jalon.titre }} » modifiée.{% endif %}
+    {% if e.modifications_appliquees.budget %}budget ramené à {{ e.modifications_appliquees.budget.apres }} DT (avant : {{ e.modifications_appliquees.budget.avant|default:"aucun" }}).{% endif %}
+  </div>
+  {% endif %}
+  {% if e.elements_liste %}<p class="small fw-semibold mb-1">Votre réponse doit contenir</p><ul class="es-liste small mb-3">{% for x in e.elements_liste %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+  {% if membre or e.reponse_equipe %}
+  <a href="{% url 'reponse-evenement' e.pk equipe.pk %}" class="btn btn-sm {% if e.reponse_equipe %}btn-outline-primary{% else %}btn-primary{% endif %}">
+    {% if e.reponse_equipe.etat == 'soumise' %}Voir la réponse soumise{% elif e.reponse_equipe %}Continuer la réponse{% elif peut_deposer %}Préparer la réponse{% else %}Consulter{% endif %}<span class="visually-hidden"> à « {{ e.titre }} »</span></a>
+  {% endif %}
+</article>
+{% empty %}
+<div class="es-vide"><i class="icon-base ri ri-flashlight-line" aria-hidden="true"></i><p class="mb-0">Aucun imprévu publié pour l'instant.</p></div>
+{% endfor %}
+{% endblock corps %}

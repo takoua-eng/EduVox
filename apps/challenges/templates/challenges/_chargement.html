@@ -1,0 +1,14 @@
+{# Indicateur de chargement : désactive le bouton envoyé (évite les doubles envois) et l'annonce #}
+<script>
+document.addEventListener("submit", function (e) {
+  var form = e.target;
+  if (form.matches("form[data-confirm]") && form.dataset.confirme !== "oui") return;
+  var bouton = form.querySelector("button[type=submit][data-chargement]");
+  if (!bouton || bouton.disabled) return;
+  setTimeout(function () {
+    bouton.disabled = true;
+    bouton.setAttribute("aria-busy", "true");
+    bouton.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>' + bouton.dataset.chargement;
+  }, 0);
+});
+</script>

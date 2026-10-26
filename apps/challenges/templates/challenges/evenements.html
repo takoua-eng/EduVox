@@ -1,0 +1,61 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Imprévus – {{ defi.titre }}{% endblock %}
+{% block corps %}
+<section class="es-hero mb-5" aria-labelledby="titre-imprevus">
+  <nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a> › <a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › Imprévus</nav>
+  <h1 id="titre-imprevus" class="h3 mb-2">Imprévus du client virtuel</h1>
+  <p class="mb-0">Préparez un imprévu à la main ou demandez une proposition à l'IA. Chaque imprévu est <strong>relu, validé puis publié</strong> par un enseignant ; une fois publié, il est commun aux {{ equipes_actives }} équipe{{ equipes_actives|pluralize }} active{{ equipes_actives|pluralize }} et conservé dans l'historique.</p>
+</section>
+
+<div class="row g-4 mb-5">
+  <div class="col-lg-6">
+    <section class="es-panneau h-100" aria-labelledby="titre-manuel">
+      <h2 id="titre-manuel"><i class="icon-base ri ri-edit-2-line me-1" aria-hidden="true"></i> Saisie manuelle</h2>
+      <p class="small es-aide">Rédigez l'imprévu et, si besoin, le changement réel à appliquer à la publication (échéance d'un jalon ou budget).</p>
+      {% if not defi.lecture_seule %}<a href="{% url 'creer-evenement' defi.pk %}" class="btn btn-primary btn-sm">Créer un imprévu</a>{% else %}<p class="small mb-0">Défi clos.</p>{% endif %}
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="es-panneau h-100" aria-labelledby="titre-ia">
+      <h2 id="titre-ia"><i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> Proposition par l'IA</h2>
+      {% if demande and demande.active or demande.statut == 'echoue' %}{% include "challenges/_suivi_ia.html" with demande=demande titre="Dernière proposition" %}{% endif %}
+      {% if not ia_disponible %}
+        <p class="small es-aide mb-0">L'IA n'est pas configurée sur ce serveur (clé Gemini absente) : utilisez la saisie manuelle.</p>
+      {% elif not peut_proposer %}
+        <p class="small es-aide mb-0">Les propositions se font pendant les inscriptions ou le défi.</p>
+      {% else %}
+      <form method="post" action="{% url 'proposer-evenement' defi.pk %}" class="mt-2">
+        {% csrf_token %}
+        {% include "challenges/_champ.html" with champ=proposition_form.consigne classe="mb-2" %}
+        <button type="submit" class="btn btn-outline-primary btn-sm" data-chargement="Envoi à l'IA…" {% if demande.active %}disabled aria-disabled="true"{% endif %}>Proposer un imprévu</button>
+        <p class="es-ia-avis mt-2 mb-0"><i class="icon-base ri ri-information-line" aria-hidden="true"></i> Le brief du défi et son avancement <strong>agrégé et anonyme</strong> (aucun nom) sont envoyés à Google Gemini. La proposition arrive en brouillon ; l'IA ne modifie jamais les dates, budgets ou tâches.</p>
+      </form>
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<h2 class="h5 mb-3">Imprévus ({{ evenements|length }})</h2>
+{% if evenements %}
+<div class="table-responsive es-panneau p-0">
+  <table class="table align-middle mb-0">
+    <caption class="visually-hidden">Imprévus du défi et leur état</caption>
+    <thead><tr><th scope="col">Imprévu</th><th scope="col">Type</th><th scope="col">Origine</th><th scope="col">État</th><th scope="col">Réponses</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+    <tbody>
+      {% for e in evenements %}
+      <tr>
+        <td><a href="{% url 'detail-evenement' e.pk %}">{{ e.titre }}</a></td>
+        <td>{{ e.get_type_contrainte_display }}</td>
+        <td>{% if e.origine == 'ia' %}<span class="es-badge es-badge--fin"><i class="icon-base ri ri-sparkling-line" aria-hidden="true"></i>IA</span>{% else %}Manuelle{% endif %}</td>
+        <td>{% badge e.etat e.get_etat_display %}</td>
+        <td>{% if e.etat == 'publie' %}{{ e.nb_reponses }}/{{ equipes_actives }}{% else %}—{% endif %}</td>
+        <td class="text-end"><a href="{% url 'detail-evenement' e.pk %}" class="btn btn-sm btn-outline-primary">{% if e.etat == 'publie' %}Consulter{% else %}Relire{% endif %}<span class="visually-hidden"> {{ e.titre }}</span></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}<div class="es-vide"><i class="icon-base ri ri-flashlight-line" aria-hidden="true"></i><p class="mb-0">Aucun imprévu préparé.</p></div>{% endif %}
+{% endblock corps %}
+{% block scripts %}{% include "challenges/_chargement.html" %}{% endblock %}

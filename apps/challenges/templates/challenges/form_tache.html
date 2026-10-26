@@ -1,0 +1,23 @@
+{% extends "challenges/_base.html" %}
+{% block titre_page %}Tâche – {{ equipe.nom }}{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › <a href="{% url 'taches-equipe' equipe.pk %}">Tâches de {{ equipe.nom }}</a> › {% if tache %}Modifier{% else %}Nouvelle tâche{% endif %}</nav>
+<h1 class="h3 mb-2">{% if tache %}Modifier la tâche{% else %}Nouvelle tâche{% endif %}</h1>
+<p class="es-aide mb-5">{% if coordinateur or equipe.coordinateur_id == request.user.pk %}En tant que coordinateur, vous pouvez affecter la tâche à n'importe quel membre.{% else %}Vous pouvez vous affecter la tâche ou la laisser non affectée ; le coordinateur peut l'attribuer à un autre membre.{% endif %}</p>
+<form method="post" novalidate class="es-panneau" style="max-width: 760px">
+  {% csrf_token %}
+  {% include "challenges/_erreurs_formulaire.html" %}
+  {% include "challenges/_champ.html" with champ=form.titre %}
+  {% include "challenges/_champ.html" with champ=form.description %}
+  <div class="row">
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.responsable %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.jalon %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.priorite %}</div>
+    <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.echeance %}</div>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+    <a href="{% if tache %}{% url 'detail-tache' tache.pk %}{% else %}{% url 'taches-equipe' equipe.pk %}{% endif %}" class="btn btn-outline-secondary">Annuler</a>
+  </div>
+</form>
+{% endblock corps %}

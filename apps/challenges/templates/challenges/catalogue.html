@@ -1,0 +1,94 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Défis EduSprint{% endblock %}
+{% block corps %}
+<section class="es-hero mb-6" aria-labelledby="titre-page">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-4">
+    <div>
+      <span class="es-badge es-badge--ia mb-3"><i class="icon-base ri ri-rocket-2-line" aria-hidden="true"></i> EduSprint · projets en équipe</span>
+      <h1 id="titre-page" class="h3 mb-2">{% if role == 'enseignant' %}Missions et défis{% elif role == 'etudiant' %}Relève une mission en équipe{% else %}Tous les défis{% endif %}</h1>
+      <p class="mb-0" style="max-width: 660px">
+        {% if role == 'enseignant' %}Préparez une mission professionnelle, faites-la vivre avec des imprévus validés et suivez les livrables de chaque équipe.
+        {% elif role == 'etudiant' %}Forme une équipe, répartis les tâches, respecte les jalons et adapte-toi aux imprévus du client virtuel.
+        {% else %}Consultation et modération des défis de la plateforme. Les transitions restent soumises aux règles métier.{% endif %}
+      </p>
+    </div>
+    {% if role == 'enseignant' %}
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{% url 'creer-defi' %}" class="btn btn-light"><i class="icon-base ri ri-add-line me-1" aria-hidden="true"></i> Créer un défi</a>
+      <a href="{% url 'generer-brief' %}" class="btn btn-outline-light"><i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> Brief proposé par l'IA</a>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<form method="get" class="es-panneau mb-5" role="search" aria-label="Rechercher et filtrer les défis">
+  <div class="row g-3 align-items-end">
+    <div class="col-md-5">
+      <label for="filtre-q" class="form-label">Recherche</label>
+      <input type="search" id="filtre-q" name="q" value="{{ recherche }}" class="form-control" placeholder="Titre, compétence…" maxlength="100" />
+    </div>
+    <div class="col-sm-6 col-md-2">
+      <label for="filtre-statut" class="form-label">Statut</label>
+      <select id="filtre-statut" name="statut" class="form-select">
+        <option value="">Tous</option>
+        {% for valeur, libelle in statuts %}<option value="{{ valeur }}" {% if filtre_statut == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-6 col-md-2">
+      <label for="filtre-niveau" class="form-label">Niveau</label>
+      <select id="filtre-niveau" name="niveau" class="form-select">
+        <option value="">Tous</option>
+        {% for valeur, libelle in niveaux %}<option value="{{ valeur }}" {% if filtre_niveau == valeur %}selected{% endif %}>{{ libelle }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 d-flex gap-3 align-items-center flex-wrap">
+      {% if role == 'enseignant' or role == 'etudiant' %}
+      <div class="form-check mb-0">
+        <input class="form-check-input" type="checkbox" id="filtre-mes" name="mes" value="1" {% if mes %}checked{% endif %}>
+        <label class="form-check-label" for="filtre-mes">{% if role == 'enseignant' %}Mes défis{% else %}Mes équipes{% endif %}</label>
+      </div>
+      {% endif %}
+      <button type="submit" class="btn btn-primary"><i class="icon-base ri ri-filter-3-line me-1" aria-hidden="true"></i> Filtrer</button>
+    </div>
+  </div>
+</form>
+
+<h2 class="visually-hidden">Résultats</h2>
+<p class="es-aide small" role="status">{{ paginator.count }} défi{{ paginator.count|pluralize }} trouvé{{ paginator.count|pluralize }}.</p>
+{% if defis %}
+<ul class="es-grille list-unstyled mb-0">
+  {% for defi in defis %}
+  <li>
+    <article class="es-carte" aria-labelledby="defi-{{ defi.pk }}">
+      <div class="es-carte-bande" aria-hidden="true"></div>
+      <div class="es-carte-corps">
+        <div class="d-flex flex-wrap gap-2">{% badge defi.statut defi.get_statut_display %}{% if defi.origine == 'ia' %}<span class="es-badge es-badge--fin"><i class="icon-base ri ri-sparkling-line" aria-hidden="true"></i>Brief IA</span>{% endif %}</div>
+        <h3 class="es-carte-titre" id="defi-{{ defi.pk }}"><a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a></h3>
+        <p class="mb-0 small text-body-secondary">{{ defi.description|truncatewords:28 }}</p>
+        <div class="es-meta mt-auto">
+          <span><i class="icon-base ri ri-calendar-line" aria-hidden="true"></i> {{ defi.date_debut|date:"d/m" }} → {{ defi.date_fin|date:"d/m/Y" }}</span>
+          <span><i class="icon-base ri ri-team-line" aria-hidden="true"></i> {{ defi.taille_min }} à {{ defi.taille_max }} pers.</span>
+          <span><i class="icon-base ri ri-flag-line" aria-hidden="true"></i> {{ defi.nb_jalons }} jalon{{ defi.nb_jalons|pluralize }}</span>
+          {% if defi.budget is not None %}<span><i class="icon-base ri ri-money-dollar-circle-line" aria-hidden="true"></i> {{ defi.budget|floatformat:"0" }} DT</span>{% endif %}
+        </div>
+      </div>
+      <div class="es-carte-pied">
+        <span>{{ defi.get_niveau_display }} · {{ defi.nb_equipes }} équipe{{ defi.nb_equipes|pluralize }}</span>
+        {% if defi.mon_equipe %}<a href="{% url 'espace-equipe' defi.mon_equipe.pk %}" class="btn btn-sm btn-primary">Mon équipe</a>
+        {% elif defi.inscriptions_ouvertes and role == 'etudiant' %}<span class="es-badge es-badge--info">Inscriptions jusqu'au {{ defi.inscriptions_fin|date:"d/m H:i" }}</span>{% endif %}
+      </div>
+    </article>
+  </li>
+  {% endfor %}
+</ul>
+{% include "challenges/_pagination.html" %}
+{% else %}
+<div class="es-vide">
+  <i class="icon-base ri ri-rocket-line" aria-hidden="true"></i>
+  <p class="mb-2 fw-semibold">Aucun défi ne correspond à votre recherche.</p>
+  {% if role == 'enseignant' %}<a href="{% url 'creer-defi' %}" class="btn btn-primary btn-sm">Créer le premier défi</a>
+  {% elif role == 'etudiant' %}<p class="mb-0 small">Les défis apparaissent ici dès que leurs inscriptions sont ouvertes.</p>{% endif %}
+</div>
+{% endif %}
+{% endblock corps %}

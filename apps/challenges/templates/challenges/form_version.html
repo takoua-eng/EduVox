@@ -1,0 +1,23 @@
+{% extends "challenges/_base.html" %}
+{% block titre_page %}Version – {{ livrable.titre }}{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'livrables-equipe' equipe.pk %}">Livrables de {{ equipe.nom }}</a> › <a href="{% url 'detail-livrable' livrable.pk %}">{{ livrable.titre }}</a> › {% if version %}Modifier v{{ version.numero }}{% else %}Nouvelle version{% endif %}</nav>
+<h1 class="h3 mb-2">{% if version %}Modifier le brouillon v{{ version.numero }}{% else %}Nouvelle version de « {{ livrable.titre }} »{% endif %}</h1>
+{% if precedente and precedente.retour_enseignant %}
+<div class="es-retour es-retour--attente mb-4" role="note">
+  <p class="small fw-semibold mb-1">Retour de l'enseignant sur la v{{ precedente.numero }}</p>
+  <p class="es-texte-long small mb-0">{{ precedente.retour_enseignant }}</p>
+</div>
+{% endif %}
+<p class="es-aide mb-4">{% if version %}{% if version.nom_fichier %}Fichier actuel : <strong>{{ version.nom_fichier }}</strong>. Envoyez un nouveau fichier pour le remplacer.{% endif %}{% else %}Les versions précédentes et leurs retours restent conservés.{% endif %}</p>
+<form method="post" enctype="multipart/form-data" novalidate class="es-panneau" style="max-width: 860px">
+  {% csrf_token %}
+  {% include "challenges/_erreurs_formulaire.html" %}
+  {% include "challenges/_version_champs.html" %}
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary" data-chargement="Envoi…">Enregistrer le brouillon</button>
+    <a href="{% url 'detail-livrable' livrable.pk %}" class="btn btn-outline-secondary">Annuler</a>
+  </div>
+</form>
+{% endblock corps %}
+{% block scripts %}{% include "challenges/_chargement.html" %}{% endblock %}

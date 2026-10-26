@@ -1,0 +1,34 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Démarrer le défi{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a> › <a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › Démarrage</nav>
+<h1 class="h3 mb-2">Démarrer « {{ defi.titre }} »</h1>
+<p class="es-aide mb-5">Vérifiez la composition des équipes. Après le démarrage, le brief et les jalons sont figés : tout changement passera par un imprévu publié.</p>
+
+<div class="row g-4 mb-5">
+  <div class="col-md-4"><div class="es-kpi"><span class="es-kpi-icone es-kpi-icone--vert"><i class="icon-base ri ri-team-line" aria-hidden="true"></i></span><div><div class="es-kpi-valeur">{{ retenues|length }}</div><div class="es-kpi-libelle">équipe{{ retenues|length|pluralize }} retenue{{ retenues|length|pluralize }}</div></div></div></div>
+  <div class="col-md-4"><div class="es-kpi"><span class="es-kpi-icone es-kpi-icone--ambre"><i class="icon-base ri ri-user-unfollow-line" aria-hidden="true"></i></span><div><div class="es-kpi-valeur">{{ incompletes|length }}</div><div class="es-kpi-libelle">sous la taille minimale ({{ defi.taille_min }})</div></div></div></div>
+  <div class="col-md-4"><div class="es-kpi"><span class="es-kpi-icone"><i class="icon-base ri ri-time-line" aria-hidden="true"></i></span><div><div class="es-kpi-valeur">{{ attente }}</div><div class="es-kpi-libelle">demande{{ attente|pluralize }} encore en attente</div></div></div></div>
+</div>
+
+<section class="es-panneau mb-4" aria-labelledby="titre-retenues">
+  <h2 id="titre-retenues">Équipes qui participeront</h2>
+  {% if retenues %}<ul class="es-liste">{% for e in retenues %}<li><strong>{{ e.nom }}</strong> — {{ e.nb }} membre{{ e.nb|pluralize }}</li>{% endfor %}</ul>
+  {% else %}<p class="es-erreur mb-0" role="alert">Aucune équipe n'atteint la taille minimale : le démarrage est impossible. Attendez de nouvelles adhésions ou modifiez la taille minimale (encore possible pendant les inscriptions).</p>{% endif %}
+</section>
+{% if incompletes %}
+<section class="es-panneau mb-4" aria-labelledby="titre-incompletes">
+  <h2 id="titre-incompletes">Équipes qui seront écartées</h2>
+  <p class="small es-aide">Règle EduSprint : une équipe sous la taille minimale au démarrage est <strong>écartée</strong>. Son historique reste consultable mais elle ne peut plus contribuer. Pour l'éviter, demandez aux étudiants de se regrouper avant de démarrer.</p>
+  <ul class="es-liste">{% for e in incompletes %}<li><strong>{{ e.nom }}</strong> — {{ e.nb }} membre{{ e.nb|pluralize }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+{% if attente %}<p class="small es-aide">Les {{ attente }} demande{{ attente|pluralize }} en attente seront refusée{{ attente|pluralize }} automatiquement (inscriptions closes).</p>{% endif %}
+
+<form method="post" class="d-flex gap-2" data-confirm="Le brief et les jalons seront figés{% if incompletes %} et {{ incompletes|length }} équipe(s) écartée(s){% endif %}." data-confirm-titre="Démarrer le défi ?" data-confirm-type="primary" data-confirm-bouton="Démarrer">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-primary" {% if not retenues %}disabled aria-disabled="true"{% endif %}><i class="icon-base ri ri-play-circle-line me-1" aria-hidden="true"></i> Démarrer maintenant</button>
+  <a href="{% url 'detail-defi' defi.pk %}" class="btn btn-outline-secondary">Retour</a>
+</form>
+{% endblock corps %}

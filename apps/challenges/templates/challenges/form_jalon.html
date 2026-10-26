@@ -1,0 +1,22 @@
+{% extends "challenges/_base.html" %}
+{% block titre_page %}Jalon{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a> › <a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › Jalon</nav>
+<h1 class="h3 mb-2">{% if form.instance.pk %}Modifier le jalon{% else %}Ajouter un jalon{% endif %}</h1>
+<p class="es-aide mb-5">L'échéance doit être comprise entre le {{ defi.date_debut|date:"d/m/Y H:i" }} et le {{ defi.date_fin|date:"d/m/Y H:i" }}.</p>
+<form method="post" novalidate class="es-panneau" style="max-width: 760px">
+  {% csrf_token %}
+  {% include "challenges/_erreurs_formulaire.html" %}
+  <div class="row">
+    <div class="col-md-9">{% include "challenges/_champ.html" with champ=form.titre %}</div>
+    <div class="col-md-3">{% include "challenges/_champ.html" with champ=form.ordre %}</div>
+  </div>
+  {% include "challenges/_champ.html" with champ=form.echeance %}
+  {% include "challenges/_champ.html" with champ=form.description %}
+  {% include "challenges/_champ.html" with champ=form.exigences %}
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+    <a href="{% url 'detail-defi' defi.pk %}" class="btn btn-outline-secondary">Annuler</a>
+  </div>
+</form>
+{% endblock corps %}

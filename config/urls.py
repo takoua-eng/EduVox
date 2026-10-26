@@ -27,6 +27,7 @@ urlpatterns = [
     path("", include("apps.accounts.urls")),
     path("cours/", include("apps.courses.urls")),
     path("quiz/", include("apps.quizzes.urls")),
+    path("defis/", include("apps.challenges.urls")),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

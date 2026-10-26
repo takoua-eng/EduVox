@@ -1,0 +1,195 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}{{ defi.titre }}{% endblock %}
+{% block corps %}
+<section class="es-hero mb-5" aria-labelledby="titre-defi">
+  <nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a> › {{ defi.titre|truncatechars:60 }}</nav>
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    {% badge defi.statut defi.get_statut_display %}
+    <span class="es-badge es-badge--neutre">{{ defi.get_niveau_display }}</span>
+    {% if defi.origine == 'ia' %}<span class="es-badge es-badge--fin"><i class="icon-base ri ri-sparkling-line" aria-hidden="true"></i>Brief proposé par l'IA, relu par l'enseignant</span>{% endif %}
+  </div>
+  <h1 id="titre-defi" class="h3 mb-2">{{ defi.titre }}</h1>
+  <p class="mb-0" style="max-width: 760px">{{ defi.description }}</p>
+  <div class="es-hero-stats">
+    <div><strong>{{ defi.date_debut|date:"d/m/Y" }}</strong><span>début ({{ defi.date_debut|date:"H:i" }})</span></div>
+    <div><strong>{{ defi.date_fin|date:"d/m/Y" }}</strong><span>fin ({{ defi.date_fin|date:"H:i" }})</span></div>
+    <div><strong>{{ defi.taille_min }}–{{ defi.taille_max }}</strong><span>membres par équipe</span></div>
+    <div><strong>{% if defi.budget is not None %}{{ defi.budget|floatformat:"-2" }} DT{% else %}—{% endif %}</strong><span>budget</span></div>
+  </div>
+</section>
+
+{# ---------- Actions enseignant ---------- #}
+{% if gestion %}
+<section class="es-panneau mb-5" aria-labelledby="titre-gestion">
+  <h2 id="titre-gestion"><i class="icon-base ri ri-settings-3-line me-1" aria-hidden="true"></i> Gestion du défi</h2>
+  {% if problemes_publication %}
+  <div class="alert alert-warning small" role="status">
+    <strong>Avant d'ouvrir les inscriptions :</strong>
+    <ul class="mb-0">{% for probleme in problemes_publication %}<li>{{ probleme }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  <div class="d-flex flex-wrap gap-2">
+    {% if defi.brief_modifiable %}
+      <a href="{% url 'modifier-defi' defi.pk %}" class="btn btn-outline-primary btn-sm"><i class="icon-base ri ri-edit-line me-1" aria-hidden="true"></i> Modifier le brief</a>
+      <a href="{% url 'creer-jalon' defi.pk %}" class="btn btn-outline-primary btn-sm"><i class="icon-base ri ri-flag-line me-1" aria-hidden="true"></i> Ajouter un jalon</a>
+    {% endif %}
+    {% if defi.statut == 'brouillon' %}
+      <form method="post" action="{% url 'statut-defi' defi.pk 'publier' %}" data-confirm="Les étudiants pourront consulter le défi et former leurs équipes." data-confirm-titre="Ouvrir les inscriptions ?" data-confirm-type="primary" data-confirm-bouton="Ouvrir">
+        {% csrf_token %}<button type="submit" class="btn btn-primary btn-sm" {% if problemes_publication %}disabled aria-disabled="true"{% endif %}><i class="icon-base ri ri-user-add-line me-1" aria-hidden="true"></i> Ouvrir les inscriptions</button>
+      </form>
+      {% if proprietaire %}
+      <form method="post" action="{% url 'supprimer-defi' defi.pk %}" data-confirm="Le brouillon et ses jalons seront supprimés définitivement." data-confirm-titre="Supprimer ce brouillon ?" data-confirm-bouton="Supprimer">
+        {% csrf_token %}<button type="submit" class="btn btn-outline-danger btn-sm"><i class="icon-base ri ri-delete-bin-line me-1" aria-hidden="true"></i> Supprimer</button>
+      </form>
+      {% endif %}
+    {% elif defi.statut == 'inscriptions' %}
+      <a href="{% url 'demarrer-defi' defi.pk %}" class="btn btn-primary btn-sm"><i class="icon-base ri ri-play-circle-line me-1" aria-hidden="true"></i> Démarrer le défi…</a>
+      {% if not equipes %}
+      <form method="post" action="{% url 'statut-defi' defi.pk 'brouillon' %}">{% csrf_token %}<button type="submit" class="btn btn-outline-secondary btn-sm">Repasser en brouillon</button></form>
+      {% endif %}
+    {% elif defi.statut == 'en_cours' %}
+      <form method="post" action="{% url 'statut-defi' defi.pk 'cloturer' %}" data-confirm="Les équipes ne pourront plus contribuer ; vous pourrez encore rendre vos retours sur les versions soumises." data-confirm-titre="Clôturer le défi ?" data-confirm-type="warning" data-confirm-bouton="Clôturer">
+        {% csrf_token %}<button type="submit" class="btn btn-outline-warning btn-sm"><i class="icon-base ri ri-flag-2-line me-1" aria-hidden="true"></i> Clôturer</button>
+      </form>
+    {% endif %}
+    {% if defi.statut != 'brouillon' %}
+      <a href="{% url 'suivi-defi' defi.pk %}" class="btn btn-outline-primary btn-sm"><i class="icon-base ri ri-team-line me-1" aria-hidden="true"></i> Suivi des équipes</a>
+      <a href="{% url 'evenements-defi' defi.pk %}" class="btn btn-outline-primary btn-sm"><i class="icon-base ri ri-flashlight-line me-1" aria-hidden="true"></i> Imprévus</a>
+    {% endif %}
+    {% if defi.statut == 'termine' or defi.statut == 'inscriptions' %}
+      <form method="post" action="{% url 'statut-defi' defi.pk 'archiver' %}" data-confirm="{% if defi.statut == 'inscriptions' %}Le défi sera annulé et les demandes en attente refusées.{% else %}Le défi sera archivé ; son historique reste consultable par les participants.{% endif %}" data-confirm-titre="Archiver le défi ?" data-confirm-type="warning" data-confirm-bouton="Archiver">
+        {% csrf_token %}<button type="submit" class="btn btn-outline-secondary btn-sm"><i class="icon-base ri ri-archive-line me-1" aria-hidden="true"></i> Archiver</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
+{% elif admin %}
+<section class="es-panneau mb-5" aria-labelledby="titre-moderation">
+  <h2 id="titre-moderation">Modération</h2>
+  <div class="d-flex flex-wrap gap-2">
+    {% if defi.statut != 'brouillon' %}<a href="{% url 'suivi-defi' defi.pk %}" class="btn btn-outline-primary btn-sm">Consulter le suivi</a>{% endif %}
+    {% if defi.statut != 'archive' and defi.statut != 'en_cours' %}
+    <form method="post" action="{% url 'statut-defi' defi.pk 'archiver' %}" data-confirm="Le défi ne sera plus proposé aux étudiants." data-confirm-titre="Archiver (modération) ?" data-confirm-type="warning" data-confirm-bouton="Archiver">
+      {% csrf_token %}<button type="submit" class="btn btn-outline-secondary btn-sm">Archiver (modération)</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{# ---------- État étudiant ---------- #}
+{% if role == 'etudiant' %}
+<section class="mb-5" aria-labelledby="titre-mon-equipe">
+  <h2 id="titre-mon-equipe" class="visually-hidden">Ma participation</h2>
+  {% if ma_participation %}
+  <div class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2" role="status">
+    <span><i class="icon-base ri ri-team-line me-1" aria-hidden="true"></i> Vous êtes membre de l'équipe <strong>{{ ma_participation.equipe.nom }}</strong>.</span>
+    <a href="{% url 'espace-equipe' ma_participation.equipe.pk %}" class="btn btn-success btn-sm">Ouvrir l'espace d'équipe</a>
+  </div>
+  {% elif peut_s_inscrire %}
+  <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2" role="status">
+    <span>Inscriptions ouvertes jusqu'au <strong>{{ defi.inscriptions_fin|date:"d/m/Y H:i" }}</strong> : créez votre équipe ou demandez à en rejoindre une.</span>
+    <a href="{% url 'creer-equipe' defi.pk %}" class="btn btn-primary btn-sm"><i class="icon-base ri ri-add-line me-1" aria-hidden="true"></i> Créer une équipe</a>
+  </div>
+  {% elif defi.statut == 'inscriptions' %}
+  <div class="alert alert-secondary" role="status">Les inscriptions ouvrent le {{ defi.inscriptions_debut|date:"d/m/Y H:i" }} et ferment le {{ defi.inscriptions_fin|date:"d/m/Y H:i" }}.</div>
+  {% endif %}
+</section>
+{% endif %}
+
+<div class="row g-5">
+  <div class="col-lg-7">
+    <section class="es-panneau" aria-labelledby="titre-contexte">
+      <h2 id="titre-contexte"><i class="icon-base ri ri-briefcase-4-line me-1" aria-hidden="true"></i> Contexte du client</h2>
+      <p class="es-texte-long mb-0">{{ defi.contexte }}</p>
+    </section>
+    <section class="es-panneau" aria-labelledby="titre-objectifs">
+      <h2 id="titre-objectifs"><i class="icon-base ri ri-focus-3-line me-1" aria-hidden="true"></i> Objectifs</h2>
+      <ul class="es-liste">{% for o in defi.objectifs_liste %}<li>{{ o }}</li>{% endfor %}</ul>
+    </section>
+    <section class="es-panneau" aria-labelledby="titre-livrables">
+      <h2 id="titre-livrables"><i class="icon-base ri ri-file-list-3-line me-1" aria-hidden="true"></i> Livrables attendus</h2>
+      <ul class="es-liste">{% for l in defi.livrables_liste %}<li>{{ l }}</li>{% endfor %}</ul>
+    </section>
+    {% if defi.contraintes_liste or defi.budget is not None %}
+    <section class="es-panneau" aria-labelledby="titre-contraintes">
+      <h2 id="titre-contraintes"><i class="icon-base ri ri-error-warning-line me-1" aria-hidden="true"></i> Contraintes</h2>
+      <ul class="es-liste">
+        {% if defi.budget is not None %}<li>Budget maximal : <strong>{{ defi.budget|floatformat:"-2" }} DT</strong></li>{% endif %}
+        {% for c in defi.contraintes_liste %}<li>{{ c }}</li>{% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+    {% if evenements_publies %}
+    <section class="es-panneau" aria-labelledby="titre-evenements">
+      <h2 id="titre-evenements"><i class="icon-base ri ri-flashlight-line me-1" aria-hidden="true"></i> Imprévus publiés ({{ evenements_publies|length }})</h2>
+      <ul class="es-liste">{% for e in evenements_publies %}<li><strong>{{ e.titre }}</strong> — {{ e.get_type_contrainte_display }}, le {{ e.date_publication|date:"d/m/Y" }}</li>{% endfor %}</ul>
+      <p class="es-aide small mb-0 mt-2">Les changements d'exigences après le démarrage sont toujours tracés par un imprévu.</p>
+    </section>
+    {% endif %}
+  </div>
+
+  <div class="col-lg-5">
+    <section class="es-panneau" aria-labelledby="titre-competences">
+      <h2 id="titre-competences"><i class="icon-base ri ri-medal-line me-1" aria-hidden="true"></i> Compétences visées</h2>
+      <div class="d-flex flex-wrap gap-2">{% for c in defi.competences_liste %}<span class="es-badge es-badge--fin">{{ c }}</span>{% endfor %}</div>
+    </section>
+    <section class="es-panneau" aria-labelledby="titre-calendrier">
+      <h2 id="titre-calendrier"><i class="icon-base ri ri-calendar-schedule-line me-1" aria-hidden="true"></i> Calendrier et jalons</h2>
+      <dl class="row small mb-3">
+        <dt class="col-6">Inscriptions</dt><dd class="col-6">{{ defi.inscriptions_debut|date:"d/m H:i" }} → {{ defi.inscriptions_fin|date:"d/m H:i" }}</dd>
+        <dt class="col-6">Défi</dt><dd class="col-6">{{ defi.date_debut|date:"d/m H:i" }} → {{ defi.date_fin|date:"d/m/Y H:i" }}</dd>
+      </dl>
+      {% if jalons %}
+      <ol class="es-chrono">
+        {% for jalon in jalons %}
+        <li class="{% if jalon.depasse %}es-passe{% endif %}">
+          <div class="d-flex justify-content-between gap-2 flex-wrap">
+            <strong>{{ jalon.ordre }}. {{ jalon.titre }}</strong>
+            <span class="small {% if jalon.depasse %}text-body-secondary{% endif %}">{{ jalon.echeance|date:"d/m/Y H:i" }}{% if jalon.depasse %} (passée){% endif %}</span>
+          </div>
+          {% if jalon.description %}<p class="small mb-1 text-body-secondary">{{ jalon.description }}</p>{% endif %}
+          {% if jalon.exigences_liste %}<ul class="es-liste small">{% for e in jalon.exigences_liste %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+          {% if gestion and defi.brief_modifiable %}
+          <div class="d-flex gap-2 mt-2">
+            <a href="{% url 'modifier-jalon' jalon.pk %}" class="btn btn-sm btn-outline-primary">Modifier<span class="visually-hidden"> le jalon {{ jalon.titre }}</span></a>
+            <form method="post" action="{% url 'supprimer-jalon' jalon.pk %}" data-confirm="Le jalon « {{ jalon.titre }} » sera supprimé." data-confirm-titre="Supprimer le jalon ?" data-confirm-bouton="Supprimer">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger">Supprimer<span class="visually-hidden"> le jalon {{ jalon.titre }}</span></button></form>
+          </div>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}<p class="es-aide mb-0">Aucun jalon pour le moment.</p>{% endif %}
+    </section>
+    <section class="es-panneau" aria-labelledby="titre-equipes">
+      <h2 id="titre-equipes"><i class="icon-base ri ri-team-line me-1" aria-hidden="true"></i> Équipes ({{ equipes|length }})</h2>
+      <p class="small es-aide">Chaque équipe compte de {{ defi.taille_min }} à {{ defi.taille_max }} membres. Au démarrage, une équipe sous la taille minimale est écartée.</p>
+      {% if equipes %}
+      <ul class="list-unstyled mb-0">
+        {% for equipe in equipes %}
+        <li class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 border-top">
+          <span><strong>{{ equipe.nom }}</strong> <span class="small text-body-secondary">— {{ equipe.nb }}/{{ defi.taille_max }} membre{{ equipe.nb|pluralize }}</span>
+            {% if equipe.statut != 'active' %} {% badge equipe.statut equipe.get_statut_display %}{% endif %}</span>
+          {% if role == 'etudiant' and peut_s_inscrire and equipe.statut == 'active' %}
+            {% if equipe.ma_demande %}
+              <form method="post" action="{% url 'retirer-demande' equipe.ma_demande.pk %}">{% csrf_token %}<span class="es-badge es-badge--attente me-1">Demande en attente</span><button type="submit" class="btn btn-sm btn-outline-secondary">Retirer ma demande<span class="visually-hidden"> pour {{ equipe.nom }}</span></button></form>
+            {% elif equipe.nb < defi.taille_max %}
+              <form method="post" action="{% url 'rejoindre-equipe' equipe.pk %}" class="d-flex gap-2 align-items-center">
+                {% csrf_token %}
+                <label for="message-{{ equipe.pk }}" class="visually-hidden">Message pour l'équipe {{ equipe.nom }}</label>
+                <input type="text" id="message-{{ equipe.pk }}" name="message" maxlength="500" class="form-control form-control-sm" placeholder="Message (facultatif)">
+                <button type="submit" class="btn btn-sm btn-primary text-nowrap">Rejoindre<span class="visually-hidden"> {{ equipe.nom }}</span></button>
+              </form>
+            {% else %}<span class="es-badge es-badge--neutre">Complète</span>{% endif %}
+          {% elif gestion or admin %}
+            <a href="{% url 'espace-equipe' equipe.pk %}" class="btn btn-sm btn-outline-primary">Consulter<span class="visually-hidden"> l'équipe {{ equipe.nom }}</span></a>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="es-aide mb-0">Aucune équipe inscrite.</p>{% endif %}
+    </section>
+  </div>
+</div>
+{% endblock corps %}

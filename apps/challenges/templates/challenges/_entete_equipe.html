@@ -1,0 +1,34 @@
+{% load edusprint %}
+<section class="es-hero mb-5" aria-labelledby="titre-equipe">
+  <nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a> › <a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › Équipe</nav>
+  <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+    <div>
+      <h1 id="titre-equipe" class="h3 mb-2">{{ equipe.nom }}</h1>
+      <p class="mb-2">{{ equipe.description|default:"Espace privé de l'équipe : tâches, jalons, imprévus et livrables." }}</p>
+      <div class="d-flex flex-wrap gap-2">
+        {% badge defi.statut defi.get_statut_display %}
+        {% if equipe.statut != 'active' %}{% badge equipe.statut equipe.get_statut_display %}{% endif %}
+        {% if acces == 'enseignant' %}<span class="es-badge es-badge--info"><i class="icon-base ri ri-eye-line" aria-hidden="true"></i>Vue enseignant : brouillons de l'équipe non visibles</span>
+        {% elif acces == 'admin' %}<span class="es-badge es-badge--neutre"><i class="icon-base ri ri-shield-user-line" aria-hidden="true"></i>Consultation administrateur</span>{% endif %}
+      </div>
+    </div>
+    <p class="es-hero-doux small mb-0">
+      Coordination : <strong>{{ equipe.coordinateur|nom_utilisateur }}</strong>{% if not equipe.coordinateur %} (vacante){% endif %}<br>
+      Fin du défi : {{ defi.date_fin|date:"d/m/Y H:i" }}
+    </p>
+  </div>
+</section>
+{% if defi.lecture_seule %}
+<div class="alert alert-secondary" role="status"><i class="icon-base ri ri-lock-line me-1" aria-hidden="true"></i> Défi {{ defi.get_statut_display|lower }} : l'historique reste consultable, les modifications sont bloquées.</div>
+{% elif equipe.statut == 'ecartee' %}
+<div class="alert alert-warning" role="status">Cette équipe n'atteignait pas la taille minimale au démarrage : elle a été écartée. Son historique reste consultable.</div>
+{% elif equipe.statut == 'dissoute' %}
+<div class="alert alert-secondary" role="status">Cette équipe a été dissoute.</div>
+{% endif %}
+<nav class="es-onglets" aria-label="Sections de l'espace d'équipe">
+  <a href="{% url 'espace-equipe' equipe.pk %}" {% if onglet == 'vue' %}aria-current="page"{% endif %}><i class="icon-base ri ri-dashboard-line" aria-hidden="true"></i> Vue d'ensemble</a>
+  <a href="{% url 'taches-equipe' equipe.pk %}" {% if onglet == 'taches' %}aria-current="page"{% endif %}><i class="icon-base ri ri-kanban-view" aria-hidden="true"></i> Tâches</a>
+  <a href="{% url 'jalons-equipe' equipe.pk %}" {% if onglet == 'jalons' %}aria-current="page"{% endif %}><i class="icon-base ri ri-flag-line" aria-hidden="true"></i> Jalons</a>
+  <a href="{% url 'imprevus-equipe' equipe.pk %}" {% if onglet == 'imprevus' %}aria-current="page"{% endif %}><i class="icon-base ri ri-flashlight-line" aria-hidden="true"></i> Imprévus</a>
+  <a href="{% url 'livrables-equipe' equipe.pk %}" {% if onglet == 'livrables' %}aria-current="page"{% endif %}><i class="icon-base ri ri-file-upload-line" aria-hidden="true"></i> Livrables</a>
+</nav>

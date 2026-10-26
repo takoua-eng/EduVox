@@ -1,0 +1,31 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Livrables – {{ equipe.nom }}{% endblock %}
+{% block corps %}
+{% include "challenges/_entete_equipe.html" %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <h2 class="h5 mb-0">Livrables de l'équipe</h2>
+  {% if peut_deposer %}<a href="{% url 'creer-livrable' equipe.pk %}" class="btn btn-primary btn-sm"><i class="icon-base ri ri-upload-2-line me-1" aria-hidden="true"></i> Nouveau livrable</a>{% endif %}
+</div>
+{% if livrables %}
+<div class="table-responsive es-panneau p-0">
+  <table class="table align-middle mb-0">
+    <caption class="visually-hidden">Livrables, dernière version visible et état</caption>
+    <thead><tr><th scope="col">Livrable</th><th scope="col">Jalon</th><th scope="col">Dernière version</th><th scope="col">État</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+    <tbody>
+      {% for l in livrables %}
+      <tr>
+        <td><a href="{% url 'detail-livrable' l.pk %}">{{ l.titre }}</a></td>
+        <td>{{ l.jalon.titre|default:"Livrable final" }}</td>
+        <td>v{{ l.derniere.numero }}{% if l.derniere.date_soumission %} · {{ l.derniere.date_soumission|date:"d/m H:i" }}{% endif %}{% if l.derniere.en_retard %} <span class="es-badge es-badge--erreur">En retard</span>{% endif %}</td>
+        <td>{% badge l.derniere.etat l.derniere.get_etat_display %}</td>
+        <td class="text-end"><a href="{% url 'detail-livrable' l.pk %}" class="btn btn-sm btn-outline-primary">Historique<span class="visually-hidden"> de {{ l.titre }}</span></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="es-vide"><i class="icon-base ri ri-file-upload-line" aria-hidden="true"></i><p class="mb-0">{% if membre %}Aucun livrable pour le moment.{% else %}Aucune version soumise par cette équipe.{% endif %}</p></div>
+{% endif %}
+{% endblock corps %}

@@ -1,0 +1,38 @@
+{% extends "challenges/_base.html" %}
+{% block titre_page %}Imprévu{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › <a href="{% url 'evenements-defi' defi.pk %}">Imprévus</a> › {% if evenement %}Modifier{% else %}Nouveau{% endif %}</nav>
+<h1 class="h3 mb-2">{% if evenement %}Modifier l'imprévu{% else %}Nouvel imprévu{% endif %}</h1>
+<p class="es-aide mb-4">L'imprévu est enregistré en brouillon.{% if evenement.etat == 'valide' %} <strong>Il est déjà validé : toute modification du contenu le ramènera en brouillon et imposera une nouvelle validation.</strong>{% endif %}</p>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% include "challenges/_erreurs_formulaire.html" %}
+  <fieldset class="es-panneau mb-4">
+    <legend class="h6 mb-3">Contenu communiqué aux équipes</legend>
+    <div class="row">
+      <div class="col-md-8">{% include "challenges/_champ.html" with champ=form.titre %}</div>
+      <div class="col-md-4">{% include "challenges/_champ.html" with champ=form.type_contrainte %}</div>
+    </div>
+    {% include "challenges/_champ.html" with champ=form.description %}
+    <div class="row">
+      <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.impacts_attendus %}</div>
+      <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.elements_attendus %}</div>
+    </div>
+    {% include "challenges/_champ.html" with champ=form.echeance_reponse %}
+    {% include "challenges/_champ.html" with champ=form.justification classe="mb-0" %}
+  </fieldset>
+  <fieldset class="es-panneau mb-4">
+    <legend class="h6 mb-1">Changement réel appliqué à la publication (facultatif)</legend>
+    <p class="es-aide small">Saisi par l'enseignant uniquement, appliqué et tracé au moment de la publication.</p>
+    <div class="row">
+      <div class="col-md-4">{% include "challenges/_champ.html" with champ=form.jalon_concerne %}</div>
+      <div class="col-md-4">{% include "challenges/_champ.html" with champ=form.nouvelle_echeance %}</div>
+      <div class="col-md-4">{% include "challenges/_champ.html" with champ=form.nouveau_budget %}</div>
+    </div>
+  </fieldset>
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">Enregistrer le brouillon</button>
+    <a href="{% if evenement %}{% url 'detail-evenement' evenement.pk %}{% else %}{% url 'evenements-defi' defi.pk %}{% endif %}" class="btn btn-outline-secondary">Annuler</a>
+  </div>
+</form>
+{% endblock corps %}

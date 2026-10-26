@@ -1,0 +1,9 @@
+<fieldset class="mb-2">
+  <legend class="h6">Contenu de la version</legend>
+  <p class="es-aide small">Au moins un des trois : fichier, lien ou contenu textuel.</p>
+  {% include "challenges/_champ.html" with champ=form.fichier %}
+  {% if form.retirer_fichier %}{% include "challenges/_champ.html" with champ=form.retirer_fichier %}{% endif %}
+  {% include "challenges/_champ.html" with champ=form.lien %}
+  {% include "challenges/_champ.html" with champ=form.texte %}
+  {% include "challenges/_champ.html" with champ=form.note_equipe %}
+</fieldset>
