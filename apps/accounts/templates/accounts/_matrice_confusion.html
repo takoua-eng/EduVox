@@ -1,0 +1,24 @@
+<div class="table-responsive">
+  <table class="table table-bordered text-center mb-0">
+    <caption class="caption-top text-body-secondary">{{ titre }}</caption>
+    <thead>
+      <tr>
+        <td></td>
+        <th scope="col">Prédit : {{ positif|lower }}</th>
+        <th scope="col">Prédit : {{ negatif|lower }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <th scope="row" class="text-start">Réel : {{ positif|lower }}</th>
+        <td class="bg-label-success">VP = {{ m.matrice.VP }}</td>
+        <td class="bg-label-danger">FN = {{ m.matrice.FN }}</td>
+      </tr>
+      <tr>
+        <th scope="row" class="text-start">Réel : {{ negatif|lower }}</th>
+        <td class="bg-label-danger">FP = {{ m.matrice.FP }}</td>
+        <td class="bg-label-success">VN = {{ m.matrice.VN }}</td>
+      </tr>
+    </tbody>
+  </table>
+</div>

@@ -6,15 +6,9 @@ import re
 import secrets
 import unicodedata
 
-from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
-from django.core.mail import send_mail
 from django.core.validators import validate_email
 from django.db import transaction
-from django.template.loader import render_to_string
-from django.urls import reverse
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 
 from .forms import creer_profil
 from .models import Utilisateur
@@ -146,10 +140,8 @@ def importer(lignes, role_par_defaut=Utilisateur.Role.ETUDIANT):
 
 
 def envoyer_invitation(request, user):
-    """E-mail de bienvenue avec un lien pour choisir son mot de passe."""
-    lien = request.build_absolute_uri(reverse("mdp-reinitialiser", args=[
-        urlsafe_base64_encode(force_bytes(user.pk)), default_token_generator.make_token(user),
-    ]))
-    message = render_to_string("accounts/emails/invitation.txt", {"user": user, "lien": lien,
-                                                                  "connexion": request.build_absolute_uri(reverse("connexion"))})
-    send_mail("Bienvenue sur EduVox – Activez votre compte", message, None, [user.email], fail_silently=True)
+    """E-mail de bienvenue avec un lien pour choisir son mot de passe (envoyé en arrière-plan)."""
+    from .emails import envoyer_en_arriere_plan, racine_site
+    from .tasks import email_invitation
+
+    envoyer_en_arriere_plan(email_invitation, user.pk, racine_site(request))

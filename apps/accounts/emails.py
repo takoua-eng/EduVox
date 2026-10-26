@@ -1,17 +1,25 @@
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.urls import reverse
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
+"""Envoi des e-mails du module en arrière-plan (tâches Celery de tasks.py)."""
 
-from .tokens import jeton_verification_email
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def racine_site(request):
+    """« https://exemple.com » : les tâches construisent les liens sans avoir la requête."""
+    return request.build_absolute_uri("/").rstrip("/")
+
+
+def envoyer_en_arriere_plan(tache, *arguments):
+    """Confie l'e-mail à Celery ; si Celery est injoignable, il est envoyé tout de suite (rien n'est perdu)."""
+    try:
+        tache.delay(*arguments)
+    except Exception:
+        logger.exception("E-mail %s non confié à Celery : envoi direct", tache.name)
+        tache.apply(args=arguments)
 
 
 def envoyer_email_verification(request, user):
-    uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = jeton_verification_email.make_token(user)
-    lien = request.build_absolute_uri(reverse("verifier-email", args=[uid, token]))
-    message = render_to_string(
-        "accounts/emails/verification_email.txt", {"user": user, "lien": lien}
-    )
-    send_mail("EduVox – Confirmez votre adresse e-mail", message, None, [user.email])
+    from .tasks import email_verification
+
+    envoyer_en_arriere_plan(email_verification, user.pk, racine_site(request))
