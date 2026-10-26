@@ -1,0 +1,95 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}{{ equipe.nom }}{% endblock %}
+{% block corps %}
+{% include "challenges/_entete_equipe.html" %}
+
+<div class="row g-4 mb-5">
+  <div class="col-sm-6 col-xl-3"><div class="es-kpi"><span class="es-kpi-icone es-kpi-icone--vert"><i class="icon-base ri ri-checkbox-circle-line" aria-hidden="true"></i></span><div><div class="es-kpi-valeur">{{ taches_terminees }}/{{ taches_total }}</div><div class="es-kpi-libelle">tâches terminées ({{ progression }} %)</div></div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="es-kpi"><span class="es-kpi-icone {% if taches_en_retard %}es-kpi-icone--rouge{% endif %}"><i class="icon-base ri ri-alarm-warning-line" aria-hidden="true"></i></span><div><div class="es-kpi-valeur">{{ taches_en_retard }}</div><div class="es-kpi-libelle">tâche{{ taches_en_retard|pluralize }} en retard</div></div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="es-kpi"><span class="es-kpi-icone"><i class="icon-base ri ri-flag-line" aria-hidden="true"></i></span><div><div class="es-kpi-valeur">{% if prochain_jalon %}{{ prochain_jalon.echeance|date:"d/m" }}{% else %}—{% endif %}</div><div class="es-kpi-libelle">{% if prochain_jalon %}prochain jalon : {{ prochain_jalon.titre|truncatechars:28 }}{% else %}aucun jalon à venir{% endif %}</div></div></div></div>
+  <div class="col-sm-6 col-xl-3"><div class="es-kpi"><span class="es-kpi-icone {% if imprevus_sans_reponse %}es-kpi-icone--ambre{% endif %}"><i class="icon-base ri ri-flashlight-line" aria-hidden="true"></i></span><div><div class="es-kpi-valeur">{{ imprevus_sans_reponse }}</div><div class="es-kpi-libelle">imprévu{{ imprevus_sans_reponse|pluralize }} sans réponse soumise</div></div></div></div>
+</div>
+
+<div class="row g-5">
+  <div class="col-lg-7">
+    <section class="es-panneau" aria-labelledby="titre-avancement">
+      <h2 id="titre-avancement">Avancement des tâches</h2>
+      <div class="es-progression mb-3" role="progressbar" aria-label="Tâches terminées" aria-valuenow="{{ progression }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ progression }}%"></span></div>
+      <ul class="list-inline mb-0">{% for statut, libelle, n in colonnes_compte %}<li class="list-inline-item me-3">{% badge statut libelle %} <strong>{{ n }}</strong></li>{% endfor %}</ul>
+      {% if peut_contribuer %}<a href="{% url 'creer-tache' equipe.pk %}" class="btn btn-sm btn-primary mt-3"><i class="icon-base ri ri-add-line me-1" aria-hidden="true"></i> Nouvelle tâche</a>{% endif %}
+    </section>
+    <section class="es-panneau" aria-labelledby="titre-livrables-vue">
+      <h2 id="titre-livrables-vue">Livrables</h2>
+      {% if livrables %}
+      <ul class="list-unstyled mb-0">
+        {% for l in livrables %}{% if l.derniere %}
+        <li class="d-flex justify-content-between flex-wrap gap-2 py-2 border-top">
+          <a href="{% url 'detail-livrable' l.pk %}">{{ l.titre }}</a>
+          <span>v{{ l.derniere.numero }} {% badge l.derniere.etat l.derniere.get_etat_display %}</span>
+        </li>{% endif %}
+        {% endfor %}
+      </ul>
+      {% else %}<p class="es-aide mb-0">Aucun livrable déposé.{% if peut_deposer %} <a href="{% url 'creer-livrable' equipe.pk %}">Déposer un premier livrable</a>{% endif %}</p>{% endif %}
+    </section>
+  </div>
+  <div class="col-lg-5">
+    <section class="es-panneau" aria-labelledby="titre-membres">
+      <h2 id="titre-membres">Membres ({{ membres|length }}/{{ defi.taille_max }})</h2>
+      <ul class="list-unstyled mb-0">
+        {% for p in membres %}
+        <li class="d-flex align-items-center justify-content-between gap-2 py-2 border-top">
+          <span class="d-flex align-items-center gap-2"><span class="es-avatar" aria-hidden="true">{{ p.etudiant|initiales }}</span>
+            <span>{{ p.etudiant|nom_utilisateur }}{% if p.etudiant_id == equipe.coordinateur_id %} <span class="es-badge es-badge--fin">Coordination</span>{% endif %}{% if p.role and p.etudiant_id != equipe.coordinateur_id %}<br><span class="small text-body-secondary">{{ p.role }}</span>{% endif %}</span></span>
+          {% if coordinateur and p.etudiant_id != request.user.pk and defi.statut == 'inscriptions' %}
+          <form method="post" action="{% url 'exclure-membre' p.pk %}" data-confirm="{{ p.etudiant|nom_utilisateur }} quittera l'équipe ; ses contributions sont conservées." data-confirm-titre="Retirer ce membre ?" data-confirm-bouton="Retirer">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger">Retirer<span class="visually-hidden"> {{ p.etudiant|nom_utilisateur }}</span></button></form>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% if membre and peut_contribuer %}
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        {% if coordinateur %}<a href="{% url 'modifier-equipe' equipe.pk %}" class="btn btn-sm btn-outline-primary">Modifier l'équipe</a>{% endif %}
+        {% if not equipe.coordinateur %}
+        <form method="post" action="{% url 'reprendre-coordination' equipe.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-primary">Reprendre la coordination vacante</button></form>
+        {% endif %}
+        <form method="post" action="{% url 'quitter-equipe' equipe.pk %}" data-confirm="Vos tâches redeviendront non affectées ; votre travail reste dans l'historique." data-confirm-titre="Quitter l'équipe ?" data-confirm-bouton="Quitter">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-secondary">Quitter l'équipe</button></form>
+      </div>
+      {% endif %}
+    </section>
+
+    {% if coordinateur and transfert_form and transfert_form.fields.nouveau.queryset.exists and peut_contribuer %}
+    <section class="es-panneau" aria-labelledby="titre-transfert">
+      <h2 id="titre-transfert">Transférer la coordination</h2>
+      <form method="post" action="{% url 'transferer-coordination' equipe.pk %}" class="d-flex gap-2 align-items-end" data-confirm="Vous resterez membre ; le nouveau coordinateur gérera les adhésions et les soumissions." data-confirm-titre="Transférer la coordination ?" data-confirm-type="primary" data-confirm-bouton="Transférer">
+        {% csrf_token %}
+        <div class="flex-grow-1">{% include "challenges/_champ.html" with champ=transfert_form.nouveau classe="mb-0" %}</div>
+        <button type="submit" class="btn btn-outline-primary">Transférer</button>
+      </form>
+    </section>
+    {% endif %}
+
+    {% if coordinateur %}
+    <section class="es-panneau" aria-labelledby="titre-demandes">
+      <h2 id="titre-demandes">Demandes d'adhésion ({{ demandes|length }})</h2>
+      {% for d in demandes %}
+      <div class="border-top py-2">
+        <p class="mb-1"><strong>{{ d.etudiant|nom_utilisateur }}</strong> <span class="small text-body-secondary">— le {{ d.date_demande|date:"d/m H:i" }}</span></p>
+        {% if d.message %}<p class="small mb-2 es-texte-long">« {{ d.message }} »</p>{% endif %}
+        <div class="d-flex flex-wrap gap-2">
+          <form method="post" action="{% url 'accepter-demande' d.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-success" {% if membres|length >= defi.taille_max %}disabled aria-disabled="true"{% endif %}>Accepter<span class="visually-hidden"> {{ d.etudiant|nom_utilisateur }}</span></button></form>
+          <form method="post" action="{% url 'refuser-demande' d.pk %}" class="d-flex gap-2">{% csrf_token %}
+            <label for="motif-{{ d.pk }}" class="visually-hidden">Motif du refus pour {{ d.etudiant|nom_utilisateur }}</label>
+            <input type="text" id="motif-{{ d.pk }}" name="motif" maxlength="200" class="form-control form-control-sm" placeholder="Motif (facultatif)">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Refuser<span class="visually-hidden"> {{ d.etudiant|nom_utilisateur }}</span></button>
+          </form>
+        </div>
+      </div>
+      {% empty %}<p class="es-aide mb-0">Aucune demande en attente.</p>
+      {% endfor %}
+      {% if membres|length >= defi.taille_max %}<p class="small es-aide mt-2 mb-0">L'équipe est complète.</p>{% endif %}
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock corps %}

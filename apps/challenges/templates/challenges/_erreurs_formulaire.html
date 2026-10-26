@@ -1,0 +1,13 @@
+{# Résumé des erreurs : reçoit le focus, liens vers les champs concernés #}
+{% if form.errors or formset.non_form_errors or formset.total_error_count %}
+<div class="alert alert-danger" role="alert" tabindex="-1" id="resume-erreurs">
+  <h2 class="h6 mb-2"><i class="icon-base ri ri-error-warning-line me-1" aria-hidden="true"></i> Le formulaire contient des erreurs</h2>
+  <ul class="mb-0">
+    {% for erreur in form.non_field_errors %}<li>{{ erreur }}</li>{% endfor %}
+    {% for champ in form %}{% if champ.errors %}<li><a href="#{{ champ.id_for_label }}" class="alert-link">{{ champ.label|capfirst }}</a> : {{ champ.errors|join:" " }}</li>{% endif %}{% endfor %}
+    {% for erreur in formset.non_form_errors %}<li>{{ erreur }}</li>{% endfor %}
+    {% for sous in formset.forms %}{% for champ in sous %}{% if champ.errors %}<li><a href="#{{ champ.id_for_label }}" class="alert-link">Jalon {{ forloop.parentloop.counter }} – {{ champ.label|capfirst }}</a> : {{ champ.errors|join:" " }}</li>{% endif %}{% endfor %}{% endfor %}
+  </ul>
+</div>
+<script>document.addEventListener("DOMContentLoaded", function () { var r = document.getElementById("resume-erreurs"); if (r) r.focus(); });</script>
+{% endif %}

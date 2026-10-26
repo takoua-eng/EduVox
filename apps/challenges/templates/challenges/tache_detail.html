@@ -1,0 +1,55 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}{{ tache.titre }}{% endblock %}
+{% block corps %}
+{% include "challenges/_entete_equipe.html" %}
+<div class="row g-5">
+  <div class="col-lg-8">
+    <article class="es-panneau" aria-labelledby="titre-tache">
+      <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+        <h2 id="titre-tache" class="h5 mb-0">{{ tache.titre }}</h2>
+        <div class="d-flex gap-2">{% badge tache.statut tache.get_statut_display %}{% badge tache.priorite tache.get_priorite_display %}</div>
+      </div>
+      <p class="es-texte-long">{{ tache.description|default:"Pas de description." }}</p>
+      <dl class="row small mb-0">
+        <dt class="col-sm-4">Responsable</dt><dd class="col-sm-8">{% if tache.responsable %}{{ tache.responsable|nom_utilisateur }}{% else %}Non affectée{% endif %}</dd>
+        <dt class="col-sm-4">Jalon</dt><dd class="col-sm-8">{{ tache.jalon.titre|default:"—" }}</dd>
+        <dt class="col-sm-4">Échéance</dt><dd class="col-sm-8 {% if tache.en_retard %}es-retard{% endif %}">{{ tache.echeance|date:"d/m/Y"|default:"—" }}{% if tache.en_retard %} (en retard){% endif %}</dd>
+        <dt class="col-sm-4">Créée par</dt><dd class="col-sm-8">{{ tache.cree_par|nom_utilisateur }}, le {{ tache.date_creation|date:"d/m/Y H:i" }}</dd>
+        {% if tache.date_terminee %}<dt class="col-sm-4">Terminée le</dt><dd class="col-sm-8">{{ tache.date_terminee|date:"d/m/Y H:i" }}</dd>{% endif %}
+      </dl>
+      {% if peut_modifier or peut_supprimer %}
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        {% if peut_modifier %}
+          {% if precedent %}<form method="post" action="{% url 'deplacer-tache' tache.pk %}">{% csrf_token %}<input type="hidden" name="statut" value="{{ precedent }}"><input type="hidden" name="suivant" value="{% url 'detail-tache' tache.pk %}"><button type="submit" class="btn btn-sm btn-outline-secondary">← {% for s, l in libelles_statuts.items %}{% if s == precedent %}{{ l }}{% endif %}{% endfor %}</button></form>{% endif %}
+          {% if suivant %}<form method="post" action="{% url 'deplacer-tache' tache.pk %}">{% csrf_token %}<input type="hidden" name="statut" value="{{ suivant }}"><input type="hidden" name="suivant" value="{% url 'detail-tache' tache.pk %}"><button type="submit" class="btn btn-sm btn-primary">{% for s, l in libelles_statuts.items %}{% if s == suivant %}{{ l }}{% endif %}{% endfor %} →</button></form>{% endif %}
+          <a href="{% url 'modifier-tache' tache.pk %}" class="btn btn-sm btn-outline-primary">Modifier</a>
+        {% endif %}
+        {% if peut_supprimer %}
+        <form method="post" action="{% url 'supprimer-tache' tache.pk %}" data-confirm="La tâche « {{ tache.titre }} » sera supprimée." data-confirm-titre="Supprimer la tâche ?" data-confirm-bouton="Supprimer">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger">Supprimer</button></form>
+        {% endif %}
+      </div>
+      {% endif %}
+    </article>
+  </div>
+  <div class="col-lg-4">
+    <section class="es-panneau" id="commentaires" aria-labelledby="titre-commentaires">
+      <h2 id="titre-commentaires">Commentaires ({{ commentaires|length }})</h2>
+      {% for c in commentaires %}
+      <div class="border-top py-2">
+        <p class="small mb-1"><strong>{{ c.auteur|nom_utilisateur }}</strong> <span class="text-body-secondary">— {{ c.date_creation|date:"d/m H:i" }}</span></p>
+        <p class="mb-0 es-texte-long small">{{ c.contenu }}</p>
+      </div>
+      {% empty %}<p class="es-aide small">Aucun commentaire.</p>
+      {% endfor %}
+      {% if peut_commenter %}
+      <form method="post" novalidate class="mt-3">
+        {% csrf_token %}
+        {% include "challenges/_champ.html" with champ=form.contenu classe="mb-2" %}
+        <button type="submit" class="btn btn-sm btn-primary">Commenter</button>
+      </form>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock corps %}

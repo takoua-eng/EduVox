@@ -1,0 +1,48 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Réponse d'adaptation{% endblock %}
+{% block corps %}
+{% include "challenges/_entete_equipe.html" %}
+<div class="row g-5">
+  <div class="col-lg-5">
+    <section class="es-panneau" aria-labelledby="titre-imprevu">
+      <span class="es-badge es-badge--fin mb-2">{{ evenement.get_type_contrainte_display }}</span>
+      <h2 id="titre-imprevu">{{ evenement.titre }}</h2>
+      <p class="es-texte-long small">{{ evenement.description }}</p>
+      {% if evenement.echeance_reponse %}<p class="small">Réponse attendue avant le <strong>{{ evenement.echeance_reponse|date:"d/m/Y H:i" }}</strong>.</p>{% endif %}
+      {% if evenement.elements_liste %}<p class="small fw-semibold mb-1">Éléments attendus</p><ul class="es-liste small mb-0">{% for x in evenement.elements_liste %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+    </section>
+  </div>
+  <div class="col-lg-7">
+    <section class="es-panneau" aria-labelledby="titre-reponse">
+      <div class="d-flex flex-wrap justify-content-between gap-2 mb-3">
+        <h2 id="titre-reponse" class="mb-0">Réponse de l'équipe</h2>
+        {% if reponse %}{% badge reponse.etat reponse.get_etat_display %}{% else %}{% badge 'brouillon' 'Pas encore commencée' %}{% endif %}
+      </div>
+      {% if modifiable %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% include "challenges/_erreurs_formulaire.html" %}
+        {% include "challenges/_champ.html" with champ=form.analyse_impact %}
+        {% include "challenges/_champ.html" with champ=form.decisions %}
+        {% include "challenges/_champ.html" with champ=form.adaptation_planning %}
+        <p class="es-aide small">Tous les membres peuvent compléter ce brouillon. {% if reponse %}Dernière modification : {{ reponse.modifie_par|nom_utilisateur }}, le {{ reponse.date_modification|date:"d/m H:i" }}.{% endif %}</p>
+        <button type="submit" class="btn btn-outline-primary"><i class="icon-base ri ri-save-line me-1" aria-hidden="true"></i> Enregistrer le brouillon</button>
+      </form>
+      {% if peut_soumettre %}
+      <form method="post" action="{% url 'soumettre-reponse' evenement.pk equipe.pk %}" class="mt-3" data-confirm="La réponse ne pourra plus être modifiée après soumission." data-confirm-titre="Soumettre la réponse ?" data-confirm-type="primary" data-confirm-bouton="Soumettre">
+        {% csrf_token %}<button type="submit" class="btn btn-primary"><i class="icon-base ri ri-send-plane-line me-1" aria-hidden="true"></i> Soumettre à l'enseignant</button>
+      </form>
+      {% elif reponse and membre and reponse.etat == 'brouillon' %}<p class="small es-aide mt-3 mb-0">Le coordinateur soumet la réponse au nom de l'équipe.</p>{% endif %}
+      {% elif reponse %}
+      <h3 class="h6">Analyse de l'impact</h3><p class="es-texte-long small">{{ reponse.analyse_impact }}</p>
+      <h3 class="h6">Décisions prises</h3><p class="es-texte-long small">{{ reponse.decisions }}</p>
+      <h3 class="h6">Adaptation du planning</h3><p class="es-texte-long small">{{ reponse.adaptation_planning }}</p>
+      {% if reponse.date_soumission %}<p class="small text-body-secondary mb-0">Soumise par {{ reponse.soumis_par|nom_utilisateur }} le {{ reponse.date_soumission|date:"d/m/Y H:i" }}{% if reponse.en_retard %} — <span class="es-retard">après l'échéance</span>{% endif %}.</p>{% endif %}
+      {% else %}
+      <p class="es-aide mb-0">L'équipe ne peut plus répondre à cet imprévu.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock corps %}

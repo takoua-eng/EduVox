@@ -1,0 +1,72 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Suivi des équipes{% endblock %}
+{% block corps %}
+<section class="es-hero mb-5" aria-labelledby="titre-suivi">
+  <nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a> › <a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › Suivi</nav>
+  <h1 id="titre-suivi" class="h3 mb-2">Suivi des équipes</h1>
+  <p class="mb-0">{% badge defi.statut defi.get_statut_display %} Indicateurs propres à ce défi : tâches, jalons, dépôts et réponses aux imprévus.</p>
+  {% if gestion %}<div class="d-flex flex-wrap gap-2 mt-3"><a href="{% url 'evenements-defi' defi.pk %}" class="btn btn-light btn-sm"><i class="icon-base ri ri-flashlight-line me-1" aria-hidden="true"></i> Imprévus</a></div>{% endif %}
+</section>
+
+<section class="es-panneau mb-5" aria-labelledby="titre-relire">
+  <h2 id="titre-relire"><i class="icon-base ri ri-inbox-archive-line me-1" aria-hidden="true"></i> Versions à relire ({{ a_relire|length }})</h2>
+  {% if a_relire %}
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <caption class="visually-hidden">Versions soumises en attente de retour</caption>
+      <thead><tr><th scope="col">Équipe</th><th scope="col">Livrable</th><th scope="col">Version</th><th scope="col">Soumise le</th><th scope="col"><span class="visually-hidden">Action</span></th></tr></thead>
+      <tbody>
+        {% for v in a_relire %}
+        <tr>
+          <td>{{ v.livrable.equipe.nom }}</td>
+          <td>{{ v.livrable.titre }}{% if v.livrable.jalon %} <span class="small text-body-secondary">({{ v.livrable.jalon.titre }})</span>{% endif %}</td>
+          <td>v{{ v.numero }}</td>
+          <td>{{ v.date_soumission|date:"d/m/Y H:i" }} {% if v.en_retard %}<span class="es-badge es-badge--erreur"><i class="icon-base ri ri-alarm-warning-line" aria-hidden="true"></i>En retard</span>{% endif %}</td>
+          <td class="text-end"><a href="{% url 'detail-livrable' v.livrable_id %}#version-{{ v.pk }}" class="btn btn-sm btn-primary">Relire<span class="visually-hidden"> {{ v.livrable.titre }} de {{ v.livrable.equipe.nom }}</span></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}<p class="es-aide mb-0">Aucune version en attente de retour.</p>{% endif %}
+</section>
+
+<h2 class="h5 mb-3">Équipes ({{ equipes|length }})</h2>
+{% if equipes %}
+<div class="row g-4">
+  {% for equipe in equipes %}
+  <div class="col-xl-6">
+    <article class="es-panneau h-100" aria-labelledby="equipe-{{ equipe.pk }}">
+      <div class="d-flex justify-content-between flex-wrap gap-2 mb-2">
+        <h3 id="equipe-{{ equipe.pk }}" class="mb-0">{{ equipe.nom }}</h3>
+        <div class="d-flex gap-2 flex-wrap">{% badge equipe.statut equipe.get_statut_display %}{% if equipe.attente %}<span class="es-badge es-badge--attente">{{ equipe.attente }} demande{{ equipe.attente|pluralize }}</span>{% endif %}</div>
+      </div>
+      <p class="small mb-2"><strong>{{ equipe.nb }}</strong> membre{{ equipe.nb|pluralize }} :
+        {% for p in equipe.membres_liste %}{{ p.etudiant|nom_utilisateur }}{% if p.etudiant_id == equipe.coordinateur_id %} (coordination){% endif %}{% if not forloop.last %}, {% endif %}{% empty %}aucun{% endfor %}</p>
+      <div class="mb-1 d-flex justify-content-between small"><span>Tâches terminées</span><span>{{ equipe.taches_terminees }}/{{ equipe.taches_total }} ({{ equipe.progression }} %)</span></div>
+      <div class="es-progression mb-3" role="progressbar" aria-label="Tâches terminées par {{ equipe.nom }}" aria-valuenow="{{ equipe.progression }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ equipe.progression }}%"></span></div>
+      <ul class="list-inline small mb-3">
+        <li class="list-inline-item"><i class="icon-base ri ri-inbox-line" aria-hidden="true"></i> {{ equipe.a_relire }} à relire</li>
+        <li class="list-inline-item"><i class="icon-base ri ri-checkbox-circle-line" aria-hidden="true"></i> {{ equipe.acceptes }} accepté{{ equipe.acceptes|pluralize }}</li>
+        <li class="list-inline-item {% if equipe.retards %}es-retard{% endif %}"><i class="icon-base ri ri-alarm-warning-line" aria-hidden="true"></i> {{ equipe.retards }} dépôt{{ equipe.retards|pluralize }} tardif{{ equipe.retards|pluralize }}</li>
+      </ul>
+      {% if equipe.reponses %}
+      <p class="small fw-semibold mb-1">Réponses aux imprévus</p>
+      <ul class="list-unstyled small mb-3">
+        {% for evenement, reponse in equipe.reponses %}
+        <li>{{ evenement.titre }} :
+          {% if reponse %}<a href="{% url 'reponse-evenement' evenement.pk equipe.pk %}">{% badge 'soumise' 'Soumise' %}</a>{% if reponse.en_retard %} <span class="es-badge es-badge--erreur">En retard</span>{% endif %}
+          {% else %}{% badge 'en_attente' 'Pas encore soumise' %}{% endif %}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <a href="{% url 'espace-equipe' equipe.pk %}" class="btn btn-sm btn-outline-primary">Ouvrir l'espace<span class="visually-hidden"> de {{ equipe.nom }}</span></a>
+    </article>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="es-vide"><i class="icon-base ri ri-team-line" aria-hidden="true"></i><p class="mb-0">Aucune équipe inscrite pour l'instant.</p></div>
+{% endif %}
+{% endblock corps %}

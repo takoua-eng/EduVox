@@ -1,0 +1,40 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Brief proposé par l'IA{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a> › Brief IA</nav>
+<h1 class="h3 mb-2">Faire proposer un brief par l'IA</h1>
+<p class="es-aide mb-4">Gemini propose titre, contexte, objectifs, compétences, contraintes, jalons et livrables. Vous relisez et modifiez tout dans un aperçu ; le défi est ensuite enregistré en <strong>brouillon</strong>. Rien n'est publié automatiquement.</p>
+{% if not ia_disponible %}
+<div class="alert alert-warning" role="status">L'IA n'est pas configurée sur ce serveur (clé Gemini absente). <a href="{% url 'creer-defi' %}" class="alert-link">Créez le défi manuellement</a>.</div>
+{% endif %}
+<div class="row g-5">
+  <div class="col-lg-7">
+    <form method="post" novalidate class="es-panneau">
+      {% csrf_token %}
+      {% include "challenges/_erreurs_formulaire.html" %}
+      {% include "challenges/_champ.html" with champ=form.theme %}
+      <div class="row">
+        <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.niveau %}</div>
+        <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.duree_jours %}</div>
+        <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.taille_min %}</div>
+        <div class="col-md-6">{% include "challenges/_champ.html" with champ=form.taille_max %}</div>
+      </div>
+      {% include "challenges/_champ.html" with champ=form.contraintes %}
+      {% include "challenges/_champ.html" with champ=form.date_debut %}
+      <p class="es-ia-avis"><i class="icon-base ri ri-information-line" aria-hidden="true"></i> Ces paramètres (et eux seuls) sont envoyés à Google Gemini. N'y mettez aucune donnée personnelle.</p>
+      <button type="submit" class="btn btn-primary" data-chargement="Génération en cours…" {% if not ia_disponible %}disabled aria-disabled="true"{% endif %}><i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> Générer le brief</button>
+    </form>
+  </div>
+  <div class="col-lg-5">
+    <section class="es-panneau" aria-labelledby="titre-recentes">
+      <h2 id="titre-recentes">Mes dernières générations</h2>
+      {% for d in recentes %}
+      <p class="small mb-2 d-flex justify-content-between gap-2 flex-wrap"><a href="{% url 'apercu-brief' d.pk %}">{{ d.parametres.theme|truncatechars:45 }}</a> {% badge d.statut d.get_statut_display %}</p>
+      {% empty %}<p class="es-aide small mb-0">Aucune génération pour l'instant.</p>
+      {% endfor %}
+    </section>
+  </div>
+</div>
+{% endblock corps %}
+{% block scripts %}{% include "challenges/_chargement.html" %}{% endblock %}

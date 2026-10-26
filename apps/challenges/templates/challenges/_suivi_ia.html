@@ -1,0 +1,34 @@
+{# Suivi d'un traitement IA : état annoncé (aria-live), interrogation périodique, rechargement à la fin. #}
+{% load edusprint %}
+<div class="es-panneau" data-etat-ia="{% url 'etat-demande-ia' demande.pk %}" {% if demande.active %}data-actif="1"{% endif %}>
+  <p class="mb-1 d-flex align-items-center gap-2 flex-wrap">
+    {% if demande.active %}<span class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></span>{% endif %}
+    <span>{{ titre|default:"Traitement IA" }} :</span>
+    <span data-libelle role="status" aria-live="polite">{% badge demande.statut demande.get_statut_display %}</span>
+  </p>
+  {% if demande.statut == 'echoue' %}<p class="es-erreur small mb-0" role="alert">{{ demande.message }}</p>{% endif %}
+  {% if demande.active %}<p class="es-aide small mb-0">La page se met à jour automatiquement. Vous pouvez la quitter : le résultat sera conservé.</p>{% endif %}
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("[data-etat-ia][data-actif]").forEach(function (bloc) {
+    if (bloc.dataset.suivi) return;
+    bloc.dataset.suivi = "1";
+    var essais = 0;
+    function interroger() {
+      essais += 1;
+      fetch(bloc.dataset.etatIa, { headers: { "Accept": "application/json" }, credentials: "same-origin" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d) return;
+          var zone = bloc.querySelector("[data-libelle]");
+          if (zone) zone.textContent = d.libelle;
+          if (d.termine) { window.location.reload(); return; }
+          if (essais < 120) setTimeout(interroger, 3000);
+        })
+        .catch(function () { if (essais < 120) setTimeout(interroger, 5000); });
+    }
+    setTimeout(interroger, 2500);
+  });
+});
+</script>

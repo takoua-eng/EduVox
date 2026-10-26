@@ -1,0 +1,17 @@
+{% extends "challenges/_base.html" %}
+{% block titre_page %}Équipe{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a> › <a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › Équipe</nav>
+<h1 class="h3 mb-2">{% if equipe %}Modifier l'équipe{% else %}Créer une équipe{% endif %}</h1>
+<p class="es-aide mb-5">{% if equipe %}Seul le coordinateur modifie la présentation de l'équipe.{% else %}Vous deviendrez coordinateur : vous accepterez les demandes d'adhésion et soumettrez les rendus officiels. Équipes de {{ defi.taille_min }} à {{ defi.taille_max }} membres.{% endif %}</p>
+<form method="post" novalidate class="es-panneau" style="max-width: 640px">
+  {% csrf_token %}
+  {% include "challenges/_erreurs_formulaire.html" %}
+  {% include "challenges/_champ.html" with champ=form.nom %}
+  {% include "challenges/_champ.html" with champ=form.description %}
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">{% if equipe %}Enregistrer{% else %}Créer l'équipe{% endif %}</button>
+    <a href="{% if equipe %}{% url 'espace-equipe' equipe.pk %}{% else %}{% url 'detail-defi' defi.pk %}{% endif %}" class="btn btn-outline-secondary">Annuler</a>
+  </div>
+</form>
+{% endblock corps %}

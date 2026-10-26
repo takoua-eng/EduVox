@@ -1,0 +1,39 @@
+{
+  "_description": "Jeu de cas EduSprint pour évaluer l'IA. Les annotations 'attendu' ont été rédigées à la main ; elles servent de vérité de référence. Aucun résultat n'est inclus : il est produit par la commande evaluer_ia_edusprint --reel.",
+  "briefs": [
+    {"id": "B1", "theme": "Réduire la consommation d'eau d'une université", "niveau": "intermediaire", "duree_jours": 5, "taille_min": 2, "taille_max": 4, "contraintes": "Budget de 2 000 DT ; livrables : proposition, maquette et budget prévisionnel"},
+    {"id": "B2", "theme": "Application mobile de covoiturage entre étudiants", "niveau": "debutant", "duree_jours": 10, "taille_min": 3, "taille_max": 5, "contraintes": ""},
+    {"id": "B3", "theme": "Tableau de bord de suivi énergétique pour une PME industrielle", "niveau": "avance", "duree_jours": 14, "taille_min": 3, "taille_max": 4, "contraintes": "Données anonymisées uniquement"},
+    {"id": "B4", "theme": "Campagne de sensibilisation au tri des déchets dans un lycée", "niveau": "debutant", "duree_jours": 3, "taille_min": 2, "taille_max": 3, "contraintes": "Aucun budget"}
+  ],
+  "evenements": [
+    {"id": "E1", "budget": 2000, "contexte": "Titre : Réduire la consommation d'eau d'une université\nObjectifs :\n- Diagnostiquer les usages\n- Proposer trois actions chiffrées\nBudget : 2000 DT\nDurée : 5 jours, avancement temporel 40 %\nÉquipes actives : 4 ; tâches terminées : 9/20", "precedents": [], "attendu": "Imprévu réalisable en 3 jours, cohérent avec un projet eau."},
+    {"id": "E2", "budget": 2000, "contexte": "Titre : Réduire la consommation d'eau d'une université\nBudget : 2000 DT\nDurée : 5 jours, avancement temporel 60 %", "precedents": [{"titre": "Le budget est réduit de 30 %", "type_contrainte": "budget"}], "attendu": "Imprévu d'un autre type que budget et non redondant."},
+    {"id": "E3", "budget": null, "contexte": "Titre : Campagne de sensibilisation au tri des déchets\nBudget : aucun\nDurée : 3 jours, avancement temporel 30 %", "precedents": [], "attendu": "Pas de réduction de budget (le défi n'en a pas) ; une proposition de type budget doit être rejetée par le serveur."}
+  ],
+  "dossiers": [
+    {"id": "D1", "nature": "complet",
+     "exigences": [{"id": "O1", "source": "Objectif", "libelle": "Diagnostiquer les usages de l'eau"},
+                   {"id": "O2", "source": "Objectif", "libelle": "Proposer trois actions chiffrées"},
+                   {"id": "C1", "source": "Contrainte", "libelle": "Respecter un budget de 2 000 DT"}],
+     "texte": "Diagnostic : nous avons relevé les compteurs des 6 bâtiments ; les sanitaires représentent 58 % de la consommation. Actions proposées : 1) mousseurs sur 120 robinets (480 DT), 2) détection des fuites (600 DT), 3) récupération d'eau de pluie pour l'arrosage (850 DT). Coût total : 1 930 DT, sous le budget de 2 000 DT.",
+     "attendu": {"O1": "couverte", "O2": "couverte", "C1": "couverte"}},
+    {"id": "D2", "nature": "incomplet",
+     "exigences": [{"id": "O1", "source": "Objectif", "libelle": "Diagnostiquer les usages de l'eau"},
+                   {"id": "O2", "source": "Objectif", "libelle": "Proposer trois actions chiffrées"},
+                   {"id": "C1", "source": "Contrainte", "libelle": "Respecter un budget de 2 000 DT"}],
+     "texte": "Nous proposons d'installer des mousseurs et de sensibiliser les étudiants par des affiches. Le coût sera précisé plus tard.",
+     "attendu": {"O1": "non_couverte", "O2": "partielle", "C1": "non_verifiable"}},
+    {"id": "D3", "nature": "incomplet",
+     "exigences": [{"id": "J1", "source": "Jalon", "libelle": "Maquette des écrans principaux"},
+                   {"id": "J2", "source": "Jalon", "libelle": "Parcours utilisateur de réservation d'un trajet"}],
+     "texte": "Parcours de réservation : l'étudiant choisit son point de départ, voit les trajets disponibles, réserve une place et reçoit une confirmation. Les maquettes seront réalisées au prochain jalon.",
+     "attendu": {"J1": "non_couverte", "J2": "couverte"}},
+    {"id": "D4", "nature": "complet avec incohérence",
+     "exigences": [{"id": "L1", "source": "Livrable", "libelle": "Budget prévisionnel détaillé"},
+                   {"id": "C1", "source": "Contrainte", "libelle": "Respecter un budget de 2 000 DT"}],
+     "texte": "Budget prévisionnel : capteurs 900 DT, installation 700 DT, communication 650 DT. Total : 1 950 DT.",
+     "attendu": {"L1": "couverte", "C1": "partielle"},
+     "remarque": "Le total réel est 2 250 DT : une incohérence devrait être signalée et C1 n'est pas respectée."}
+  ]
+}

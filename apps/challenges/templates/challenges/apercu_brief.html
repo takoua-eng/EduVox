@@ -1,0 +1,41 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Aperçu du brief{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'catalogue-defis' %}">Défis</a> › <a href="{% url 'generer-brief' %}">Brief IA</a> › Aperçu</nav>
+<h1 class="h3 mb-2">Brief proposé : « {{ demande.parametres.theme }} »</h1>
+
+{% if demande.active or demande.statut == 'echoue' %}
+  {% include "challenges/_suivi_ia.html" with demande=demande titre="Génération du brief" %}
+  {% if demande.statut == 'echoue' %}<p class="mt-3"><a href="{% url 'generer-brief' %}" class="btn btn-primary btn-sm">Réessayer</a> <a href="{% url 'creer-defi' %}" class="btn btn-outline-secondary btn-sm">Créer manuellement</a></p>{% endif %}
+{% elif demande.defi_cree_id %}
+  <div class="alert alert-success" role="status">Ce brief a déjà été enregistré. <a href="{% url 'detail-defi' demande.defi_cree_id %}" class="alert-link">Ouvrir le défi brouillon</a>.</div>
+{% elif form %}
+<p class="es-aide mb-4">Proposition générée par {{ demande.modele }} en {{ demande.duree_ms|default:0 }} ms. <strong>Relisez et modifiez librement</strong> : les délais relatifs des jalons ont été convertis en dates à partir du {{ form.date_debut.value|date:"d/m/Y H:i" }}. L'enregistrement crée un défi <strong>brouillon</strong>, jamais publié automatiquement.</p>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% include "challenges/_erreurs_formulaire.html" %}
+  {% include "challenges/_form_defi_champs.html" %}
+  {{ formset.management_form }}
+  <fieldset class="es-panneau mb-4">
+    <legend class="h6 mb-3">Jalons proposés ({{ formset.forms|length }})</legend>
+    {% for f in formset.forms %}
+    <div class="border rounded p-3 mb-3">
+      <p class="small fw-semibold mb-2">Jalon {{ forloop.counter }}</p>
+      <div class="row">
+        <div class="col-md-8">{% include "challenges/_champ.html" with champ=f.titre %}</div>
+        <div class="col-md-4">{% include "challenges/_champ.html" with champ=f.echeance %}</div>
+      </div>
+      {% include "challenges/_champ.html" with champ=f.description %}
+      {% include "challenges/_champ.html" with champ=f.exigences classe="mb-0" %}
+    </div>
+    {% endfor %}
+  </fieldset>
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary" data-chargement="Enregistrement…"><i class="icon-base ri ri-save-line me-1" aria-hidden="true"></i> Enregistrer en brouillon</button>
+    <a href="{% url 'generer-brief' %}" class="btn btn-outline-secondary">Abandonner</a>
+  </div>
+</form>
+{% endif %}
+{% endblock corps %}
+{% block scripts %}{% include "challenges/_chargement.html" %}{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}Jalons – {{ equipe.nom }}{% endblock %}
+{% block corps %}
+{% include "challenges/_entete_equipe.html" %}
+<h2 class="h5 mb-4">Jalons du défi</h2>
+{% if jalons %}
+<ol class="es-chrono">
+  {% for jalon in jalons %}
+  <li class="{% if jalon.depasse %}es-passe{% endif %}">
+    <article class="es-panneau" aria-labelledby="jalon-{{ jalon.pk }}">
+      <div class="d-flex justify-content-between flex-wrap gap-2">
+        <h3 id="jalon-{{ jalon.pk }}" class="mb-1">{{ jalon.ordre }}. {{ jalon.titre }}</h3>
+        <span class="small">{{ jalon.echeance|date:"d/m/Y H:i" }} {% if jalon.depasse %}<span class="es-badge es-badge--neutre">Échéance passée</span>{% else %}<span class="es-badge es-badge--info">À venir</span>{% endif %}</span>
+      </div>
+      {% if jalon.description %}<p class="small text-body-secondary">{{ jalon.description }}</p>{% endif %}
+      {% if jalon.exigences_liste %}<p class="small fw-semibold mb-1">Exigences</p><ul class="es-liste small">{% for e in jalon.exigences_liste %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      <p class="small mt-2 mb-1">Tâches liées : <strong>{{ jalon.taches_terminees }}/{{ jalon.taches_total }}</strong> terminée{{ jalon.taches_terminees|pluralize }}</p>
+      <div class="es-progression mb-2" role="progressbar" aria-label="Tâches terminées pour {{ jalon.titre }}" aria-valuenow="{{ jalon.taches_terminees|pourcentage:jalon.taches_total }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ jalon.taches_terminees|pourcentage:jalon.taches_total }}%"></span></div>
+      {% for l in jalon.livrables_equipe %}{% if l.derniere %}
+      <p class="small mb-1"><a href="{% url 'detail-livrable' l.pk %}">{{ l.titre }}</a> — v{{ l.derniere.numero }} {% badge l.derniere.etat l.derniere.get_etat_display %}</p>
+      {% endif %}{% empty %}
+      <p class="small es-aide mb-0">Aucun livrable déposé pour ce jalon.{% if peut_deposer %} <a href="{% url 'creer-livrable' equipe.pk %}?jalon={{ jalon.pk }}">Déposer</a>{% endif %}</p>
+      {% endfor %}
+    </article>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}<div class="es-vide"><i class="icon-base ri ri-flag-line" aria-hidden="true"></i><p class="mb-0">Aucun jalon défini.</p></div>{% endif %}
+{% endblock corps %}

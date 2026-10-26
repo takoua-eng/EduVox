@@ -1,0 +1,33 @@
+{% load edusprint %}
+<section aria-label="Vérification IA de la version {{ resultat.version }}">
+  <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+    <p class="small fw-semibold mb-0"><i class="icon-base ri ri-sparkling-line" aria-hidden="true"></i> Vérification IA — version {{ resultat.version }}, le {{ analyse.date_fin|date:"d/m/Y H:i" }}</p>
+    {% if v.analyse_obsolete %}<span class="es-badge es-badge--attente"><i class="icon-base ri ri-refresh-line" aria-hidden="true"></i>Le brouillon a changé depuis : analyse obsolète</span>{% endif %}
+  </div>
+  <ul class="list-inline small mb-2">
+    {% for cle, libelle in statuts_ia.items %}<li class="list-inline-item">{% for k, n in resultat.compteurs.items %}{% if k == cle %}{% badge cle libelle %} {{ n }}{% endif %}{% endfor %}</li>{% endfor %}
+  </ul>
+  <details>
+    <summary class="small">Détail par exigence ({{ resultat.exigences|length }}) — extraits retrouvés : {{ resultat.extraits.retrouves }}/{{ resultat.extraits.total }}</summary>
+    <ul class="list-unstyled mt-2 mb-0">
+      {% for e in resultat.exigences %}
+      <li class="border-top py-2">
+        <p class="small mb-1">{% for cle, libelle in statuts_ia.items %}{% if cle == e.statut %}{% badge cle libelle %}{% endif %}{% endfor %} <strong>{{ e.id }}</strong> · <span class="text-body-secondary">{{ e.source }}</span> — {{ e.libelle }}</p>
+        {% if e.commentaire %}<p class="small mb-1">{{ e.commentaire }}</p>{% endif %}
+        {% for x in e.extraits %}
+        <blockquote class="es-extrait {% if not x.verifie %}es-extrait--non{% endif %} mb-1">« {{ x.texte }} » {% if x.verifie %}<span class="es-badge es-badge--succes">Retrouvé dans le dossier</span>{% else %}<span class="es-badge es-badge--erreur">Introuvable dans le dossier</span>{% endif %}</blockquote>
+        {% endfor %}
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% if resultat.incoherences %}<p class="small fw-semibold mt-2 mb-1">Incohérences possibles</p><ul class="es-liste small">{% for x in resultat.incoherences %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+  {% if resultat.ameliorations %}<p class="small fw-semibold mt-2 mb-1">Améliorations proposées</p><ul class="es-liste small">{% for x in resultat.ameliorations %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+  <p class="small fw-semibold mt-2 mb-1">Limites de l'analyse</p>
+  <ul class="es-liste small mb-0">
+    <li>Analyse automatique indicative : elle n'attribue aucune note et peut se tromper.</li>
+    {% if resultat.sources %}<li>Texte analysé : {{ resultat.sources|join:", " }}.</li>{% endif %}
+    {% for x in resultat.limites %}<li>{{ x }}</li>{% endfor %}
+    {% for x in resultat.limites_ia %}<li>{{ x }}</li>{% endfor %}
+  </ul>
+</section>

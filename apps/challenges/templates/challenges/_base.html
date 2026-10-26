@@ -1,0 +1,11 @@
+{% extends layout_path %}
+{% block title %}{% block titre_page %}EduSprint{% endblock %} - EduVox{% endblock title %}
+{% block page_css %}{% include "challenges/_styles.html" %}{% endblock page_css %}
+{% block content %}
+<div class="edusprint">
+  {% include "accounts/_messages.html" %}
+  {% block corps %}{% endblock corps %}
+</div>
+{# La fenêtre de confirmation (data-confirm) est déjà incluse par le pied de page commun #}
+{% endblock content %}
+{% block page_js %}{% block scripts %}{% endblock scripts %}{% endblock page_js %}

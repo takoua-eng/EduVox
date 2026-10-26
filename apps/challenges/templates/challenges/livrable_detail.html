@@ -1,0 +1,92 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}{{ livrable.titre }}{% endblock %}
+{% block corps %}
+{% include "challenges/_entete_equipe.html" %}
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <h2 class="h5 mb-1">{{ livrable.titre }}</h2>
+    <p class="small text-body-secondary mb-0">{{ livrable.jalon.titre|default:"Livrable final" }} · échéance {{ livrable.echeance|date:"d/m/Y H:i" }}</p>
+    {% if livrable.description %}<p class="small mb-0 mt-1">{{ livrable.description }}</p>{% endif %}
+  </div>
+  {% if peut_nouvelle_version %}<a href="{% url 'nouvelle-version' livrable.pk %}" class="btn btn-primary btn-sm"><i class="icon-base ri ri-upload-2-line me-1" aria-hidden="true"></i> Déposer la version {{ derniere.numero|add:1 }}</a>{% endif %}
+</div>
+
+<h3 class="h6 mb-3">Historique des versions</h3>
+<ol class="es-chrono">
+  {% for v in versions %}
+  <li id="version-{{ v.pk }}" class="{% if not v.est_brouillon %}es-passe{% endif %}">
+    <article class="es-panneau" aria-labelledby="titre-v{{ v.pk }}">
+      <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+        <h4 id="titre-v{{ v.pk }}" class="h6 mb-0">Version {{ v.numero }}</h4>
+        <div class="d-flex flex-wrap gap-2">{% badge v.etat v.get_etat_display %}{% if v.en_retard %}<span class="es-badge es-badge--erreur"><i class="icon-base ri ri-alarm-warning-line" aria-hidden="true"></i>Soumission tardive</span>{% endif %}</div>
+      </div>
+      <p class="small text-body-secondary mb-2">Préparée par {{ v.auteur|nom_utilisateur }} le {{ v.date_preparation|date:"d/m/Y H:i" }}{% if v.date_soumission %} · soumise par {{ v.soumis_par|nom_utilisateur }} le {{ v.date_soumission|date:"d/m/Y H:i" }}{% endif %}</p>
+      <ul class="list-unstyled small mb-2">
+        {% if v.fichier %}<li><i class="icon-base ri ri-attachment-2" aria-hidden="true"></i> <a href="{% url 'telecharger-version' v.pk %}">{{ v.nom_fichier }}</a> <span class="text-body-secondary">({{ v.taille_fichier|filesizeformat }})</span></li>{% endif %}
+        {% if v.lien %}<li><i class="icon-base ri ri-link" aria-hidden="true"></i> <a href="{{ v.lien }}" rel="noopener noreferrer nofollow" target="_blank">{{ v.lien|truncatechars:70 }}<span class="visually-hidden"> (lien externe, nouvel onglet)</span></a> <span class="text-body-secondary">— non analysé par le serveur</span></li>{% endif %}
+      </ul>
+      {% if v.texte %}<details class="mb-2"><summary class="small">Contenu textuel ({{ v.texte|length }} caractères)</summary><div class="es-texte-long small mt-2 p-2 bg-light rounded">{{ v.texte }}</div></details>{% endif %}
+      {% if v.note_equipe %}<p class="small mb-2"><strong>Message de l'équipe :</strong> {{ v.note_equipe }}</p>{% endif %}
+
+      {% if v.retour_enseignant or v.date_retour %}
+      <div class="es-retour {% if v.etat == 'accepte' %}es-retour--succes{% else %}es-retour--attente{% endif %} mb-2">
+        <p class="small fw-semibold mb-1">Retour de {{ v.retour_par|nom_utilisateur }} — {{ v.date_retour|date:"d/m/Y H:i" }}</p>
+        <p class="es-texte-long small mb-0">{{ v.retour_enseignant|default:"Livrable accepté sans commentaire." }}</p>
+      </div>
+      {% endif %}
+
+      {# Actions de l'équipe #}
+      {% if v.est_brouillon and membre %}
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        {% if peut_soumettre %}
+        <form method="post" action="{% url 'soumettre-version' v.pk %}" data-confirm="La version {{ v.numero }} sera transmise à l'enseignant et ne pourra plus être modifiée." data-confirm-titre="Soumettre cette version ?" data-confirm-type="primary" data-confirm-bouton="Soumettre">{% csrf_token %}<button type="submit" class="btn btn-sm btn-primary" data-chargement="Soumission…"><i class="icon-base ri ri-send-plane-line me-1" aria-hidden="true"></i> Soumettre</button></form>
+        {% else %}<span class="small es-aide align-self-center">Le coordinateur soumet officiellement les versions.</span>{% endif %}
+        {% if v.modifiable %}<a href="{% url 'modifier-version' v.pk %}" class="btn btn-sm btn-outline-primary">Modifier</a>{% endif %}
+        {% if v.supprimable %}<form method="post" action="{% url 'supprimer-version' v.pk %}" data-confirm="Ce brouillon sera supprimé définitivement." data-confirm-titre="Supprimer le brouillon ?" data-confirm-bouton="Supprimer">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger">Supprimer</button></form>{% endif %}
+      </div>
+      {% endif %}
+
+      {# Retour de l'enseignant #}
+      {% if v.etat == 'soumis' and peut_evaluer %}
+      <form method="post" action="{% url 'evaluer-version' v.pk %}" class="border-top pt-3 mt-3" novalidate>
+        {% csrf_token %}
+        <h5 class="h6">Votre retour (aucune note n'est attribuée ici)</h5>
+        {% include "challenges/_champ.html" with champ=evaluation_form.decision inline=True %}
+        {% include "challenges/_champ.html" with champ=evaluation_form.retour %}
+        <button type="submit" class="btn btn-sm btn-primary">Envoyer le retour</button>
+      </form>
+      {% endif %}
+
+      {# Vérification IA de la couverture des exigences #}
+      <div class="border-top pt-3 mt-3">
+        {% if v.analyse %}
+          {% if v.analyse.active or v.analyse.statut == 'echoue' %}
+            {% include "challenges/_suivi_ia.html" with demande=v.analyse titre="Vérification IA" %}
+          {% elif v.analyse.resultat.analysable is False %}
+            <div class="alert alert-secondary small mb-0" role="status">
+              <strong>Dossier non analysable automatiquement</strong> (ce n'est ni un dossier vide ni un dossier non conforme) :
+              <ul class="mb-0">{% for l in v.analyse.resultat.limites %}<li>{{ l }}</li>{% endfor %}</ul>
+            </div>
+          {% else %}
+            {% include "challenges/_analyse.html" with analyse=v.analyse resultat=v.analyse.resultat %}
+          {% endif %}
+        {% endif %}
+        {% if ia_disponible and acces != 'admin' %}
+          {% if membre and peut_deposer or acces == 'enseignant' and not v.est_brouillon %}
+          {% if not v.analyse or v.analyse.statut == 'echoue' or v.analyse_obsolete %}
+          <form method="post" action="{% url 'verifier-version' v.pk %}" class="mt-2">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-primary" data-chargement="Envoi à l'IA…"><i class="icon-base ri ri-sparkling-line me-1" aria-hidden="true"></i> {% if v.analyse %}Relancer{% else %}Vérifier{% endif %} la couverture des exigences</button>
+            <p class="es-ia-avis mt-2 mb-0"><i class="icon-base ri ri-information-line" aria-hidden="true"></i> Le texte de cette version (contenu saisi, PDF avec texte, TXT, MD) et les exigences du défi seront envoyés à Google Gemini. Aucun nom n'est transmis ; les liens ne sont pas ouverts. L'analyse ne donne aucune note{% if membre %} et sera visible de l'enseignant une fois la version soumise{% endif %}.</p>
+          </form>
+          {% endif %}
+          {% endif %}
+        {% endif %}
+      </div>
+    </article>
+  </li>
+  {% endfor %}
+</ol>
+{% endblock corps %}
+{% block scripts %}{% include "challenges/_chargement.html" %}{% endblock %}

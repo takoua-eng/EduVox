@@ -1,0 +1,71 @@
+{% extends "challenges/_base.html" %}
+{% load edusprint %}
+{% block titre_page %}{{ evenement.titre }}{% endblock %}
+{% block corps %}
+<nav class="es-fil" aria-label="Fil d'Ariane"><a href="{% url 'detail-defi' defi.pk %}">{{ defi.titre }}</a> › <a href="{% url 'evenements-defi' defi.pk %}">Imprévus</a> › {{ evenement.titre|truncatechars:40 }}</nav>
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <h1 class="h3 mb-2">{{ evenement.titre }}</h1>
+    <div class="d-flex flex-wrap gap-2">{% badge evenement.etat evenement.get_etat_display %}<span class="es-badge es-badge--neutre">{{ evenement.get_type_contrainte_display }}</span>{% if evenement.origine == 'ia' %}<span class="es-badge es-badge--fin"><i class="icon-base ri ri-sparkling-line" aria-hidden="true"></i>Proposé par l'IA</span>{% endif %}</div>
+  </div>
+  {% if gestion %}
+  <div class="d-flex flex-wrap gap-2">
+    {% if evenement.etat != 'publie' %}
+      <a href="{% url 'modifier-evenement' evenement.pk %}" class="btn btn-sm btn-outline-primary">Modifier</a>
+      {% if evenement.etat == 'brouillon' %}
+      <form method="post" action="{% url 'valider-evenement' evenement.pk %}">{% csrf_token %}<button type="submit" class="btn btn-sm btn-primary"><i class="icon-base ri ri-shield-check-line me-1" aria-hidden="true"></i> Valider après relecture</button></form>
+      {% elif evenement.etat == 'valide' %}
+      <form method="post" action="{% url 'publier-evenement' evenement.pk %}" data-confirm="L'imprévu sera publié à toutes les équipes actives et ne pourra plus être modifié{% if evenement.nouvelle_echeance or evenement.nouveau_budget is not None %} ; le changement prévu sera appliqué et tracé{% endif %}." data-confirm-titre="Publier l'imprévu ?" data-confirm-type="primary" data-confirm-bouton="Publier">{% csrf_token %}<button type="submit" class="btn btn-sm btn-primary" {% if defi.statut != 'en_cours' %}disabled aria-disabled="true"{% endif %}><i class="icon-base ri ri-megaphone-line me-1" aria-hidden="true"></i> Publier</button></form>
+      {% endif %}
+      <form method="post" action="{% url 'supprimer-evenement' evenement.pk %}" data-confirm="Cet imprévu non publié sera supprimé." data-confirm-titre="Supprimer l'imprévu ?" data-confirm-bouton="Supprimer">{% csrf_token %}<button type="submit" class="btn btn-sm btn-outline-danger">Supprimer</button></form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% if evenement.etat == 'valide' and defi.statut != 'en_cours' %}<div class="alert alert-info small" role="status">La publication sera possible quand le défi aura démarré.</div>{% endif %}
+{% if evenement.etat == 'brouillon' and evenement.origine == 'ia' %}<div class="alert alert-warning small" role="status">Proposition de l'IA : vérifiez sa faisabilité et sa pertinence avant de la valider. Toute modification après validation impose une nouvelle validation.</div>{% endif %}
+
+<div class="row g-5">
+  <div class="col-lg-7">
+    <section class="es-panneau" aria-labelledby="titre-contenu">
+      <h2 id="titre-contenu">Message aux équipes</h2>
+      <p class="es-texte-long">{{ evenement.description }}</p>
+      {% if evenement.impacts_liste %}<h3 class="h6">Impacts attendus</h3><ul class="es-liste small mb-3">{% for x in evenement.impacts_liste %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+      {% if evenement.elements_liste %}<h3 class="h6">Éléments attendus dans la réponse</h3><ul class="es-liste small mb-3">{% for x in evenement.elements_liste %}<li>{{ x }}</li>{% endfor %}</ul>{% endif %}
+      {% if evenement.justification %}<h3 class="h6">Justification pédagogique (visible des enseignants)</h3><p class="small es-texte-long mb-0">{{ evenement.justification }}</p>{% endif %}
+    </section>
+    <section class="es-panneau" aria-labelledby="titre-trace">
+      <h2 id="titre-trace">Traçabilité</h2>
+      <dl class="row small mb-0">
+        <dt class="col-sm-5">Créé par</dt><dd class="col-sm-7">{{ evenement.cree_par|nom_utilisateur }}, le {{ evenement.date_creation|date:"d/m/Y H:i" }}</dd>
+        <dt class="col-sm-5">Validé par</dt><dd class="col-sm-7">{% if evenement.valide_par %}{{ evenement.valide_par|nom_utilisateur }}, le {{ evenement.date_validation|date:"d/m/Y H:i" }}{% else %}—{% endif %}</dd>
+        <dt class="col-sm-5">Publié le</dt><dd class="col-sm-7">{{ evenement.date_publication|date:"d/m/Y H:i"|default:"—" }}</dd>
+        <dt class="col-sm-5">Réponse attendue avant</dt><dd class="col-sm-7">{{ evenement.echeance_reponse|date:"d/m/Y H:i"|default:"—" }}</dd>
+        {% if evenement.jalon_concerne %}<dt class="col-sm-5">Changement d'échéance</dt><dd class="col-sm-7">« {{ evenement.jalon_concerne.titre }} » → {{ evenement.nouvelle_echeance|date:"d/m/Y H:i" }}</dd>{% endif %}
+        {% if evenement.nouveau_budget is not None %}<dt class="col-sm-5">Nouveau budget</dt><dd class="col-sm-7">{{ evenement.nouveau_budget }} DT</dd>{% endif %}
+        {% if evenement.modifications_appliquees %}<dt class="col-sm-5">Appliqué à la publication</dt><dd class="col-sm-7">
+          {% if evenement.modifications_appliquees.jalon %}Jalon « {{ evenement.modifications_appliquees.jalon.titre }} » : {{ evenement.modifications_appliquees.jalon.avant|slice:":16" }} → {{ evenement.modifications_appliquees.jalon.apres|slice:":16" }}<br>{% endif %}
+          {% if evenement.modifications_appliquees.budget %}Budget : {{ evenement.modifications_appliquees.budget.avant|default:"aucun" }} → {{ evenement.modifications_appliquees.budget.apres }} DT{% endif %}</dd>{% endif %}
+      </dl>
+    </section>
+  </div>
+  <div class="col-lg-5">
+    <section class="es-panneau" aria-labelledby="titre-reponses">
+      <h2 id="titre-reponses">Adaptations des équipes</h2>
+      {% if evenement.etat != 'publie' %}<p class="es-aide mb-0">Les équipes pourront répondre après la publication.</p>
+      {% else %}
+      <ul class="list-unstyled mb-0">
+        {% for equipe, reponse in equipes_reponses %}
+        <li class="d-flex justify-content-between flex-wrap gap-2 py-2 border-top">
+          <span>{{ equipe.nom }}</span>
+          {% if reponse %}<span>{% if reponse.en_retard %}<span class="es-badge es-badge--erreur">En retard</span> {% endif %}<a href="{% url 'reponse-evenement' evenement.pk equipe.pk %}" class="btn btn-sm btn-outline-primary">Lire<span class="visually-hidden"> la réponse de {{ equipe.nom }}</span></a></span>
+          {% else %}{% badge 'en_attente' 'Non soumise' %}{% endif %}
+        </li>
+        {% empty %}<li class="es-aide">Aucune équipe active.</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock corps %}
