@@ -76,14 +76,15 @@
       </a>
     </li>
 
-    {% comment %} Module 4 : Assistant vocal
-    <li class="menu-item">
+    <!-- Module 4 : Assistant vocal et illustrations -->
+    {% if perms.accounts.poser_question %}
+    <li class="menu-item {% if request.path|slice:':11' == '/assistant/' and request.resolver_match.url_name != 'statistiques-assistant' %}active{% endif %}">
       <a href="{% url 'assistant' %}" class="menu-link">
-        <i class="menu-icon icon-base ri ri-mic-line"></i>
+        <i class="menu-icon icon-base ri ri-mic-line" aria-hidden="true"></i>
         <div class="text-truncate">Assistant vocal</div>
       </a>
     </li>
-    {% endcomment %}
+    {% endif %}
 
     {% comment %} Module 5 : Présence
     <li class="menu-item">
@@ -154,6 +155,12 @@
       <a href="{% url 'journal-connexions' %}" class="menu-link">
         <i class="menu-icon icon-base ri ri-history-line"></i>
         <div class="text-truncate">Journal des connexions</div>
+      </a>
+    </li>
+    <li class="menu-item {% if request.resolver_match.url_name == 'statistiques-assistant' %}active{% endif %}">
+      <a href="{% url 'statistiques-assistant' %}" class="menu-link">
+        <i class="menu-icon icon-base ri ri-robot-2-line" aria-hidden="true"></i>
+        <div class="text-truncate">IA de l'assistant</div>
       </a>
     </li>
         <li class="menu-item {% if request.resolver_match.url_name == 'visages-doublons' %}active{% endif %}">

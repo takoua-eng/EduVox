@@ -1,0 +1,7 @@
+<form method="post" action="{% url 'evaluer-message-assistant' message.pk %}" class="ast-form-evaluer">
+  {% csrf_token %}
+  {# Un second clic sur un avis déjà donné le retire (valeur 0) #}
+  <input type="hidden" name="evaluation" value="{% if message.evaluation == valeur %}0{% else %}{{ valeur }}{% endif %}" data-valeur="{{ valeur }}" />
+  <button type="submit" class="btn btn-sm btn-outline-secondary" aria-pressed="{% if message.evaluation == valeur %}true{% else %}false{% endif %}" aria-label="{{ libelle }}">
+    <i class="icon-base ri {{ icone }}" aria-hidden="true"></i></button>
+</form>

@@ -1,0 +1,43 @@
+{% extends layout_path %}
+
+{% block title %}{{ titre_page }} - EduVox{% endblock title %}
+{% block page_css %}{% include "assistant/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="assistant-module">
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'assistant' %}">Assistant vocal</a></li>
+    {% if session %}<li class="breadcrumb-item"><a href="{% url 'session-assistant' session.pk %}">{{ session.titre }}</a></li>{% endif %}
+    <li class="breadcrumb-item active" aria-current="page">{{ titre_page }}</li>
+  </ol>
+</nav>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><h1 class="h4 mb-0">{{ titre_page }}</h1></div>
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="alert alert-danger" role="alert">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+          {% for champ in form %}
+          <div class="mb-5">
+            <label for="{{ champ.id_for_label }}" class="form-label">{{ champ.label }}{% if champ.field.required %} <span aria-hidden="true">*</span><span class="visually-hidden">(obligatoire)</span>{% endif %}</label>
+            {# Django ajoute lui-même aria-invalid et aria-describedby (aide) au champ #}
+            {{ champ }}
+            {% if champ.help_text %}<div id="{{ champ.auto_id }}_helptext" class="form-text">{{ champ.help_text }}</div>{% endif %}
+            {% for erreur in champ.errors %}<div class="ast-erreur small mt-1" role="alert">{{ erreur }}</div>{% endfor %}
+          </div>
+          {% endfor %}
+          <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary"><i class="icon-base ri ri-check-line me-1" aria-hidden="true"></i> {% if session %}Enregistrer{% else %}Ouvrir la session{% endif %}</button>
+            <a href="{% if session %}{% url 'session-assistant' session.pk %}{% else %}{% url 'assistant' %}{% endif %}" class="btn btn-outline-secondary">Annuler</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock content %}

@@ -1,0 +1,26 @@
+{% extends layout_path %}
+
+{% block title %}Supprimer la session - EduVox{% endblock title %}
+{% block page_css %}{% include "assistant/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="assistant-module">
+<div class="row justify-content-center">
+  <div class="col-lg-6">
+    <div class="card border-danger">
+      <div class="card-body">
+        <h1 class="h4"><i class="icon-base ri ri-delete-bin-line text-danger me-1" aria-hidden="true"></i> Supprimer « {{ session.titre }} » ?</h1>
+        <p>Cette action est définitive : l'historique ({{ nb_messages }} message{{ nb_messages|pluralize }}), les enregistrements audio et
+          {{ nb_illustrations }} illustration{{ nb_illustrations|pluralize }} seront supprimés.</p>
+        <p class="ast-doux small">Pour garder une trace, vous pouvez d'abord <a href="{% url 'exporter-session-assistant' session.pk %}">exporter la conversation</a>.</p>
+        <form method="post" class="d-flex flex-wrap gap-2">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Supprimer définitivement</button>
+          <a href="{% url 'session-assistant' session.pk %}" class="btn btn-outline-secondary">Annuler</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+{% endblock content %}

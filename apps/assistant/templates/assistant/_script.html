@@ -1,0 +1,402 @@
+<script>
+/* Assistant vocal : questions écrites / dictées, réponses en streaming (WebSocket), illustrations.
+   Sans JavaScript, les formulaires fonctionnent quand même (réponse complète, sans streaming). */
+(function () {
+  'use strict';
+  const racine = document.getElementById('assistant-session');
+  if (!racine) return;
+  document.documentElement.classList.add('ast-js');
+
+  const cfg = racine.dataset;
+  const chat = document.getElementById('ast-chat');
+  const form = document.getElementById('form-question');
+  const zone = document.getElementById('id_texte');
+  const champMessage = document.getElementById('id_message_id');
+  const btnEnvoyer = document.getElementById('btn-envoyer');
+  const btnArreter = document.getElementById('btn-arreter');
+  const btnMicro = document.getElementById('btn-micro');
+  const minuterieEl = document.getElementById('ast-minuterie');
+  const etat = document.getElementById('ast-etat');
+  const indicateur = document.getElementById('ast-connexion');
+  const autoEnvoi = document.getElementById('ast-auto-envoi');
+  const formIll = document.getElementById('form-illustration');
+  const listeIll = document.getElementById('ast-liste-illustrations');
+  const csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value;
+  const AJAX = { 'X-Requested-With': 'XMLHttpRequest' };
+
+  let ws = null, wsPret = false, essaisWs = 0;
+  let enCours = false, bulleFlux = null, texteFlux = '', dernierTexte = '';
+
+  // ---------- Outils ----------
+  function annoncer(texte, erreur) {
+    if (!etat) return;
+    etat.textContent = texte;
+    etat.classList.toggle('ast-erreur', !!erreur);
+  }
+  const url = (modele, id) => modele.replace('/0/', '/' + id + '/');
+  const defiler = () => { chat.scrollTop = chat.scrollHeight; };
+  const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  function retirerVide() { const v = document.getElementById('ast-vide'); if (v) v.remove(); }
+
+  async function fragment(id) {
+    const r = await fetch(url(cfg.urlFragment, id), { headers: AJAX });
+    if (!r.ok) throw new Error('fragment');
+    const t = document.createElement('template');
+    t.innerHTML = (await r.text()).trim();
+    return t.content.firstElementChild;
+  }
+
+  /** Remplace `cible` (ou le message existant, ou ajoute en fin) par le rendu serveur du message `id`. */
+  async function inserer(id, cible, avant) {
+    try {
+      const el = await fragment(id);
+      const existant = document.getElementById('message-' + id);
+      if (cible && cible.isConnected) cible.replaceWith(el);
+      else if (existant) existant.replaceWith(el);
+      else if (avant && avant.isConnected) chat.insertBefore(el, avant);
+      else chat.appendChild(el);
+      defiler();
+      return el;
+    } catch (e) { return null; }
+  }
+
+  function occupe(v) {
+    enCours = v;
+    if (btnEnvoyer) btnEnvoyer.disabled = v;
+    if (btnArreter) btnArreter.hidden = !v || !wsPret; // l'arrêt n'existe qu'en streaming
+    if (btnMicro) btnMicro.disabled = v;
+    chat.setAttribute('aria-busy', v ? 'true' : 'false');
+  }
+
+  function bulleAttente() {
+    retirerVide();
+    const a = document.createElement('article');
+    a.className = 'ast-message';
+    a.setAttribute('aria-label', "Réponse de l'assistant en cours de rédaction");
+    a.innerHTML = '<div class="ast-avatar" aria-hidden="true"><i class="icon-base ri ri-robot-2-line"></i></div>' +
+      '<div class="ast-bulle"><div class="ast-entete"><strong>Assistant</strong>' +
+      '<span class="ast-badge ast-badge--attente">Rédige sa réponse…</span></div>' +
+      '<div class="ast-contenu ast-flux"><span class="ast-points" aria-hidden="true"><span></span><span></span><span></span></span></div></div>';
+    chat.appendChild(a);
+    defiler();
+    return a;
+  }
+
+  function finErreur(message, reponseId) {
+    const b = bulleFlux;
+    bulleFlux = null;
+    occupe(false);
+    if (reponseId) inserer(reponseId, b);
+    else if (b) b.remove();
+    if (!reponseId && zone && !zone.value) zone.value = dernierTexte; // rien n'a été enregistré : on rend le texte
+    annoncer(message, true);
+    if (zone) zone.focus();
+  }
+
+  // ---------- WebSocket (streaming) ----------
+  function connecter() {
+    if (cfg.active !== '1' || !('WebSocket' in window)) { if (cfg.active === '1') repli(); return; }
+    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    ws = new WebSocket(proto + location.host + cfg.wsUrl);
+    ws.onopen = () => { wsPret = true; essaisWs = 0; indicateur.dataset.etat = 'ok'; indicateur.textContent = 'Réponses en direct'; };
+    ws.onmessage = (ev) => { try { traiter(JSON.parse(ev.data)); } catch (e) { /* message illisible ignoré */ } };
+    ws.onclose = (ev) => {
+      wsPret = false;
+      if (enCours && bulleFlux) finErreur('Connexion interrompue : la réponse partielle a été conservée.');
+      if (ev.code === 4403 || essaisWs >= 3) { repli(); return; }
+      essaisWs += 1;
+      indicateur.dataset.etat = ''; indicateur.textContent = 'Reconnexion…';
+      setTimeout(connecter, 1500 * essaisWs);
+    };
+  }
+  function repli() { indicateur.dataset.etat = 'repli'; indicateur.textContent = 'Mode sans streaming'; }
+
+  function traiter(d) {
+    if (d.type === 'debut') {
+      bulleFlux = bulleAttente();
+      texteFlux = '';
+      inserer(d.question.id, null, bulleFlux); // la question s'affiche juste avant la réponse
+      annoncer("L'assistant rédige sa réponse…");
+    } else if (d.type === 'morceau' && bulleFlux) {
+      texteFlux += d.texte;
+      bulleFlux.querySelector('.ast-contenu').textContent = texteFlux; // texte brut pendant le flux
+      defiler();
+    } else if (d.type === 'fin') {
+      const b = bulleFlux;
+      bulleFlux = null;
+      occupe(false);
+      inserer(d.reponse_id, b); // rendu Markdown final côté serveur
+      const s = d.duree_ms ? ' en ' + (d.duree_ms / 1000).toFixed(1).replace('.', ',') + ' s' : '';
+      annoncer(d.interrompue ? 'Réponse interrompue.' : 'Réponse reçue' + s + '.');
+      if (zone) zone.focus();
+    } else if (d.type === 'erreur') {
+      finErreur(d.message, d.reponse_id);
+    }
+  }
+
+  // ---------- Envoi d'une question ----------
+  async function envoyer() {
+    if (!zone || enCours) return;
+    const texte = zone.value.trim();
+    const messageId = champMessage.value ? parseInt(champMessage.value, 10) : null;
+    if (!texte) { annoncer('Écris ou dicte une question.', true); zone.focus(); return; }
+    occupe(true);
+    dernierTexte = texte;
+    zone.value = '';
+    champMessage.value = '';
+    if (wsPret) { ws.send(JSON.stringify({ action: 'question', texte: texte, message_id: messageId })); return; }
+
+    // Repli HTTP : réponse complète d'un coup
+    const b = bulleAttente();
+    annoncer("L'assistant rédige sa réponse…");
+    const donnees = new FormData();
+    donnees.append('texte', texte);
+    if (messageId) donnees.append('message_id', messageId);
+    donnees.append('csrfmiddlewaretoken', csrf);
+    try {
+      const r = await fetch(cfg.urlQuestion, { method: 'POST', body: donnees, headers: AJAX });
+      const d = await r.json();
+      if (!r.ok) { bulleFlux = b; finErreur(d.erreur || 'La question n\'a pas pu être envoyée.'); return; }
+      await inserer(d.question.id, null, b);
+      await inserer(d.reponse_id, b);
+      occupe(false);
+      annoncer('Réponse reçue.');
+      zone.focus();
+    } catch (e) {
+      bulleFlux = b;
+      finErreur('Impossible de joindre le serveur. Vérifie ta connexion.');
+    }
+  }
+
+  if (form) {
+    form.addEventListener('submit', (e) => { e.preventDefault(); envoyer(); });
+    zone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); envoyer(); }
+    });
+    btnArreter.addEventListener('click', () => { if (wsPret) ws.send(JSON.stringify({ action: 'arreter' })); });
+  }
+  chat.addEventListener('click', (e) => {
+    const s = e.target.closest('[data-suggestion]');
+    if (s && zone) { zone.value = s.dataset.suggestion; zone.focus(); }
+  });
+
+  // ---------- Dictée : MediaRecorder → WAV 16 kHz → Whisper ----------
+  let enregistreur = null, fluxMicro = null, morceaux = [], minuterie = null, debutEnr = 0;
+
+  async function demarrer() {
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      annoncer("Ton navigateur ne permet pas l'enregistrement audio : écris ta question.", true); return;
+    }
+    try {
+      fluxMicro = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+    } catch (e) {
+      annoncer('Accès au micro refusé : autorise le micro dans ton navigateur ou écris ta question.', true); return;
+    }
+    morceaux = [];
+    enregistreur = new MediaRecorder(fluxMicro);
+    enregistreur.ondataavailable = (ev) => { if (ev.data.size) morceaux.push(ev.data); };
+    enregistreur.onstop = transcrire;
+    enregistreur.start();
+    debutEnr = Date.now();
+    btnMicro.setAttribute('aria-pressed', 'true');
+    btnMicro.setAttribute('aria-label', "Arrêter l'enregistrement");
+    annoncer('Enregistrement en cours… clique à nouveau sur le micro (ou Alt+M) pour arrêter.');
+    const max = parseInt(cfg.audioMax, 10) || 120;
+    minuterie = setInterval(() => {
+      const s = Math.floor((Date.now() - debutEnr) / 1000);
+      minuterieEl.textContent = '● ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      if (s >= max) arreter();
+    }, 250);
+  }
+
+  function arreter() {
+    clearInterval(minuterie);
+    minuterieEl.textContent = '';
+    if (enregistreur && enregistreur.state === 'recording') enregistreur.stop();
+    if (fluxMicro) fluxMicro.getTracks().forEach((t) => t.stop());
+    btnMicro.setAttribute('aria-pressed', 'false');
+    btnMicro.setAttribute('aria-label', 'Dicter une question');
+  }
+
+  async function transcrire() {
+    annoncer('Transcription en cours (Whisper)…');
+    btnMicro.disabled = true;
+    try {
+      const wav = await versWav(new Blob(morceaux, { type: enregistreur.mimeType }));
+      const donnees = new FormData();
+      donnees.append('audio', wav, 'question.wav');
+      donnees.append('csrfmiddlewaretoken', csrf);
+      const r = await fetch(cfg.urlAudio, { method: 'POST', body: donnees, headers: AJAX });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.erreur || "L'enregistrement n'a pas pu être envoyé.");
+      const res = await attendreTranscription(d.url_etat);
+      if (res.statut !== 'PRET') throw new Error(res.erreur || 'La transcription a échoué.');
+      champMessage.value = res.id;
+      zone.value = res.texte;
+      if (autoEnvoi && autoEnvoi.checked) { annoncer('Transcrit : « ' + res.texte + ' »'); envoyer(); }
+      else { annoncer('Transcription prête : vérifie-la, corrige-la si besoin, puis envoie.'); zone.focus(); }
+    } catch (e) {
+      annoncer(e.message || 'La transcription a échoué.', true);
+    } finally {
+      btnMicro.disabled = enCours;
+    }
+  }
+
+  async function attendreTranscription(urlEtat) {
+    for (let i = 0; i < 300; i++) {
+      const r = await fetch(urlEtat, { headers: AJAX });
+      const d = await r.json();
+      if (d.fini) return d;
+      await pause(1000);
+    }
+    throw new Error('La transcription prend trop de temps. Réessaie ou écris ta question.');
+  }
+
+  /** Décode l'enregistrement (webm/ogg…) et le convertit en WAV PCM 16 bits mono 16 kHz, le format de Whisper. */
+  async function versWav(blob) {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const audio = await ctx.decodeAudioData(await blob.arrayBuffer());
+    ctx.close();
+    const hors = new OfflineAudioContext(1, Math.max(1, Math.ceil(audio.duration * 16000)), 16000);
+    const source = hors.createBufferSource();
+    source.buffer = audio;
+    source.connect(hors.destination);
+    source.start();
+    const pcm = (await hors.startRendering()).getChannelData(0);
+    const tampon = new ArrayBuffer(44 + pcm.length * 2);
+    const v = new DataView(tampon);
+    const ecrire = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    ecrire(0, 'RIFF'); v.setUint32(4, 36 + pcm.length * 2, true); ecrire(8, 'WAVE');
+    ecrire(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 16000, true); v.setUint32(28, 32000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    ecrire(36, 'data'); v.setUint32(40, pcm.length * 2, true);
+    for (let i = 0; i < pcm.length; i++) {
+      const s = Math.max(-1, Math.min(1, pcm[i]));
+      v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    }
+    return new Blob([tampon], { type: 'audio/wav' });
+  }
+
+  if (btnMicro) {
+    btnMicro.addEventListener('click', () => (enregistreur && enregistreur.state === 'recording' ? arreter() : demarrer()));
+    document.addEventListener('keydown', (e) => {
+      if (e.altKey && (e.key === 'm' || e.key === 'M') && !btnMicro.disabled) { e.preventDefault(); btnMicro.click(); }
+    });
+    try { autoEnvoi.checked = localStorage.getItem('ast-auto-envoi') === '1'; } catch (e) { /* stockage indisponible */ }
+    autoEnvoi.addEventListener('change', () => { try { localStorage.setItem('ast-auto-envoi', autoEnvoi.checked ? '1' : '0'); } catch (e) { /* */ } });
+  }
+
+  // ---------- Actions sur les réponses ----------
+  let lecture = null;
+  chat.addEventListener('click', async (e) => {
+    const bouton = e.target.closest('[data-action]');
+    if (!bouton) return;
+    const article = bouton.closest('.ast-message');
+    const texte = article.querySelector('.ast-contenu').innerText.trim();
+    if (bouton.dataset.action === 'lire') {
+      if (!('speechSynthesis' in window)) { annoncer('Lecture à voix haute non disponible sur ce navigateur.', true); return; }
+      const actif = bouton.getAttribute('aria-pressed') === 'true';
+      speechSynthesis.cancel();
+      chat.querySelectorAll('[data-action="lire"]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+      if (actif) return;
+      lecture = new SpeechSynthesisUtterance(texte);
+      lecture.lang = document.documentElement.lang || 'fr-FR';
+      lecture.onend = () => bouton.setAttribute('aria-pressed', 'false');
+      bouton.setAttribute('aria-pressed', 'true');
+      speechSynthesis.speak(lecture);
+    } else if (bouton.dataset.action === 'copier') {
+      try { await navigator.clipboard.writeText(texte); annoncer('Réponse copiée.'); } catch (err) { annoncer('Copie impossible.', true); }
+    } else if (bouton.dataset.action === 'illustrer' && formIll) {
+      const question = article.previousElementSibling;
+      const sujet = question && question.dataset.role === 'UTILISATEUR' ? question.querySelector('.ast-contenu').innerText.trim() : texte;
+      formIll.querySelector('#id_ill_message').value = article.dataset.id;
+      formIll.querySelector('#id_demande').value = sujet.slice(0, 200);
+      document.getElementById('ill-lien').textContent = "Basé sur la réponse sélectionnée : l'IA s'appuie sur son contenu.";
+      formIll.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      formIll.querySelector('#id_demande').focus();
+    }
+  });
+
+  // Avis utile / pas utile sans recharger la page
+  chat.addEventListener('submit', async (e) => {
+    const f = e.target;
+    if (f.classList.contains('ast-form-supprimer')) {
+      if (!confirm('Supprimer cette question et sa réponse ?')) e.preventDefault();
+      return;
+    }
+    if (!f.classList.contains('ast-form-evaluer')) return;
+    e.preventDefault();
+    try {
+      const r = await fetch(f.action, { method: 'POST', body: new FormData(f), headers: AJAX });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      f.closest('.ast-actions').querySelectorAll('.ast-form-evaluer').forEach((autre) => {
+        const champ = autre.querySelector('[name=evaluation]');
+        const actif = d.evaluation !== null && String(d.evaluation) === champ.dataset.valeur;
+        autre.querySelector('button').setAttribute('aria-pressed', actif ? 'true' : 'false');
+        champ.value = actif ? '0' : champ.dataset.valeur;
+      });
+      annoncer(d.evaluation ? 'Merci pour ton avis !' : 'Avis retiré.');
+    } catch (err) { annoncer("L'avis n'a pas pu être enregistré.", true); }
+  });
+
+  // ---------- Illustrations ----------
+  async function suivreIllustration(carte) {
+    const urlEtat = carte.dataset.urlEtat;
+    for (let i = 0; i < 150; i++) {
+      await pause(2000);
+      try {
+        const r = await fetch(urlEtat, { headers: AJAX });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.fini) {
+          const t = document.createElement('template');
+          t.innerHTML = d.html.trim();
+          const nouvelle = t.content.firstElementChild;
+          carte.replaceWith(nouvelle);
+          window.astRendreDiagrammes(nouvelle);
+          annoncer(d.statut === 'TERMINEE' ? 'Illustration prête.' : 'La génération de l\'illustration a échoué.', d.statut !== 'TERMINEE');
+          return;
+        }
+      } catch (e) { /* nouvel essai */ }
+    }
+  }
+
+  if (formIll) {
+    formIll.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const bouton = formIll.querySelector('[type=submit]');
+      bouton.disabled = true;
+      try {
+        const r = await fetch(formIll.action, { method: 'POST', body: new FormData(formIll), headers: AJAX });
+        const d = await r.json();
+        if (!r.ok) { annoncer(d.erreur || 'Génération impossible.', true); return; }
+        const etatR = await fetch(d.url_etat, { headers: AJAX });
+        const etatD = await etatR.json();
+        const t = document.createElement('template');
+        t.innerHTML = etatD.html.trim();
+        const carte = t.content.firstElementChild;
+        const vide = document.getElementById('ast-ill-vide');
+        if (vide) vide.remove();
+        listeIll.prepend(carte);
+        formIll.reset();
+        formIll.querySelector('#id_ill_message').value = '';
+        document.getElementById('ill-lien').textContent = '';
+        if (etatD.fini) { window.astRendreDiagrammes(carte); annoncer(etatD.statut === 'TERMINEE' ? 'Illustration prête.' : 'La génération a échoué.', etatD.statut !== 'TERMINEE'); }
+        else { annoncer('Génération lancée…'); suivreIllustration(carte); }
+      } catch (err) {
+        annoncer('Impossible de joindre le serveur.', true);
+      } finally { bouton.disabled = false; }
+    });
+  }
+  if (listeIll) {
+    listeIll.querySelectorAll('[data-statut="EN_COURS"]').forEach(suivreIllustration);
+    listeIll.addEventListener('submit', (e) => {
+      if (e.target.classList.contains('ast-form-supprimer-ill') && !confirm('Supprimer cette illustration ?')) e.preventDefault();
+    });
+  }
+
+  connecter();
+  defiler();
+})();
+</script>

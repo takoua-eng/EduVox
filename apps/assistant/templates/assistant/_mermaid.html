@@ -1,0 +1,39 @@
+<script>
+/* Rendu des diagrammes Mermaid (chargé à la demande, mode « strict » : aucun script ni lien dans le SVG). */
+(function () {
+  let chargement = null, compteur = 0;
+  function charger() {
+    if (!chargement) {
+      chargement = new Promise(function (ok, ko) {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';
+        s.onload = function () {
+          window.mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'neutral' });
+          ok(window.mermaid);
+        };
+        s.onerror = ko;
+        document.head.appendChild(s);
+      });
+    }
+    return chargement;
+  }
+  window.astRendreDiagrammes = async function (racine) {
+    const blocs = (racine || document).querySelectorAll('.ast-mermaid[data-code]:not([data-rendu])');
+    if (!blocs.length) return;
+    let mermaid;
+    try { mermaid = await charger(); } catch (e) { return; } // hors ligne : le code reste affiché
+    for (const bloc of blocs) {
+      bloc.dataset.rendu = '1';
+      try {
+        const { svg } = await mermaid.render('ast-mermaid-' + (++compteur), bloc.dataset.code);
+        bloc.innerHTML = svg;
+        const el = bloc.querySelector('svg');
+        if (el) { el.setAttribute('aria-hidden', 'true'); el.setAttribute('focusable', 'false'); }
+      } catch (e) {
+        bloc.insertAdjacentHTML('beforeend', '<p class="ast-erreur small mb-0">Diagramme illisible : son code est affiché.</p>');
+      }
+    }
+  };
+  document.addEventListener('DOMContentLoaded', function () { window.astRendreDiagrammes(); });
+})();
+</script>

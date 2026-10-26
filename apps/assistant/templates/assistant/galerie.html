@@ -1,0 +1,54 @@
+{% extends layout_path %}
+
+{% block title %}Mes illustrations - EduVox{% endblock title %}
+{% block page_css %}{% include "assistant/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="assistant-module">
+{% include "accounts/_messages.html" %}
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'assistant' %}">Assistant vocal</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Mes illustrations</li>
+  </ol>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-5">
+  <h1 class="h4 mb-0">Mes illustrations et diagrammes</h1>
+  <nav class="ast-onglets" aria-label="Filtrer par type">
+    <a href="?" {% if not filtre %}aria-current="page"{% endif %}>Tout</a>
+    {% for valeur, libelle in types %}
+    <a href="?type={{ valeur }}" {% if filtre == valeur %}aria-current="page"{% endif %}>{{ libelle }}s</a>
+    {% endfor %}
+  </nav>
+</div>
+
+{% if liste_illustrations %}
+<div class="ast-illustrations" style="grid-template-columns: repeat(auto-fill, minmax(260px, 1fr))">
+  {% for illustration in liste_illustrations %}
+  <div class="d-flex flex-column">
+    {% include "assistant/_illustration.html" %}
+    <a class="small mt-1" href="{% url 'session-assistant' illustration.session_id %}#illustrations">Session : {{ illustration.session.titre }}</a>
+  </div>
+  {% endfor %}
+</div>
+{% if is_paginated %}
+<nav class="mt-6" aria-label="Pagination des illustrations">
+  <ul class="pagination justify-content-center">
+    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtre %}&type={{ filtre }}{% endif %}">Précédent</a></li>{% endif %}
+    <li class="page-item active" aria-current="page"><span class="page-link">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtre %}&type={{ filtre }}{% endif %}">Suivant</a></li>{% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% else %}
+<div class="card"><div class="card-body text-center py-10">
+  <i class="icon-base ri ri-image-ai-line mb-3" style="font-size: 3rem; color: var(--ast-vert)" aria-hidden="true"></i>
+  <h2 class="h5">Aucune illustration</h2>
+  <p class="ast-doux mb-0">Dans une session, clique sur « Illustrer » sous une réponse pour générer un diagramme ou une image.</p>
+</div></div>
+{% endif %}
+</div>
+{% endblock content %}
+
+{% block page_js %}{% include "assistant/_mermaid.html" %}{% endblock page_js %}

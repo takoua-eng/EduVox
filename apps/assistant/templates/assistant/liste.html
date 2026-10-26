@@ -1,0 +1,100 @@
+{% extends layout_path %}
+
+{% block title %}Assistant vocal - EduVox{% endblock title %}
+{% block page_css %}{% include "assistant/_styles.html" %}{% endblock page_css %}
+
+{% block content %}
+<div class="assistant-module">
+{% include "accounts/_messages.html" %}
+
+<section class="ast-hero mb-6" aria-labelledby="titre-page">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-4">
+    <div>
+      <span class="ast-badge ast-badge--info mb-3"><i class="icon-base ri ri-sparkling-2-line" aria-hidden="true"></i> Whisper · Gemini · Hugging Face</span>
+      <h1 id="titre-page" class="h3 mb-2">Assistant vocal</h1>
+      <p class="mb-0" style="max-width: 640px">
+        Pose tes questions à l'oral ou à l'écrit : l'assistant te répond en direct en s'appuyant sur le cours choisi,
+        et peut illustrer ses explications par une image ou un diagramme.
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{% url 'creer-session-assistant' %}" class="btn btn-light"><i class="icon-base ri ri-add-line me-1" aria-hidden="true"></i> Nouvelle session</a>
+      <a href="{% url 'galerie-assistant' %}" class="btn btn-outline-light"><i class="icon-base ri ri-image-line me-1" aria-hidden="true"></i> Mes illustrations</a>
+    </div>
+  </div>
+  <div class="ast-hero-stats">
+    <div class="ast-hero-stat"><strong>{{ bandeau.sessions }}</strong><span>sessions</span></div>
+    <div class="ast-hero-stat"><strong>{{ bandeau.ouvertes }}</strong><span>ouvertes</span></div>
+    <div class="ast-hero-stat"><strong>{{ bandeau.questions }}</strong><span>questions posées</span></div>
+    <div class="ast-hero-stat"><strong>{{ bandeau.illustrations }}</strong><span>illustrations</span></div>
+  </div>
+</section>
+
+{% if not gemini_configure %}
+<div class="alert alert-warning" role="status">L'IA n'est pas configurée sur ce serveur (clé Gemini absente) : vous pouvez consulter vos sessions mais pas poser de nouvelle question.</div>
+{% endif %}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-5">
+  <nav class="ast-onglets" aria-label="Filtrer les sessions">
+    <a href="?{% if recherche %}q={{ recherche|urlencode }}{% endif %}" {% if not filtre %}aria-current="page"{% endif %}>Toutes</a>
+    <a href="?etat=ouvertes{% if recherche %}&q={{ recherche|urlencode }}{% endif %}" {% if filtre == 'ouvertes' %}aria-current="page"{% endif %}>Ouvertes</a>
+    <a href="?etat=fermees{% if recherche %}&q={{ recherche|urlencode }}{% endif %}" {% if filtre == 'fermees' %}aria-current="page"{% endif %}>Fermées</a>
+  </nav>
+  <form method="get" role="search" aria-label="Rechercher dans mes sessions" class="d-flex gap-2" style="min-width: min(100%, 340px)">
+    {% if filtre %}<input type="hidden" name="etat" value="{{ filtre }}" />{% endif %}
+    <label for="filtre-q" class="visually-hidden">Rechercher une session, un cours ou un message</label>
+    <input type="search" id="filtre-q" name="q" value="{{ recherche }}" class="form-control" placeholder="Rechercher dans l'historique…" />
+    <button type="submit" class="btn btn-primary" aria-label="Rechercher"><i class="icon-base ri ri-search-line" aria-hidden="true"></i></button>
+  </form>
+</div>
+
+{% if liste_sessions %}
+<h2 class="visually-hidden">Mes sessions</h2>
+<ul class="ast-grille list-unstyled mb-0">
+  {% for s in liste_sessions %}
+  <li>
+    <article class="ast-carte" aria-labelledby="session-{{ s.pk }}">
+      <div class="d-flex justify-content-between align-items-start gap-2">
+        <span class="ast-badge {% if s.active %}ast-badge--ouverte{% else %}ast-badge--fermee{% endif %}">
+          <i class="icon-base ri {% if s.active %}ri-chat-1-line{% else %}ri-lock-line{% endif %}" aria-hidden="true"></i>
+          {% if s.active %}Ouverte{% else %}Fermée{% endif %}
+        </span>
+        <span class="small ast-doux">{{ s.date_maj|timesince }}</span>
+      </div>
+      <h3 id="session-{{ s.pk }}"><a href="{% url 'session-assistant' s.pk %}">{{ s.titre }}</a></h3>
+      <p class="small ast-doux mb-0"><i class="icon-base ri ri-book-2-line" aria-hidden="true"></i>
+        {% if s.cours %}{{ s.cours.titre }}{% else %}Question générale{% endif %}</p>
+      <div class="ast-meta">
+        <span><i class="icon-base ri ri-question-line" aria-hidden="true"></i> {{ s.nb_messages }} question{{ s.nb_messages|pluralize }}</span>
+        <span><i class="icon-base ri ri-image-line" aria-hidden="true"></i> {{ s.nb_illustrations }} illustration{{ s.nb_illustrations|pluralize }}</span>
+      </div>
+    </article>
+  </li>
+  {% endfor %}
+</ul>
+{% if is_paginated %}
+<nav class="mt-6" aria-label="Pagination des sessions">
+  <ul class="pagination justify-content-center">
+    {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtre %}&etat={{ filtre }}{% endif %}{% if recherche %}&q={{ recherche|urlencode }}{% endif %}">Précédent</a></li>{% endif %}
+    <li class="page-item active" aria-current="page"><span class="page-link">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtre %}&etat={{ filtre }}{% endif %}{% if recherche %}&q={{ recherche|urlencode }}{% endif %}">Suivant</a></li>{% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-10">
+    <i class="icon-base ri ri-mic-2-line mb-3" style="font-size: 3rem; color: var(--ast-vert)" aria-hidden="true"></i>
+    {% if recherche or filtre %}
+      <h2 class="h5">Aucune session ne correspond</h2>
+      <p class="ast-doux"><a href="{% url 'assistant' %}">Afficher toutes les sessions</a></p>
+    {% else %}
+      <h2 class="h5">Aucune session pour l'instant</h2>
+      <p class="ast-doux">Ouvre une session, choisis éventuellement un cours, puis pose ta première question.</p>
+      <a href="{% url 'creer-session-assistant' %}" class="btn btn-primary">Ouvrir ma première session</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+</div>
+{% endblock content %}

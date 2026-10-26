@@ -51,6 +51,7 @@ ENVIRONMENT = os.environ.get("DJANGO_ENVIRONMENT", default="local")
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",  # serveur ASGI : runserver gère aussi les WebSockets (module assistant)
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -63,6 +64,8 @@ INSTALLED_APPS = [
     "apps.courses",
     "apps.quizzes",
     "apps.challenges",
+    "apps.assistant",
+    "channels",
 
 ]
 
@@ -205,6 +208,10 @@ CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/
 # True : les tâches s'exécutent directement, sans worker ni Redis (pratique en développement)
 CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "True").lower() in ["true", "yes", "1"]
 CELERY_TASK_EAGER_PROPAGATES = False
+
+# Django Channels (WebSocket de l'assistant). En production avec plusieurs processus : channels_redis
+ASGI_APPLICATION = "config.asgi.application"
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
 # Module cours : taille maximale d'un fichier envoyé (en Mo)
 COURS_TAILLE_MAX_MO = int(os.environ.get("COURS_TAILLE_MAX_MO", "50"))

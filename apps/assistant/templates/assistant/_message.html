@@ -1,0 +1,42 @@
+{% load assistant_extras %}
+<article id="message-{{ message.pk }}" class="ast-message{% if message.est_question %} ast-message--question{% endif %}"
+         data-id="{{ message.pk }}" data-role="{{ message.role }}"
+         aria-label="{% if message.est_question %}Votre question{% else %}Réponse de l'assistant{% endif %}, {{ message.date|date:'H:i' }}">
+  <div class="ast-avatar" aria-hidden="true"><i class="icon-base ri {% if message.est_question %}ri-user-3-line{% else %}ri-robot-2-line{% endif %}"></i></div>
+  <div class="ast-bulle">
+    <div class="ast-entete">
+      <strong>{{ message.get_role_display }}</strong>
+      {% if message.mode == 'VOCAL' %}<span class="ast-badge ast-badge--info"><i class="icon-base ri ri-mic-line" aria-hidden="true"></i> à l'oral</span>{% endif %}
+      <time datetime="{{ message.date|date:'c' }}">{{ message.date|date:"d/m H:i" }}</time>
+      {% if message.statut == 'ERREUR' %}<span class="ast-badge ast-badge--erreur">Erreur</span>
+      {% elif message.statut == 'EN_ATTENTE' %}<span class="ast-badge ast-badge--attente">En cours</span>{% endif %}
+      {% if not message.est_question and message.duree_ms and message.statut == 'PRET' %}<span title="Temps de réponse">{{ message.duree_ms|floatformat:"0" }} ms</span>{% endif %}
+    </div>
+    <div class="ast-contenu">
+      {% if message.est_question %}<p>{{ message.texte|linebreaksbr }}</p>{% else %}{{ message.texte|markdown }}{% endif %}
+    </div>
+    {% if message.message_erreur %}<p class="ast-erreur small mb-0">{{ message.message_erreur }}</p>{% endif %}
+    {% if message.audio %}<audio class="ast-audio" controls preload="none" src="{{ message.audio.url }}" aria-label="Écouter l'enregistrement de cette question"></audio>{% endif %}
+
+    <div class="ast-actions">
+      {% if message.est_question %}
+        <form method="post" action="{% url 'supprimer-message-assistant' message.pk %}" class="ast-form-supprimer">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="Supprimer cette question et sa réponse">
+            <i class="icon-base ri ri-delete-bin-line" aria-hidden="true"></i></button>
+        </form>
+      {% elif message.statut == 'PRET' %}
+        <button type="button" class="btn btn-sm btn-outline-secondary ast-js-seul" data-action="lire" aria-pressed="false" aria-label="Écouter la réponse à voix haute">
+          <i class="icon-base ri ri-volume-up-line" aria-hidden="true"></i></button>
+        <button type="button" class="btn btn-sm btn-outline-secondary ast-js-seul" data-action="copier" aria-label="Copier la réponse">
+          <i class="icon-base ri ri-file-copy-line" aria-hidden="true"></i></button>
+        {% if session.active %}
+        <button type="button" class="btn btn-sm btn-outline-secondary ast-js-seul" data-action="illustrer" aria-label="Illustrer cette réponse (image ou diagramme)">
+          <i class="icon-base ri ri-palette-line me-1" aria-hidden="true"></i>Illustrer</button>
+        {% endif %}
+        {% include "assistant/_evaluer.html" with valeur=1 icone="ri-thumb-up-line" libelle="Réponse utile" %}
+        {% include "assistant/_evaluer.html" with valeur=-1 icone="ri-thumb-down-line" libelle="Réponse pas utile" %}
+      {% endif %}
+    </div>
+  </div>
+</article>

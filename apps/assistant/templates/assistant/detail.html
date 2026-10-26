@@ -1,0 +1,173 @@
+{% extends layout_path %}
+
+{% block title %}{{ session.titre }} - Assistant vocal - EduVox{% endblock title %}
+{% block page_css %}{% include "assistant/_styles.html" %}
+<style>.ast-js-seul { display: none; } .ast-js .ast-js-seul { display: inline-block; }</style>
+{% endblock page_css %}
+
+{% block content %}
+<div class="assistant-module" id="assistant-session"
+     data-ws-url="/ws/assistant/sessions/{{ session.pk }}/"
+     data-url-question="{% url 'question-assistant' session.pk %}"
+     data-url-audio="{% url 'audio-assistant' session.pk %}"
+     data-url-illustrer="{% url 'illustrer-assistant' session.pk %}"
+     data-url-fragment="{% url 'fragment-message-assistant' 0 %}"
+     data-audio-max="{{ audio_max_s }}"
+     data-active="{{ session.active|yesno:'1,0' }}">
+{% include "accounts/_messages.html" %}
+
+<nav aria-label="Fil d'Ariane" class="mb-4">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'assistant' %}">Assistant vocal</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{{ session.titre }}</li>
+  </ol>
+</nav>
+
+<div class="row g-6">
+  <!-- Conversation -->
+  <div class="col-xl-8">
+    <section aria-labelledby="titre-session">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <h1 id="titre-session" class="h4 mb-1">{{ session.titre }}</h1>
+          <p class="ast-doux small mb-0">
+            <i class="icon-base ri ri-book-2-line" aria-hidden="true"></i>
+            {% if session.cours %}Contexte : <a href="{% url 'detail-cours' session.cours.pk %}">{{ session.cours.titre }}</a>{% else %}Question générale (aucun cours){% endif %}
+          </p>
+        </div>
+        <span class="ast-connexion" id="ast-connexion" data-etat="">{% if session.active %}Connexion…{% else %}Session fermée{% endif %}</span>
+      </div>
+
+      <h2 class="visually-hidden">Historique de la conversation</h2>
+      <div class="ast-chat" id="ast-chat" role="log" aria-label="Conversation avec l'assistant" aria-busy="false" tabindex="0">
+        {% for message in liste_messages %}
+          {% include "assistant/_message.html" %}
+        {% empty %}
+          <div class="ast-vide" id="ast-vide">
+            <i class="icon-base ri ri-chat-smile-3-line" aria-hidden="true"></i>
+            <p class="mt-2 mb-1 fw-medium">Pose ta première question</p>
+            <p class="small mb-0">Écris-la ci-dessous ou clique sur le micro pour la dicter.</p>
+            {% if session.active %}
+            <div class="ast-suggestions ast-js-seul">
+              {% if session.cours %}
+                <button type="button" class="btn btn-sm btn-outline-primary" data-suggestion="Résume-moi les points clés de ce cours.">Points clés du cours</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-suggestion="Explique-moi la notion la plus difficile de ce cours avec un exemple simple.">Notion difficile</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-suggestion="Pose-moi 3 questions pour vérifier que j'ai compris ce cours.">Teste-moi</button>
+              {% else %}
+                <button type="button" class="btn btn-sm btn-outline-primary" data-suggestion="Comment bien organiser mes révisions avant un examen ?">Organiser mes révisions</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-suggestion="Explique-moi simplement ce qu'est une API REST.">Qu'est-ce qu'une API ?</button>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      {% if session.active %}
+      <form method="post" action="{% url 'question-assistant' session.pk %}" id="form-question" class="ast-saisie mt-4" aria-labelledby="titre-saisie">
+        {% csrf_token %}
+        <h2 id="titre-saisie" class="visually-hidden">Poser une question</h2>
+        <input type="hidden" name="message_id" id="id_message_id" value="" />
+        <label for="id_texte" class="form-label small ast-doux mb-1">Ta question <span class="visually-hidden">(Entrée pour envoyer, Maj+Entrée pour aller à la ligne)</span></label>
+        <textarea name="texte" id="id_texte" class="form-control" rows="2" maxlength="{{ max_caracteres }}"
+                  placeholder="Écris ta question ou utilise le micro…" aria-describedby="aide-saisie ast-etat" {% if not gemini_configure %}disabled{% endif %}></textarea>
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-2">
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" id="btn-micro" class="btn btn-outline-success ast-micro ast-js-seul" aria-pressed="false"
+                    aria-label="Dicter une question" title="Dicter une question (Alt+M)" {% if not gemini_configure %}disabled{% endif %}>
+              <i class="icon-base ri ri-mic-line" aria-hidden="true"></i>
+            </button>
+            <span id="ast-minuterie" class="small fw-medium text-danger" aria-hidden="true"></span>
+            <div class="form-check ast-js-seul mb-0">
+              <input class="form-check-input" type="checkbox" id="ast-auto-envoi" />
+              <label class="form-check-label small" for="ast-auto-envoi">Envoyer dès la fin de la transcription</label>
+            </div>
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" id="btn-arreter" class="btn btn-outline-danger" hidden>
+              <i class="icon-base ri ri-stop-circle-line me-1" aria-hidden="true"></i> Arrêter
+            </button>
+            <button type="submit" id="btn-envoyer" class="btn btn-primary" {% if not gemini_configure %}disabled{% endif %}>
+              <i class="icon-base ri ri-send-plane-2-line me-1" aria-hidden="true"></i> Envoyer
+            </button>
+          </div>
+        </div>
+        <p id="aide-saisie" class="small ast-doux mb-0 mt-2">Entrée : envoyer · Maj+Entrée : nouvelle ligne · Alt+M : micro. La dictée est transcrite par Whisper : tu peux corriger le texte avant l'envoi.</p>
+        <p id="ast-etat" class="ast-etat mb-0 mt-1" role="status" aria-live="polite"></p>
+      </form>
+      {% if not gemini_configure %}<div class="alert alert-warning mt-3" role="status">L'IA n'est pas configurée sur ce serveur (clé Gemini absente).</div>{% endif %}
+      {% else %}
+      <div class="alert alert-secondary mt-4 d-flex flex-wrap justify-content-between align-items-center gap-2" role="status">
+        <span><i class="icon-base ri ri-lock-line me-1" aria-hidden="true"></i> Cette session est fermée : l'historique reste consultable.</span>
+        <form method="post" action="{% url 'rouvrir-session-assistant' session.pk %}">{% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-primary">Rouvrir la session</button></form>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <!-- Colonne latérale -->
+  <div class="col-xl-4">
+    <section class="card mb-6" aria-labelledby="titre-infos">
+      <div class="card-body">
+        <h2 id="titre-infos" class="h6 mb-3">Session</h2>
+        <dl class="row small mb-3">
+          <dt class="col-5 fw-normal ast-doux">État</dt>
+          <dd class="col-7"><span class="ast-badge {% if session.active %}ast-badge--ouverte{% else %}ast-badge--fermee{% endif %}">{% if session.active %}Ouverte{% else %}Fermée{% endif %}</span></dd>
+          <dt class="col-5 fw-normal ast-doux">Ouverte le</dt>
+          <dd class="col-7">{{ session.date_ouverture|date:"d/m/Y H:i" }}</dd>
+          {% if session.date_fermeture %}<dt class="col-5 fw-normal ast-doux">Fermée le</dt><dd class="col-7">{{ session.date_fermeture|date:"d/m/Y H:i" }}</dd>{% endif %}
+          <dt class="col-5 fw-normal ast-doux">Messages</dt>
+          <dd class="col-7">{{ liste_messages|length }}</dd>
+        </dl>
+        <div class="d-flex flex-wrap gap-2">
+          <a href="{% url 'modifier-session-assistant' session.pk %}" class="btn btn-sm btn-outline-primary"><i class="icon-base ri ri-edit-line me-1" aria-hidden="true"></i> Modifier</a>
+          {% if session.active %}
+          <form method="post" action="{% url 'fermer-session-assistant' session.pk %}">{% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="icon-base ri ri-lock-line me-1" aria-hidden="true"></i> Fermer</button></form>
+          {% else %}
+          <form method="post" action="{% url 'rouvrir-session-assistant' session.pk %}">{% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="icon-base ri ri-lock-unlock-line me-1" aria-hidden="true"></i> Rouvrir</button></form>
+          {% endif %}
+          <a href="{% url 'exporter-session-assistant' session.pk %}" class="btn btn-sm btn-outline-secondary"><i class="icon-base ri ri-markdown-line me-1" aria-hidden="true"></i> Exporter</a>
+          <a href="{% url 'supprimer-session-assistant' session.pk %}" class="btn btn-sm btn-outline-danger"><i class="icon-base ri ri-delete-bin-line me-1" aria-hidden="true"></i> Supprimer</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="illustrations" aria-labelledby="titre-illustrations">
+      <div class="card-body">
+        <h2 id="titre-illustrations" class="h6 mb-1">Illustrations et diagrammes</h2>
+        <p class="small ast-doux">Diagramme : schéma structuré (Gemini + Mermaid). Illustration : image générée par Hugging Face{% if not hf_configure %} <strong>(non configurée sur ce serveur)</strong>{% endif %}.</p>
+        {% if session.active %}
+        <form method="post" action="{% url 'illustrer-assistant' session.pk %}" id="form-illustration" class="mb-4">
+          {% csrf_token %}
+          <input type="hidden" name="message" id="id_ill_message" value="" />
+          <fieldset class="mb-2">
+            <legend class="form-label small mb-1">Type</legend>
+            <div class="d-flex gap-3">
+              <div class="form-check"><input class="form-check-input" type="radio" name="type_illustration" id="ill-diagramme" value="DIAGRAMME" checked /><label class="form-check-label" for="ill-diagramme">Diagramme</label></div>
+              <div class="form-check"><input class="form-check-input" type="radio" name="type_illustration" id="ill-image" value="IMAGE" {% if not hf_configure %}disabled{% endif %} /><label class="form-check-label" for="ill-image">Illustration</label></div>
+            </div>
+          </fieldset>
+          <label for="id_demande" class="form-label small">Que veux-tu visualiser ?</label>
+          <input type="text" name="demande" id="id_demande" class="form-control mb-1" minlength="3" maxlength="500" required
+                 placeholder="Ex. : le cycle de vie d'une requête HTTP" aria-describedby="ill-lien" />
+          <p id="ill-lien" class="small ast-doux mb-2" aria-live="polite"></p>
+          <button type="submit" class="btn btn-sm btn-success w-100"><i class="icon-base ri ri-palette-line me-1" aria-hidden="true"></i> Générer</button>
+        </form>
+        {% endif %}
+        <div class="ast-illustrations" id="ast-liste-illustrations" aria-label="Illustrations de la session">
+          {% for illustration in illustrations %}{% include "assistant/_illustration.html" %}{% empty %}<p class="small ast-doux mb-0" id="ast-ill-vide">Aucune illustration pour l'instant.</p>{% endfor %}
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+</div>
+{% endblock content %}
+
+{% block page_js %}
+{% include "assistant/_mermaid.html" %}
+{% include "assistant/_script.html" %}
+{% endblock page_js %}
