@@ -76,8 +76,22 @@ def faux_client(reponses=None, morceaux=None, erreur_flux=None):
                 raise erreur_flux
         return flux()
 
-    return SimpleNamespace(models=SimpleNamespace(generate_content=generate_content),
+    def embed_content(model, contents, config=None):
+        return SimpleNamespace(embeddings=[SimpleNamespace(values=vecteur_mots(t)) for t in contents])
+
+    return SimpleNamespace(models=SimpleNamespace(generate_content=generate_content, embed_content=embed_content),
                            aio=SimpleNamespace(models=SimpleNamespace(generate_content_stream=generate_content_stream)))
+
+
+def vecteur_mots(texte, dimension=768):
+    """Faux embedding déterministe : sac de mots haché (des textes qui partagent des mots sont proches)."""
+    import re
+    import zlib
+
+    vecteur = [0.0] * dimension
+    for mot in re.findall(r"\w{3,}", texte.lower()):
+        vecteur[zlib.crc32(mot.encode()) % dimension] += 1.0
+    return vecteur or [0.0] * dimension
 
 
 def patch_gemini(**kwargs):

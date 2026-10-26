@@ -13,7 +13,9 @@ explication par un diagramme ou une image.
 | Sessions (CRUD) | `/assistant/` | Créer, lister (recherche, filtres ouvertes / fermées), consulter, renommer / changer de cours, **fermer / rouvrir**, supprimer (avec les fichiers audio et images), **exporter en Markdown** |
 | Question écrite | page de session | Envoi par Entrée ; réponse **en streaming** (WebSocket), bouton **Arrêter** (la réponse partielle est conservée) |
 | Question orale | bouton micro ou **Alt+M** | `MediaRecorder` (indicateur de niveau sonore, minuteur, Annuler / Échap) → conversion **WAV 16 kHz** dans le navigateur → **Whisper** (tâche Celery) → question **envoyée automatiquement** |
-| Contexte du cours | choix du cours | Le résumé (ou la transcription) du cours est injecté dans le prompt système ; uniquement si l'utilisateur a le droit de voir ce cours |
+| **Réponses citant le cours (RAG)** | choix du cours | Le cours est découpé en passages (~900 caractères, chevauchants) vectorisés avec `gemini-embedding-001` ; à chaque question, les 4 passages les plus proches (similarité cosinus) sont donnés à Gemini, qui les **cite [1] [2]** ; les extraits cités s'affichent sous la réponse. Index refait si le cours change ; repli sur le résumé si les embeddings échouent ; uniquement pour un cours que l'utilisateur a le droit de voir |
+| **Multilingue** | langue de la session (Auto / Français / English / العربية) | En automatique, **Whisper détecte la langue** (restreinte à fr / en / ar) et l'écrit est analysé ; Gemini répond dans la même langue, la voix de synthèse et le sens d'écriture (RTL pour l'arabe) suivent |
+| **Fiche de révision** | menu ⋮ → Fiche de révision | Gemini transforme la conversation en fiche structurée (synthèse, notions clés, définitions, exemples, à retenir, questions d'autoévaluation) dans la langue de la conversation ; signalée « à régénérer » si la conversation continue ; impression / PDF depuis le navigateur |
 | Historique | page de session | Conversation complète, mémoire des 10 derniers messages envoyée à Gemini, suppression d'un échange |
 | Mode de réponse | bascule **Écrit / Parole** en haut de la conversation (ou à la création) | Enregistré par session. En « Parole », chaque phrase est **lue à voix haute dès qu'elle arrive** dans le flux (Web Speech API, voix française du navigateur, Markdown retiré) ; la voix se coupe quand on dicte ou qu'on arrête la réponse |
 | Lecture à voix haute | bouton haut-parleur sous une réponse | Relire une réponse à la demande |
@@ -32,19 +34,23 @@ explication par un diagramme ou une image.
 
 ```
 ai_services/
-├── transcription.py   + lire_wav(), transcrire_wav()  (WAV lu en Python : pas besoin de FFmpeg ; langue imposée)
+├── transcription.py   + lire_wav(), transcrire_wav(), transcrire_question() (WAV lu en Python, sans FFmpeg ;
+│                        détection de langue restreinte, encodeur Whisper exécuté une seule fois)
 └── illustration.py    generer_image()                 (Hugging Face InferenceClient, HF_TOKEN)
 
 apps/assistant/
-├── models.py          SessionAssistant, MessageVocal, Illustration (+ JournalIA : journal technique des appels)
+├── models.py          SessionAssistant, MessageVocal, Illustration, FicheRevision, PassageCours (index RAG)
+│                      + JournalIA : journal technique des appels
 ├── permissions.py     permission « accounts.poser_question » + filtrage par propriétaire (404 sinon)
-├── services.py        contexte du cours, Gemini (flux / non-flux / JSON), erreurs lisibles, métriques, WER
+├── services.py        prompt (langue, passages cités), Gemini (flux / non-flux / JSON), fiche, erreurs, WER
+├── rag.py             découpage du cours, index d'embeddings (PassageCours), recherche, citations
+├── langues.py         détection de la langue d'un texte, consignes de langue pour Gemini
 ├── consumers.py       WebSocket : streaming de la réponse, arrêt, contrôle d'accès (code 4403)
 ├── routing.py         ws/assistant/sessions/<id>/
-├── tasks.py           Celery : transcrire_message, generer_illustration
+├── tasks.py           Celery : transcrire_message, generer_illustration, indexer_cours, generer_fiche_revision
 ├── views.py / urls.py CRUD, question (repli HTTP sans streaming), audio, illustrations, modération
 ├── management/commands/evaluer_whisper.py   mesure du WER sur un jeu de test
-└── tests/             108 tests (SQLite en mémoire, IA simulée)
+└── tests/             134 tests (SQLite en mémoire, IA simulée)
 ```
 
 - **ASGI** : `config/asgi.py` route HTTP vers Django et WebSocket vers Channels (`AuthMiddlewareStack` +
@@ -83,6 +89,8 @@ dans l'administration Django (`/admin/` → « Journal des appels IA »), avec l
 | Diagramme (Gemini JSON) | 7,8 s | **3,0 s** | idem |
 | Whisper : WER sur 5 questions (voix de synthèse anglaise lisant du français) | 455 % | **40,8 %** | langue imposée + pas d'horodatage < 30 s (supprime une boucle d'hallucination) |
 | Whisper : facteur temps réel | ×7,9 | **×1,4** | idem |
+| Whisper : transcription d'une question de 5 s | 6–8 s | **~3 s** | encodeur exécuté une seule fois pour la détection de langue et la transcription |
+| Indexation d'un cours de 23 000 caractères | — | **4,0 s** (33 passages) | une fois par cours, en tâche de fond dès la création de la session |
 
 Le WER élevé restant vient de la voix de synthèse (accent anglais). Pour la soutenance, mesurer sur de vraies voix :
 
@@ -110,7 +118,9 @@ raccourcis clavier (Entrée, Maj+Entrée, Alt+M), `prefers-reduced-motion` respe
 | `HF_TOKEN` | — | Jeton Hugging Face (lecture + « Inference Providers ») pour les illustrations |
 | `HF_IMAGE_MODEL` | `black-forest-labs/FLUX.1-schnell` | Modèle texte → image |
 | `WHISPER_MODEL` | `openai/whisper-small` | `openai/whisper-base` est 2 à 3 fois plus rapide sur CPU, un peu moins précis |
-| `WHISPER_LANGUE` | `french` | Langue imposée à Whisper (vide = détection automatique) |
+| `WHISPER_LANGUE` | `french` | Langue de `transcrire_wav()` (enregistrements > 30 s) ; les questions courtes suivent la langue de la session |
+| `ASSISTANT_EMBEDDING_MODEL` | `gemini-embedding-001` | Modèle d'embedding du RAG |
+| `ASSISTANT_FICHES_PAR_HEURE` | 5 | Fiches de révision par heure et par utilisateur |
 | `ASSISTANT_GEMINI_REFLEXION` | `minimal` | Niveau de réflexion de Gemini (`minimal`, `low`, `medium`, `high`, vide = défaut du modèle) |
 | `ASSISTANT_QUESTIONS_PAR_HEURE` / `ASSISTANT_ILLUSTRATIONS_PAR_HEURE` | 30 / 10 | Limites par utilisateur |
 | `ASSISTANT_AUDIO_MAX_S` / `ASSISTANT_AUDIO_MAX_MO` | 120 / 8 | Taille maximale d'une question dictée |

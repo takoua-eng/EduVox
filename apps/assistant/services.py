@@ -21,6 +21,7 @@ from markdown_it import MarkdownIt
 from ai_services.gemini import MODELE_PAR_DEFAUT
 
 from .forms import nettoyer_espaces, valider_question
+from .langues import NOMS_POUR_PROMPT, detecter_langue_texte
 from .models import Illustration, JournalIA, MessageVocal
 from .permissions import cours_utilisables
 from .reglages import reglage
@@ -28,7 +29,7 @@ from .reglages import reglage
 logger = logging.getLogger(__name__)
 
 SYSTEME = """Tu es l'assistant pédagogique d'EduVox, une plateforme d'apprentissage.
-- Réponds dans la langue de la question (français par défaut), avec un ton bienveillant et clair.
+- Adopte un ton bienveillant et clair.
 - Va à l'essentiel : une explication structurée, des exemples si utile, au plus 300 mots sauf demande contraire.
 - Utilise le Markdown simple (titres courts, listes, **gras**, `code`, tableaux) ; jamais de HTML ni de LaTeX :
   écris les formules en texte lisible (A⁻¹, x², √2, a × b, ≤) car elles ne sont pas mises en forme.
@@ -118,10 +119,18 @@ def journaliser(type_appel, utilisateur=None, erreur=None, modele="", duree_ms=N
 
 # ---------- Questions et réponses ----------
 
-def contexte_cours(session):
-    """Texte du cours rattaché (résumé, sinon transcription), tronqué ; vide si le cours n'est plus accessible."""
+def cours_accessible(session):
+    """Le cours de la session, s'il existe encore et que l'utilisateur a toujours le droit de le voir."""
     cours = session.cours
     if cours is None or not cours_utilisables(session.utilisateur).filter(pk=cours.pk).exists():
+        return None
+    return cours
+
+
+def contexte_cours(session):
+    """Repli sans RAG : résumé du cours (sinon sa transcription), tronqué."""
+    cours = cours_accessible(session)
+    if cours is None:
         return ""
     texte = ""
     for relation in ("resume", "transcription"):
@@ -133,11 +142,65 @@ def contexte_cours(session):
     return f"Cours « {cours.titre} » :\n{texte}" if texte else f"Cours « {cours.titre} » (contenu non disponible)."
 
 
-def instruction_systeme(session):
-    contexte = contexte_cours(session)
-    if not contexte:
-        return SYSTEME
-    return f"{SYSTEME}\n\nContexte du cours choisi par l'étudiant (à utiliser en priorité) :\n<<<\n{contexte}\n>>>"
+CONSIGNE_SOURCES = """Extraits du cours « {titre} » les plus proches de la question, numérotés :
+{extraits}
+
+Règles pour ces extraits :
+- Appuie-toi d'abord sur eux et cite ceux que tu utilises par leur numéro entre crochets, juste après
+  l'information concernée, par exemple [1] ou [2][3]. N'invente jamais de numéro.
+- S'ils ne contiennent pas la réponse, dis-le en une phrase, puis réponds avec tes connaissances générales
+  en le signalant (sans citation)."""
+
+
+def requete_de_recherche(question):
+    """Texte à chercher dans le cours : la question, précédée de la précédente (relances du type « et pourquoi ? »)."""
+    precedente = (question.session.messages.filter(role=MessageVocal.Role.UTILISATEUR, pk__lt=question.pk)
+                  .exclude(texte="").order_by("-pk").values_list("texte", flat=True).first())
+    if precedente and len(question.texte) < 80:
+        return f"{precedente}\n{question.texte}"
+    return question.texte
+
+
+def contexte_avec_sources(question, reponse):
+    """Passages pertinents du cours (RAG), enregistrés dans `reponse.sources`. Repli sur le résumé en cas d'échec."""
+    from . import rag
+
+    session = question.session
+    cours = cours_accessible(session)
+    if cours is None:
+        return ""
+    try:
+        trouves = rag.rechercher(cours, requete_de_recherche(question), session.utilisateur)
+    except Exception:
+        logger.warning("Recherche dans le cours %s impossible : repli sur le résumé", cours.pk, exc_info=True)
+        trouves = []
+    if not trouves:
+        return contexte_cours(session)
+    total = cours.passages_assistant.count()
+    reponse.sources = [
+        {"n": n, "ordre": passage.ordre, "total": total, "score": round(score, 3), "extrait": passage.texte}
+        for n, (passage, score) in enumerate(trouves, start=1)
+    ]
+    extraits = "\n\n".join(f"[{s['n']}] {s['extrait']}" for s in reponse.sources)
+    return CONSIGNE_SOURCES.format(titre=cours.titre, extraits=extraits)
+
+
+def instruction_systeme(session, question=None, reponse=None):
+    """Prompt système : rôle, langue de la réponse, puis contexte du cours (passages cités ou résumé)."""
+    from .langues import consigne_langue
+
+    morceaux = [SYSTEME]
+    if reponse is not None and reponse.langue:
+        morceaux.append("- " + consigne_langue(reponse.langue, imposee=bool(session.langue)))
+    else:
+        morceaux.append("- Réponds dans la langue de la question.")
+    if question is not None and reponse is not None:
+        contexte = contexte_avec_sources(question, reponse)
+    else:
+        contexte = contexte_cours(session)
+    if contexte:
+        morceaux.append(f"\nContexte du cours choisi par l'étudiant (à utiliser en priorité) :\n<<<\n{contexte}\n>>>")
+    return "\n".join(morceaux)
 
 
 def construire_contenus(question):
@@ -168,10 +231,14 @@ def configuration_thinking():
     return types.ThinkingConfig(thinking_level=niveau) if niveau else None
 
 
-def configuration_reponse(session):
+def configuration_reponse(session, question=None, reponse=None):
+    """Configuration Gemini de la réponse ; enregistre au passage les sources et la langue de `reponse`."""
     from google.genai import types
 
-    return types.GenerateContentConfig(system_instruction=instruction_systeme(session), temperature=0.4,
+    systeme = instruction_systeme(session, question, reponse)
+    if reponse is not None and reponse.pk:
+        reponse.save(update_fields=["sources", "langue"])
+    return types.GenerateContentConfig(system_instruction=systeme, temperature=0.4,
                                        thinking_config=configuration_thinking())
 
 
@@ -216,9 +283,15 @@ def preparer_question(session, texte="", message_id=None):
                 raise ErreurAssistant("La question est vide.", "validation")
         else:
             verifier_quota_questions(session.utilisateur)
-            question = MessageVocal.objects.create(session=session, role=MessageVocal.Role.UTILISATEUR, texte=texte)
+            question = MessageVocal.objects.create(
+                session=session, role=MessageVocal.Role.UTILISATEUR, texte=texte,
+                langue=session.langue or detecter_langue_texte(texte))
+        if not question.langue:  # question dictée transcrite sans langue (enregistrement long)
+            question.langue = session.langue or detecter_langue_texte(question.texte)
+            question.save(update_fields=["langue"])
         reponse = MessageVocal.objects.create(session=session, role=MessageVocal.Role.ASSISTANT,
-                                              statut=MessageVocal.Statut.EN_ATTENTE, modele=modele_gemini())
+                                              statut=MessageVocal.Statut.EN_ATTENTE, modele=modele_gemini(),
+                                              langue=session.langue or question.langue)
         session.save(update_fields=["date_maj"])
     return question, reponse
 
@@ -252,7 +325,7 @@ def repondre(question, reponse):
         client = _client()  # garder une référence : le SDK ferme sa connexion quand le client est libéré
         resultat = client.models.generate_content(
             model=reponse.modele, contents=construire_contenus(question),
-            config=configuration_reponse(question.session),
+            config=configuration_reponse(question.session, question, reponse),
         )
         texte = (resultat.text or "").strip()
         if not texte:
@@ -384,6 +457,82 @@ def generer_diagramme(illustration):
     )
     code = nettoyer_mermaid(str(donnees.get("code_mermaid", "")))
     return code, str(donnees.get("texte_alternatif", "")).strip()[:300], duree
+
+
+# ---------- Fiche de révision ----------
+
+SCHEMA_FICHE = {
+    "type": "object",
+    "properties": {
+        "titre": {"type": "string"},
+        "resume": {"type": "string", "description": "Synthèse en 3 à 5 phrases"},
+        "notions": {"type": "array", "items": {"type": "object", "properties": {
+            "nom": {"type": "string"}, "explication": {"type": "string"}}, "required": ["nom", "explication"]}},
+        "definitions": {"type": "array", "items": {"type": "object", "properties": {
+            "terme": {"type": "string"}, "definition": {"type": "string"}}, "required": ["terme", "definition"]}},
+        "exemples": {"type": "array", "items": {"type": "string"}},
+        "a_retenir": {"type": "array", "items": {"type": "string"}},
+        "questions": {"type": "array", "items": {"type": "object", "properties": {
+            "question": {"type": "string"}, "reponse": {"type": "string"}}, "required": ["question", "reponse"]}},
+    },
+    "required": ["titre", "resume", "notions", "a_retenir", "questions"],
+}
+LIMITES_FICHE = {"notions": 8, "definitions": 10, "exemples": 6, "a_retenir": 8, "questions": 6}
+
+
+def langue_de_la_session(session):
+    """Langue imposée, sinon la plus fréquente des questions (français par défaut)."""
+    if session.langue:
+        return session.langue
+    langues = list(session.messages.filter(role=MessageVocal.Role.UTILISATEUR).exclude(langue="")
+                   .values_list("langue", flat=True))
+    return max(set(langues), key=langues.count) if langues else "fr"
+
+
+def transcription_conversation(session, maximum=20000):
+    lignes = []
+    for m in session.messages.filter(statut=MessageVocal.Statut.PRET).exclude(texte=""):
+        lignes.append(f"{'ÉTUDIANT' if m.est_question else 'ASSISTANT'} : {m.texte}")
+    texte = "\n\n".join(lignes)
+    return texte[-maximum:]  # les échanges les plus récents si la conversation est très longue
+
+
+def _texte(valeur, maximum):
+    return str(valeur or "").strip()[:maximum]
+
+
+def valider_fiche(donnees):
+    """Nettoie et borne la fiche renvoyée par Gemini ; lève ErreurAssistant si elle est vide."""
+    fiche = {"titre": _texte(donnees.get("titre"), 150), "resume": _texte(donnees.get("resume"), 1500)}
+    paires = {"notions": ("nom", "explication"), "definitions": ("terme", "definition"),
+              "questions": ("question", "reponse")}
+    for cle, (a, b) in paires.items():
+        elements = donnees.get(cle) if isinstance(donnees.get(cle), list) else []
+        fiche[cle] = [{a: _texte(e.get(a), 200), b: _texte(e.get(b), 800)} for e in elements
+                      if isinstance(e, dict) and _texte(e.get(a), 200) and _texte(e.get(b), 800)][:LIMITES_FICHE[cle]]
+    for cle in ("exemples", "a_retenir"):
+        elements = donnees.get(cle) if isinstance(donnees.get(cle), list) else []
+        fiche[cle] = [_texte(e, 500) for e in elements if _texte(e, 500)][:LIMITES_FICHE[cle]]
+    if not fiche["resume"] or not (fiche["notions"] or fiche["a_retenir"]):
+        raise ErreurAssistant("La fiche générée est vide. Posez quelques questions de plus puis réessayez.", "vide")
+    return fiche
+
+
+def generer_fiche(session):
+    """Renvoie (contenu de la fiche, langue, durée en ms)."""
+    langue = langue_de_la_session(session)
+    conversation = transcription_conversation(session)
+    if not conversation:
+        raise ErreurAssistant("La conversation est vide : posez d'abord une question.", "vide")
+    cours = f"Cours : « {session.cours.titre} »\n\n" if session.cours_id else ""
+    donnees, duree = appeler_gemini_json(
+        f"{cours}Conversation à transformer en fiche de révision :\n<<<\n{conversation}\n>>>", SCHEMA_FICHE,
+        f"Tu rédiges une fiche de révision claire et fidèle à partir d'une conversation entre un étudiant et un "
+        f"assistant pédagogique. Rédige entièrement en {NOMS_POUR_PROMPT.get(langue, 'français')}. N'ajoute que des "
+        f"notions abordées dans la conversation. Phrases courtes, sans Markdown ni HTML. Les questions "
+        f"d'autoévaluation (3 à 6) portent sur les points essentiels, avec une réponse courte.",
+    )
+    return valider_fiche(donnees), langue, duree
 
 
 # ---------- Évaluation de Whisper ----------

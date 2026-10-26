@@ -223,6 +223,48 @@ html:not(.ast-js) .ast-js-seul { display: none !important; } /* commandes qui n'
 .ast-choix-mode i { font-size: 1.35rem; color: var(--ast-vert); }
 @media (max-width: 575.98px) { .ast-choix-mode { grid-template-columns: 1fr; } }
 
+/* ---------- Citations du cours (RAG) ---------- */
+.ast-cites { margin-left: .1rem; }
+.ast-cite { display: inline-grid; place-items: center; min-width: 1.15rem; height: 1.15rem; padding: 0 .25rem; margin: 0 .08rem;
+  border-radius: .35rem; background: #e3f3ec; color: var(--ast-vert-fonce); font-size: .7rem; font-weight: 700;
+  text-decoration: none; line-height: 1; vertical-align: super; }
+.ast-cite:hover, .ast-cite:focus-visible { background: var(--ast-vert); color: #fff; }
+.ast-sources { margin-top: .6rem; border-top: 1px dashed var(--ast-bord); padding-top: .5rem; font-size: .8125rem; }
+.ast-sources summary { cursor: pointer; color: var(--ast-vert-fonce); font-weight: 500; }
+.ast-sources ol { margin-top: .5rem; display: grid; gap: .5rem; }
+.ast-sources li { display: flex; gap: .5rem; align-items: flex-start; padding: .4rem; border-radius: .5rem; }
+.ast-sources li:target { background: #fffbeb; }
+.ast-cite-num { flex: 0 0 auto; min-width: 1.35rem; height: 1.35rem; border-radius: .4rem; display: grid; place-items: center;
+  background: var(--ast-vert); color: #fff; font-size: .72rem; font-weight: 700; }
+.ast-sources blockquote { margin: .2rem 0 0; padding-left: .6rem; border-left: 3px solid var(--ast-bord); color: var(--ast-texte); }
+.ast-contenu[dir="rtl"] { text-align: right; }
+.ast-contenu[dir="rtl"] ul, .ast-contenu[dir="rtl"] ol { padding-left: 0; padding-right: 1.25rem; }
+
+/* ---------- Fiche de révision ---------- */
+.ast-fiche { max-width: 860px; margin: 0 auto; background: #fff; border: 1px solid var(--ast-bord); border-radius: 1.25rem;
+  box-shadow: var(--ast-ombre); padding: 2rem 2.25rem; color: var(--ast-texte); }
+.ast-fiche-entete { border-bottom: 2px solid var(--ast-vert); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+.ast-fiche-sur { text-transform: uppercase; letter-spacing: .06em; font-size: .75rem; font-weight: 600; color: var(--ast-vert); margin: 0 0 .35rem; }
+.ast-fiche h1 { font-size: 1.6rem; margin-bottom: .6rem; }
+.ast-fiche-resume { font-size: 1.02rem; line-height: 1.65; margin: 0; }
+.ast-fiche section { margin-bottom: 1.6rem; }
+.ast-fiche h2 { font-size: 1.05rem; color: var(--ast-vert-fonce); display: flex; align-items: center; gap: .45rem; margin-bottom: .75rem; }
+.ast-fiche-notions { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .75rem; margin: 0; }
+.ast-fiche-notions > div { border: 1px solid var(--ast-bord); border-radius: .75rem; padding: .75rem .9rem; background: var(--ast-fond); }
+.ast-fiche-notions dt { font-weight: 600; margin-bottom: .25rem; }
+.ast-fiche-notions dd { margin: 0; font-size: .9rem; line-height: 1.5; }
+.ast-fiche-def { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: .45rem 1rem; margin: 0; }
+.ast-fiche-def dt { font-weight: 600; }
+.ast-fiche-def dd { margin: 0; }
+.ast-fiche ul { padding-inline-start: 1.25rem; margin: 0; line-height: 1.6; }
+.ast-fiche-retenir { background: #fffbeb; border: 1px solid #fcd34d; border-radius: .875rem; padding: 1rem 1.25rem; }
+.ast-fiche-retenir h2 { color: #78350f; }
+.ast-fiche-questions { padding-inline-start: 1.25rem; display: grid; gap: .5rem; margin: 0; }
+.ast-fiche-questions summary { cursor: pointer; font-weight: 500; }
+.ast-fiche-questions p { margin: .35rem 0 0; color: var(--ast-doux); }
+.ast-fiche-pied { border-top: 1px solid var(--ast-bord); padding-top: .75rem; font-size: .8rem; color: var(--ast-doux); }
+@media (max-width: 575.98px) { .ast-fiche { padding: 1.25rem; } .ast-fiche-def { grid-template-columns: 1fr; } }
+
 @media (max-width: 575.98px) {
   .ast-message { max-width: 100%; }
   .ast-conv { height: calc(100vh - 10rem); border-radius: 1rem; }

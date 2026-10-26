@@ -110,26 +110,32 @@
 
   // ---------- Réponse à voix haute (mode « Parole ») ----------
   const TTS = 'speechSynthesis' in window;
-  let voixFr = null, lu = 0;
-  function choisirVoix() {
-    const fr = speechSynthesis.getVoices().filter((v) => (v.lang || '').toLowerCase().startsWith('fr'));
-    voixFr = fr.find((v) => /natural|neural|online|google/i.test(v.name)) || fr[0] || null;
+  let lu = 0, langueFlux = 'fr', voix = {};
+  /** Meilleure voix du navigateur pour une langue (fr, en, ar) : les voix « naturelles » en priorité. */
+  function voixPour(langue) {
+    if (!(langue in voix)) {
+      const candidates = speechSynthesis.getVoices().filter((v) => (v.lang || '').toLowerCase().startsWith(langue));
+      voix[langue] = candidates.find((v) => /natural|neural|online|google/i.test(v.name)) || candidates[0] || null;
+    }
+    return voix[langue];
   }
-  if (TTS) { choisirVoix(); speechSynthesis.addEventListener('voiceschanged', choisirVoix); }
+  if (TTS) speechSynthesis.addEventListener('voiceschanged', () => { voix = {}; });
+  const BCP47 = { fr: 'fr-FR', en: 'en-US', ar: 'ar-SA' };
   const modeVocal = () => TTS && cfg.modeReponse === 'VOCAL';
 
   /** Retire la syntaxe Markdown pour que la synthèse vocale lise un texte naturel. */
   function textePourParole(t) {
-    return t.replace(/```[\s\S]*?```/g, ' ').replace(/`([^`]*)`/g, '$1').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    return t.replace(/\[\d+(?:\s*[,;]\s*\d+)*\]/g, '').replace(/```[\s\S]*?```/g, ' ').replace(/`([^`]*)`/g, '$1').replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
       .replace(/^\s{0,3}#{1,6}\s*/gm, '').replace(/^\s*([-*+]|\d+[.)])\s+/gm, '').replace(/[*_~|>#]/g, '')
       .replace(/\s+/g, ' ').trim();
   }
-  function dire(texte) {
+  function dire(texte, langue) {
     const t = textePourParole(texte);
     if (!t) return;
     const u = new SpeechSynthesisUtterance(t);
-    u.lang = voixFr ? voixFr.lang : 'fr-FR';
-    if (voixFr) u.voice = voixFr;
+    const v = voixPour(langue || 'fr');
+    u.lang = v ? v.lang : (BCP47[langue] || 'fr-FR');
+    if (v) u.voice = v;
     u.onstart = () => racine.classList.add('ast-parle');
     u.onend = u.onerror = () => { if (!speechSynthesis.speaking && !speechSynthesis.pending) racine.classList.remove('ast-parle'); };
     speechSynthesis.speak(u);
@@ -141,7 +147,7 @@
     const reste = texteFlux.slice(lu);
     let coupe = final ? reste.length : -1;
     if (!final) { const re = /[.!?:;](\s|$)|\n/g; let m; while ((m = re.exec(reste))) coupe = m.index + 1; }
-    if (coupe > 0) { dire(reste.slice(0, coupe)); lu += coupe; }
+    if (coupe > 0) { dire(reste.slice(0, coupe), langueFlux); lu += coupe; }
   }
 
   if (formMode) {
@@ -202,6 +208,8 @@
       bulleFlux = bulleAttente();
       texteFlux = '';
       taire();
+      langueFlux = d.langue || 'fr';
+      bulleFlux.querySelector('.ast-contenu').setAttribute('dir', langueFlux === 'ar' ? 'rtl' : 'auto');
       inserer(d.question.id, null, bulleFlux); // la question s'affiche juste avant la réponse
       annoncer("L'assistant rédige sa réponse…");
     } else if (d.type === 'morceau' && bulleFlux) {
@@ -253,7 +261,7 @@
       await inserer(d.question.id, null, b);
       const el = await inserer(d.reponse_id, b);
       occupe(false);
-      if (el && modeVocal()) dire(el.querySelector('.ast-contenu').innerText);
+      if (el && modeVocal()) dire(texteDe(el), el.dataset.langue);
       zone.focus();
     } catch (e) {
       bulleFlux = b;
@@ -437,19 +445,33 @@
   }
 
   // ---------- Actions sur les réponses ----------
+  /** Texte d'une réponse sans les numéros de citation. */
+  function texteDe(article) {
+    const copie = article.querySelector('.ast-contenu').cloneNode(true);
+    copie.querySelectorAll('.ast-cites').forEach((c) => c.remove());
+    return copie.innerText.trim();
+  }
+  chat.addEventListener('click', (e) => {
+    const cite = e.target.closest('.ast-cite');
+    if (!cite) return;
+    const sources = cite.closest('.ast-message').querySelector('.ast-sources');
+    if (sources) sources.open = true; // le lien amène ensuite au passage cité
+  });
   chat.addEventListener('click', async (e) => {
     const bouton = e.target.closest('[data-action]');
     if (!bouton) return;
     const article = bouton.closest('.ast-message');
-    const texte = article.querySelector('.ast-contenu').innerText.trim();
+    const texte = texteDe(article);
     if (bouton.dataset.action === 'lire') {
       if (!('speechSynthesis' in window)) { annoncer('Lecture à voix haute non disponible sur ce navigateur.', true); return; }
       const actif = bouton.getAttribute('aria-pressed') === 'true';
       speechSynthesis.cancel();
       chat.querySelectorAll('[data-action="lire"]').forEach((b) => b.setAttribute('aria-pressed', 'false'));
       if (actif) return;
-      const lecture = new SpeechSynthesisUtterance(texte);
-      lecture.lang = document.documentElement.lang || 'fr-FR';
+      const lecture = new SpeechSynthesisUtterance(textePourParole(texte));
+      const v = voixPour(article.dataset.langue || 'fr');
+      lecture.lang = v ? v.lang : (BCP47[article.dataset.langue] || 'fr-FR');
+      if (v) lecture.voice = v;
       lecture.onend = () => bouton.setAttribute('aria-pressed', 'false');
       bouton.setAttribute('aria-pressed', 'true');
       speechSynthesis.speak(lecture);

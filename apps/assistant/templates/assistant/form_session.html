@@ -37,6 +37,13 @@
             <p class="ast-champ-erreur" role="alert">{{ form.cours.errors|first|default:"" }}</p>
           </div>
 
+          <div class="mb-5">
+            <label for="{{ form.langue.id_for_label }}" class="form-label">{{ form.langue.label }}</label>
+            {{ form.langue }}
+            <div class="form-text">En automatique, la langue (français, anglais ou arabe) est reconnue à chaque question, écrite ou orale, et l'assistant répond dans la même langue.</div>
+            <p class="ast-champ-erreur" role="alert">{{ form.langue.errors|first|default:"" }}</p>
+          </div>
+
           <fieldset class="mb-5">
             <legend class="form-label fs-6">{{ form.mode_reponse.label }}</legend>
             <div class="ast-choix-mode">

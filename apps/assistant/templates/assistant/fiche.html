@@ -1,0 +1,138 @@
+{% extends layout_path %}
+
+{% block title %}Fiche de révision - {{ session.titre }} - EduVox{% endblock title %}
+{% block page_css %}{% include "assistant/_styles.html" %}
+<style>
+@media print {
+  .layout-menu, .layout-navbar, .content-footer, footer, .ast-noprint, .layout-overlay { display: none !important; }
+  .layout-page, .content-wrapper, .container-xxl, .layout-container, .layout-wrapper { padding: 0 !important; margin: 0 !important; max-width: none !important; }
+  body { background: #fff !important; }
+  .ast-fiche { box-shadow: none !important; border: 0 !important; }
+  .ast-fiche section { break-inside: avoid; }
+  .ast-fiche details > :not(summary) { display: block !important; }
+  .ast-fiche details summary::marker { content: ""; }
+}
+</style>
+{% endblock page_css %}
+
+{% block content %}
+<div class="assistant-module">
+{% include "accounts/_messages.html" %}
+<nav aria-label="Fil d'Ariane" class="mb-4 ast-noprint">
+  <ol class="breadcrumb">
+    <li class="breadcrumb-item"><a href="{% url 'assistant' %}">Assistant vocal</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'session-assistant' session.pk %}">{{ session.titre }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Fiche de révision</li>
+  </ol>
+</nav>
+
+{% if fiche and fiche.statut == 'TERMINEE' %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4 ast-noprint">
+  <a href="{% url 'session-assistant' session.pk %}" class="btn btn-sm btn-outline-secondary"><i class="icon-base ri ri-arrow-left-line me-1" aria-hidden="true"></i> Retour à la conversation</a>
+  <div class="d-flex flex-wrap gap-2">
+    <form method="post" action="{% url 'generer-fiche-assistant' session.pk %}">{% csrf_token %}
+      <button type="submit" class="btn btn-sm {% if perimee %}btn-warning{% else %}btn-outline-secondary{% endif %}"><i class="icon-base ri ri-refresh-line me-1" aria-hidden="true"></i> Régénérer</button>
+    </form>
+    <button type="button" class="btn btn-sm btn-primary ast-js-seul" onclick="window.print()"><i class="icon-base ri ri-file-pdf-2-line me-1" aria-hidden="true"></i> PDF / Imprimer</button>
+  </div>
+</div>
+{% if perimee %}<div class="alert alert-warning ast-noprint" role="status">La conversation a continué depuis cette fiche : régénère-la pour inclure les derniers échanges.</div>{% endif %}
+
+{% with c=fiche.contenu %}
+<article class="ast-fiche" lang="{{ fiche.langue|default:'fr' }}" dir="{% if fiche.est_rtl %}rtl{% else %}ltr{% endif %}" aria-labelledby="fiche-titre">
+  <header class="ast-fiche-entete">
+    <p class="ast-fiche-sur">Fiche de révision{% if session.cours %} · {{ session.cours.titre }}{% endif %}</p>
+    <h1 id="fiche-titre">{{ c.titre|default:session.titre }}</h1>
+    <p class="ast-fiche-resume">{{ c.resume }}</p>
+  </header>
+
+  {% if c.notions %}
+  <section aria-labelledby="f-notions">
+    <h2 id="f-notions"><i class="icon-base ri ri-lightbulb-line" aria-hidden="true"></i> Notions clés</h2>
+    <dl class="ast-fiche-notions">
+      {% for n in c.notions %}<div><dt>{{ n.nom }}</dt><dd>{{ n.explication }}</dd></div>{% endfor %}
+    </dl>
+  </section>
+  {% endif %}
+
+  {% if c.definitions %}
+  <section aria-labelledby="f-def">
+    <h2 id="f-def"><i class="icon-base ri ri-book-2-line" aria-hidden="true"></i> Définitions</h2>
+    <dl class="ast-fiche-def">
+      {% for d in c.definitions %}<dt>{{ d.terme }}</dt><dd>{{ d.definition }}</dd>{% endfor %}
+    </dl>
+  </section>
+  {% endif %}
+
+  {% if c.exemples %}
+  <section aria-labelledby="f-ex">
+    <h2 id="f-ex"><i class="icon-base ri ri-flask-line" aria-hidden="true"></i> Exemples</h2>
+    <ul>{% for e in c.exemples %}<li>{{ e }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+
+  {% if c.a_retenir %}
+  <section class="ast-fiche-retenir" aria-labelledby="f-ret">
+    <h2 id="f-ret"><i class="icon-base ri ri-star-line" aria-hidden="true"></i> À retenir</h2>
+    <ul>{% for r in c.a_retenir %}<li>{{ r }}</li>{% endfor %}</ul>
+  </section>
+  {% endif %}
+
+  {% if c.questions %}
+  <section aria-labelledby="f-q">
+    <h2 id="f-q"><i class="icon-base ri ri-question-answer-line" aria-hidden="true"></i> Teste-toi</h2>
+    <ol class="ast-fiche-questions">
+      {% for q in c.questions %}
+      <li><details><summary>{{ q.question }}</summary><p>{{ q.reponse }}</p></details></li>
+      {% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  <footer class="ast-fiche-pied">Générée le {{ fiche.date_maj|date:"d/m/Y à H:i" }} à partir de {{ fiche.nb_messages }} message{{ fiche.nb_messages|pluralize }} · EduVox</footer>
+</article>
+{% endwith %}
+
+{% elif fiche and fiche.statut == 'EN_COURS' %}
+<div class="card"><div class="card-body text-center py-10" role="status" id="fiche-attente" data-url-etat="{% url 'etat-fiche-assistant' session.pk %}">
+  <div class="spinner-border text-success mb-3" aria-hidden="true"></div>
+  <h1 class="h5">Rédaction de ta fiche…</h1>
+  <p class="ast-doux mb-0">Gemini résume la conversation : cela prend quelques secondes.</p>
+  <noscript><p class="mt-3"><a href="">Actualiser la page</a></p></noscript>
+</div></div>
+
+{% else %}
+<div class="card"><div class="card-body text-center py-10">
+  <i class="icon-base ri ri-file-list-3-line mb-3" style="font-size: 3rem; color: var(--ast-vert)" aria-hidden="true"></i>
+  <h1 class="h5">Fiche de révision</h1>
+  {% if fiche and fiche.statut == 'ERREUR' %}<p class="ast-erreur" role="alert">{{ fiche.message_erreur }}</p>{% endif %}
+  <p class="ast-doux" style="max-width: 520px; margin: 0 auto 1.25rem">Transforme cette conversation en fiche : synthèse, notions clés, définitions, exemples, points à retenir et questions pour te tester.</p>
+  {% if peut_generer %}
+  <form method="post" action="{% url 'generer-fiche-assistant' session.pk %}">{% csrf_token %}
+    <button type="submit" class="btn btn-primary"><i class="icon-base ri ri-sparkling-2-line me-1" aria-hidden="true"></i> {% if fiche %}Réessayer{% else %}Générer la fiche{% endif %}</button>
+  </form>
+  {% else %}
+  <p class="mb-0">Pose d'abord au moins une question à l'assistant. <a href="{% url 'session-assistant' session.pk %}">Retour à la conversation</a></p>
+  {% endif %}
+</div></div>
+{% endif %}
+</div>
+{% endblock content %}
+
+{% block page_js %}
+<script>
+(function () {
+  const attente = document.getElementById('fiche-attente');
+  if (!attente) return;
+  (async function suivre() {
+    for (let i = 0; i < 90; i++) {
+      await new Promise((ok) => setTimeout(ok, 2000));
+      try {
+        const r = await fetch(attente.dataset.urlEtat, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (r.ok && (await r.json()).fini) { location.reload(); return; }
+      } catch (e) { /* nouvel essai */ }
+    }
+  })();
+})();
+</script>
+{% endblock page_js %}

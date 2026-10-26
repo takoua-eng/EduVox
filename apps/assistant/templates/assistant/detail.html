@@ -46,6 +46,7 @@
           {% if session.cours %}
           <a class="ast-puce" href="{% url 'detail-cours' session.cours.pk %}"><i class="icon-base ri ri-book-2-line" aria-hidden="true"></i> {{ session.cours.titre }}</a>
           {% endif %}
+          <span class="ast-puce" title="Langue de la conversation"><i class="icon-base ri ri-translate-2" aria-hidden="true"></i> {% if session.langue %}{{ session.get_langue_display }}{% else %}Langue auto{% endif %}</span>
           {% if session.active and not lecture_seule %}
           <span class="ast-connexion" id="ast-connexion" data-etat="">Connexion…</span>
           {% elif session.active %}
@@ -79,7 +80,8 @@
           <li><a class="dropdown-item" href="{% url 'moderation-exporter-assistant' session.pk %}"><i class="icon-base ri ri-markdown-line me-2" aria-hidden="true"></i>Exporter la conversation</a></li>
           <li><button type="button" class="dropdown-item ast-js-seul" data-export-pdf="#ast-liste-illustrations" data-titre-pdf="{{ session.titre }}"><i class="icon-base ri ri-file-pdf-2-line me-2" aria-hidden="true"></i>Illustrations en PDF</button></li>
           {% else %}
-          <li><a class="dropdown-item" href="{% url 'modifier-session-assistant' session.pk %}"><i class="icon-base ri ri-edit-line me-2" aria-hidden="true"></i>Modifier</a></li>
+          <li><a class="dropdown-item" href="{% url 'fiche-assistant' session.pk %}"><i class="icon-base ri ri-file-list-3-line me-2" aria-hidden="true"></i>Fiche de révision</a></li>
+          <li><a class="dropdown-item" href="{% url 'modifier-session-assistant' session.pk %}"><i class="icon-base ri ri-edit-line me-2" aria-hidden="true"></i>Modifier (titre, cours, langue)</a></li>
           <li><a class="dropdown-item" href="{% url 'exporter-session-assistant' session.pk %}"><i class="icon-base ri ri-markdown-line me-2" aria-hidden="true"></i>Exporter la conversation</a></li>
           <li><button type="button" class="dropdown-item ast-js-seul" data-export-pdf="#ast-liste-illustrations" data-titre-pdf="{{ session.titre }}"><i class="icon-base ri ri-file-pdf-2-line me-2" aria-hidden="true"></i>Illustrations en PDF</button></li>
           <li>

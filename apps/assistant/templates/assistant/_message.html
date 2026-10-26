@@ -1,20 +1,37 @@
 {% load assistant_extras %}
 <article id="message-{{ message.pk }}" class="ast-message{% if message.est_question %} ast-message--question{% endif %}"
-         data-id="{{ message.pk }}" data-role="{{ message.role }}"
+         data-id="{{ message.pk }}" data-role="{{ message.role }}" data-langue="{{ message.langue|default:'fr' }}"
          aria-label="{% if message.est_question %}Votre question{% else %}Réponse de l'assistant{% endif %}, {{ message.date|date:'H:i' }}">
   <div class="ast-avatar" aria-hidden="true"><i class="icon-base ri {% if message.est_question %}ri-user-3-line{% else %}ri-robot-2-line{% endif %}"></i></div>
   <div class="ast-bulle">
     <div class="ast-entete">
       <strong>{{ message.get_role_display }}</strong>
       {% if message.mode == 'VOCAL' %}<span class="ast-badge ast-badge--info"><i class="icon-base ri ri-mic-line" aria-hidden="true"></i> à l'oral</span>{% endif %}
+      {% if message.langue and message.langue != 'fr' %}<span class="ast-badge ast-badge--info" title="Langue">{{ message.langue|upper }}</span>{% endif %}
       <time datetime="{{ message.date|date:'c' }}">{{ message.date|date:"d/m H:i" }}</time>
       {% if message.statut == 'ERREUR' %}<span class="ast-badge ast-badge--erreur">Erreur</span>
       {% elif message.statut == 'EN_ATTENTE' %}<span class="ast-badge ast-badge--attente">En cours</span>{% endif %}
       {% if not message.est_question and message.duree_ms and message.statut == 'PRET' %}<span title="Temps de réponse">{{ message.duree_ms|floatformat:"0" }} ms</span>{% endif %}
     </div>
-    <div class="ast-contenu">
-      {% if message.est_question %}<p>{{ message.texte|linebreaksbr }}</p>{% else %}{{ message.texte|markdown }}{% endif %}
+    <div class="ast-contenu" lang="{{ message.langue|default:'fr' }}" dir="{% if message.est_rtl %}rtl{% else %}ltr{% endif %}">
+      {% if message.est_question %}<p>{{ message.texte|linebreaksbr }}</p>{% else %}{{ message|reponse_html }}{% endif %}
     </div>
+    {% if not message.est_question %}{% with sources=message|sources_citees %}{% if sources %}
+    <details class="ast-sources">
+      <summary><i class="icon-base ri ri-book-open-line me-1" aria-hidden="true"></i>{{ sources|length }} passage{{ sources|length|pluralize }} du cours cité{{ sources|length|pluralize }}</summary>
+      <ol class="list-unstyled mb-0">
+        {% for s in sources %}
+        <li id="src-{{ message.pk }}-{{ s.n }}">
+          <span class="ast-cite-num" aria-hidden="true">{{ s.n }}</span>
+          <div>
+            <span class="visually-hidden">Source {{ s.n }} : </span><span class="small ast-doux">Partie {{ s.ordre }} sur {{ s.total }} de « {{ session.cours.titre|default:"cours" }} »</span>
+            <blockquote dir="auto">{{ s.extrait|truncatechars:450 }}</blockquote>
+          </div>
+        </li>
+        {% endfor %}
+      </ol>
+    </details>
+    {% endif %}{% endwith %}{% endif %}
     {% if message.message_erreur %}<p class="ast-erreur small mb-0">{{ message.message_erreur }}</p>{% endif %}
     {% if message.audio %}<audio class="ast-audio" controls preload="none" src="{{ message.audio.url }}" aria-label="Écouter l'enregistrement de cette question"></audio>{% endif %}
 

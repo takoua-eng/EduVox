@@ -28,7 +28,7 @@ class TranscriptionTests(BaseAssistantTestCase):
         with self.captureOnCommitCallbacks(execute=True):
             return self.client.post(self.url, {"audio": fichier or fichier_wav()}, **AJAX)
 
-    @mock.patch("apps.assistant.tasks.transcrire_wav", return_value="Qu'est-ce qu'un déterminant ?")
+    @mock.patch("apps.assistant.tasks.transcrire_question", return_value=("Qu'est-ce qu'un déterminant ?", "fr", 1.0))
     def test_transcription_reussie(self, transcrire):
         reponse = self.envoyer()
         self.assertEqual(reponse.status_code, 202)
@@ -41,20 +41,20 @@ class TranscriptionTests(BaseAssistantTestCase):
         self.assertAlmostEqual(message.duree_audio_s, 1.0, places=1)
         self.assertTrue(JournalIA.objects.filter(type_appel=JournalIA.Type.TRANSCRIPTION, succes=True).exists())
 
-    @mock.patch("apps.assistant.tasks.transcrire_wav", side_effect=ValueError("Aucune parole n'a été détectée."))
+    @mock.patch("apps.assistant.tasks.transcrire_question", side_effect=ValueError("Aucune parole n'a été détectée."))
     def test_silence(self, transcrire):
         etat = self.client.get(self.envoyer().json()["url_etat"]).json()
         self.assertEqual(etat["statut"], MessageVocal.Statut.ERREUR)
         self.assertIn("parole", etat["erreur"])
 
-    @mock.patch("apps.assistant.tasks.transcrire_wav", side_effect=RuntimeError("panne"))
+    @mock.patch("apps.assistant.tasks.transcrire_question", side_effect=RuntimeError("panne"))
     def test_erreur_inattendue(self, transcrire):
         with self.assertLogs("apps.assistant.tasks", "ERROR"):
             etat = self.client.get(self.envoyer().json()["url_etat"]).json()
         self.assertEqual(etat["statut"], MessageVocal.Statut.ERREUR)
         self.assertTrue(JournalIA.objects.filter(type_appel=JournalIA.Type.TRANSCRIPTION, succes=False).exists())
 
-    @mock.patch("apps.assistant.tasks.transcrire_wav")
+    @mock.patch("apps.assistant.tasks.transcrire_question")
     def test_enregistrement_trop_long_ou_trop_court(self, transcrire):
         with mock.patch.dict(os.environ, {"ASSISTANT_AUDIO_MAX_S": "1"}):
             etat = self.client.get(self.envoyer(fichier_wav(2)).json()["url_etat"]).json()
@@ -86,7 +86,7 @@ class TranscriptionTests(BaseAssistantTestCase):
         self.assertEqual(etat["statut"], MessageVocal.Statut.ERREUR)
         self.assertIn("injoignable", etat["erreur"])
 
-    @mock.patch("apps.assistant.tasks.transcrire_wav", return_value="Bonjour")
+    @mock.patch("apps.assistant.tasks.transcrire_question", return_value=("Bonjour", "fr", 1.0))
     def test_question_dictee_puis_reponse(self, transcrire):
         message_id = self.client.get(self.envoyer().json()["url_etat"]).json()["id"]
         with patch_gemini(reponses="Bonjour ! Comment puis-je t'aider ?"):

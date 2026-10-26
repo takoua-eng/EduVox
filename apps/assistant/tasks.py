@@ -1,4 +1,4 @@
-"""Tâches Celery du module assistant : transcription Whisper et génération d'illustrations.
+"""Tâches Celery du module assistant : transcription Whisper, illustrations, indexation des cours, fiches.
 
 Ces traitements durent plusieurs secondes : ils ne bloquent pas la requête HTTP, la page interroge
 leur état. Les deux tâches sont idempotentes (rien n'est refait si l'objet n'est plus « en cours »).
@@ -12,15 +12,16 @@ from celery import shared_task
 from django.core.files.base import ContentFile
 from django.db import transaction
 
-from ai_services import generer_image, lire_wav, transcrire_wav
+from ai_services import generer_image, lire_wav, transcrire_question
 from ai_services.illustration import modele_image
 from ai_services.transcription import MODELE_PAR_DEFAUT as WHISPER_PAR_DEFAUT
 
-from .models import Illustration, JournalIA, MessageVocal
+from .models import FicheRevision, Illustration, JournalIA, MessageVocal
 from .reglages import reglage
 from .services import (
     ErreurAssistant,
     generer_diagramme,
+    generer_fiche,
     hugging_face_configure,
     journaliser,
     modele_gemini,
@@ -63,7 +64,8 @@ def transcrire_message(message_id):
         if duree_audio < 0.5:
             raise ErreurAssistant("Enregistrement trop court : maintenez le micro et parlez distinctement.",
                                   "validation")
-        texte = transcrire_wav(message.audio.path)
+        # Langue imposée par la session, sinon détectée par Whisper parmi fr / en / ar
+        texte, langue, _ = transcrire_question(message.audio.path, langue=message.session.langue or None)
     except ErreurAssistant as erreur:
         _echec_transcription(message, erreur, debut)
         return
@@ -79,6 +81,7 @@ def transcrire_message(message_id):
     MessageVocal.objects.filter(pk=message_id).update(
         texte=texte[:reglage("ASSISTANT_QUESTION_MAX_CARACTERES")], statut=MessageVocal.Statut.PRET,
         duree_audio_s=round(duree_audio, 2), duree_ms=duree_ms, modele=_modele_whisper(), message_erreur="",
+        langue=langue or "",
     )
     journaliser(JournalIA.Type.TRANSCRIPTION, utilisateur, modele=_modele_whisper(), duree_ms=duree_ms)
 
@@ -144,3 +147,53 @@ def _echec_illustration(illustration, erreur, debut, type_appel, modele, utilisa
                                                            message_erreur=erreur.message[:255], duree_ms=duree_ms,
                                                            modele=modele)
     journaliser(type_appel, utilisateur, erreur, modele, duree_ms)
+
+
+@shared_task(soft_time_limit=120, time_limit=140)
+def indexer_cours(cours_id):
+    """Prépare l'index des passages d'un cours dès qu'une session y est rattachée (1re question plus rapide)."""
+    from apps.courses.models import Cours
+
+    from . import rag
+
+    cours = Cours.objects.filter(pk=cours_id).select_related("transcription", "resume").first()
+    if cours is None:
+        return
+    try:
+        rag.indexer(cours)
+    except Exception:
+        logger.warning("Indexation du cours %s impossible (elle sera retentée à la 1re question)", cours_id,
+                       exc_info=True)
+
+
+@shared_task(soft_time_limit=180, time_limit=200)
+def generer_fiche_revision(fiche_id):
+    fiche = FicheRevision.objects.select_related("session__utilisateur", "session__cours").filter(
+        pk=fiche_id, statut=FicheRevision.Statut.EN_COURS).first()
+    if fiche is None:
+        return
+    utilisateur = fiche.session.utilisateur
+    debut = time.monotonic()
+    try:
+        contenu, langue, _ = generer_fiche(fiche.session)
+    except ErreurAssistant as erreur:
+        _echec_fiche(fiche, erreur, debut, utilisateur)
+        return
+    except Exception:
+        logger.exception("Échec inattendu de la fiche %s", fiche_id)
+        _echec_fiche(fiche, ErreurAssistant("La génération de la fiche a échoué. Réessayez plus tard."), debut,
+                     utilisateur)
+        return
+    duree_ms = int((time.monotonic() - debut) * 1000)
+    FicheRevision.objects.filter(pk=fiche_id).update(
+        statut=FicheRevision.Statut.TERMINEE, contenu=contenu, langue=langue, message_erreur="",
+        modele=modele_gemini(), duree_ms=duree_ms,
+    )
+    journaliser(JournalIA.Type.FICHE, utilisateur, modele=modele_gemini(), duree_ms=duree_ms)
+
+
+def _echec_fiche(fiche, erreur, debut, utilisateur):
+    duree_ms = int((time.monotonic() - debut) * 1000)
+    FicheRevision.objects.filter(pk=fiche.pk).update(statut=FicheRevision.Statut.ERREUR,
+                                                     message_erreur=erreur.message[:255], duree_ms=duree_ms)
+    journaliser(JournalIA.Type.FICHE, utilisateur, erreur, modele_gemini(), duree_ms)

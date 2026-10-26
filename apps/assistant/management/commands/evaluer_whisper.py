@@ -1,7 +1,7 @@
 """Évalue la transcription Whisper : taux d'erreur de mots (WER) et facteur temps réel.
 
 Usage :
-    python manage.py evaluer_whisper <dossier> [--json resultats.json]
+    python manage.py evaluer_whisper <dossier> [--langue fr|en|ar] [--json resultats.json]
 
 Le dossier contient des paires `nom.wav` + `nom.txt` (transcription de référence, écrite à la main).
 Pour créer un jeu de test : enregistrer 10 à 20 questions typiques d'étudiants (WAV 16 bits, de
@@ -14,7 +14,7 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
 
-from ai_services import lire_wav, transcrire_wav
+from ai_services import lire_wav, transcrire_question
 from apps.assistant.services import normaliser_transcription, taux_erreur_mots
 
 
@@ -24,6 +24,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("dossier", type=Path)
         parser.add_argument("--json", type=Path, help="Fichier où enregistrer les résultats détaillés")
+        parser.add_argument("--langue", choices=["fr", "en", "ar"],
+                            help="Langue imposée (par défaut : détectée, comme dans l'application)")
 
     def handle(self, *args, dossier, **options):
         if not dossier.is_dir():
@@ -33,7 +35,8 @@ class Command(BaseCommand):
             raise CommandError("Aucune paire fichier.wav + fichier.txt trouvée dans ce dossier.")
 
         self.stdout.write("Chargement du modèle Whisper…")
-        transcrire_wav(paires[0][0])  # préchauffage : le premier appel charge le modèle
+        langue = options.get("langue")
+        transcrire_question(paires[0][0], langue=langue)  # préchauffage : le premier appel charge le modèle
 
         resultats, total_mots, total_erreurs, total_audio, total_calcul = [], 0, 0.0, 0.0, 0.0
         for wav, txt in paires:
@@ -41,9 +44,9 @@ class Command(BaseCommand):
             _, duree_audio = lire_wav(wav)
             debut = time.monotonic()
             try:
-                hypothese = transcrire_wav(wav)
+                hypothese, langue_detectee, _ = transcrire_question(wav, langue=langue)
             except ValueError:
-                hypothese = ""
+                hypothese, langue_detectee = "", ""
             calcul = time.monotonic() - debut
             wer = taux_erreur_mots(reference, hypothese)
             mots = len(normaliser_transcription(reference))  # même découpage que le calcul du WER
@@ -52,8 +55,9 @@ class Command(BaseCommand):
             total_audio += duree_audio
             total_calcul += calcul
             resultats.append({"fichier": wav.name, "reference": reference, "transcription": hypothese,
-                              "wer": round(wer, 4), "duree_audio_s": round(duree_audio, 2), "calcul_s": round(calcul, 2)})
-            self.stdout.write(f"  {wav.name:<30} WER {wer:6.1%}   {calcul:5.1f} s pour {duree_audio:5.1f} s d'audio")
+                              "wer": round(wer, 4), "langue": langue_detectee, "duree_audio_s": round(duree_audio, 2), "calcul_s": round(calcul, 2)})
+            self.stdout.write(f"  {wav.name:<30} [{langue_detectee or '?'}] WER {wer:6.1%}   "
+                              f"{calcul:5.1f} s pour {duree_audio:5.1f} s d'audio")
 
         wer_global = total_erreurs / total_mots if total_mots else 0
         synthese = {

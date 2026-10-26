@@ -8,7 +8,7 @@ import re
 
 from django import forms
 
-from .models import Illustration, SessionAssistant
+from .models import Illustration, Langue, SessionAssistant
 from .permissions import cours_utilisables
 from .reglages import reglage
 
@@ -32,8 +32,9 @@ def verifier_lettre(valeur, quoi):
 class SessionForm(forms.ModelForm):
     class Meta:
         model = SessionAssistant
-        fields = ["titre", "cours", "mode_reponse"]
-        labels = {"titre": "Titre de la session", "cours": "Cours (facultatif)", "mode_reponse": "Réponse de l'assistant"}
+        fields = ["titre", "cours", "langue", "mode_reponse"]
+        labels = {"titre": "Titre de la session", "cours": "Cours (facultatif)", "langue": "Langue",
+                  "mode_reponse": "Réponse de l'assistant"}
         help_texts = {"cours": "L'assistant s'appuiera sur le résumé de ce cours pour répondre."}
         widgets = {
             "titre": forms.TextInput(attrs={"placeholder": "Ex. : Révisions sur les matrices", "autocomplete": "off",
@@ -54,6 +55,9 @@ class SessionForm(forms.ModelForm):
         self.fields["titre"].widget.attrs.update({"class": "form-control", "required": True,
                                                   "aria-describedby": "titre-aide id_titre_erreur"})
         self.fields["cours"].widget.attrs["class"] = "form-select"
+        self.fields["langue"].choices = [("", "Automatique (détectée à chaque question)"), *Langue.choices]
+        self.fields["langue"].widget.attrs["class"] = "form-select"
+        self.fields["langue"].error_messages["invalid_choice"] = "Langue non prise en charge."
 
     def clean_mode_reponse(self):
         return self.cleaned_data.get("mode_reponse") or SessionAssistant.ModeReponse.TEXTE

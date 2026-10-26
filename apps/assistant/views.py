@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -15,7 +16,7 @@ from django.views.generic import ListView, TemplateView
 from web_project import TemplateLayout
 
 from .forms import IllustrationForm, ModeReponseForm, QuestionForm, SessionForm
-from .models import Illustration, MessageVocal, SessionAssistant
+from .models import FicheRevision, Illustration, JournalIA, MessageVocal, SessionAssistant
 from .permissions import AssistantRequisMixin, ModerationRequisMixin, sessions_de
 from .reglages import reglage
 from .services import (
@@ -28,7 +29,13 @@ from .services import (
     verifier_quota_illustrations,
     verifier_quota_questions,
 )
-from .tasks import generer_illustration, lancer_apres_validation, transcrire_message
+from .tasks import (
+    generer_fiche_revision,
+    generer_illustration,
+    indexer_cours,
+    lancer_apres_validation,
+    transcrire_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +43,12 @@ logger = logging.getLogger(__name__)
 class LayoutMixin:
     def get_context_data(self, **kwargs):
         return TemplateLayout.init(self, super().get_context_data(**kwargs))
+
+
+def preparer_index(session):
+    """Indexe le cours de la session en arrière-plan, pour que la 1re question n'attende pas l'indexation."""
+    if session.cours_id:
+        lancer_apres_validation(indexer_cours, session.cours_id, lambda: None)
 
 
 def attend_json(request):
@@ -102,6 +115,7 @@ class CreerSessionView(AssistantRequisMixin, LayoutMixin, TemplateView):
         session = form.save(commit=False)
         session.utilisateur = request.user
         session.save()
+        preparer_index(session)
         messages.success(request, "Session ouverte. Posez votre première question à l'écrit ou à l'oral.")
         return redirect("session-assistant", pk=session.pk)
 
@@ -122,6 +136,7 @@ class ModifierSessionView(AssistantRequisMixin, LayoutMixin, TemplateView):
         if not form.is_valid():
             return self.render_to_response(self.get_context_data(form=form, session=session), status=400)
         form.save()
+        preparer_index(session)
         messages.success(request, "Session mise à jour.")
         return redirect("session-assistant", pk=session.pk)
 
@@ -225,6 +240,64 @@ class ModeReponseView(AssistantRequisMixin, View):
         if attend_json(request):
             return JsonResponse({"mode_reponse": session.mode_reponse})
         return redirect("session-assistant", pk=pk)
+
+
+# ---------- Fiche de révision ----------
+
+class FicheView(AssistantRequisMixin, LayoutMixin, TemplateView):
+    """Fiche de révision de la session (génération, consultation, impression / PDF)."""
+
+    template_name = "assistant/fiche.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        session = self.get_session()
+        fiche = FicheRevision.objects.filter(session=session).first()
+        nb_messages = session.messages.filter(statut=MessageVocal.Statut.PRET).count()
+        context.update({
+            "session": session, "fiche": fiche, "nb_messages": nb_messages,
+            "peut_generer": session.messages.filter(role=MessageVocal.Role.ASSISTANT,
+                                                    statut=MessageVocal.Statut.PRET).exists(),
+            "perimee": fiche is not None and fiche.statut == FicheRevision.Statut.TERMINEE
+            and fiche.nb_messages != nb_messages,
+        })
+        return context
+
+
+class GenererFicheView(AssistantRequisMixin, View):
+    def post(self, request, pk):
+        session = self.get_session()
+        erreur = None
+        if not session.messages.filter(role=MessageVocal.Role.ASSISTANT, statut=MessageVocal.Statut.PRET).exists():
+            erreur = "Posez au moins une question avant de générer une fiche."
+        elif JournalIA.objects.filter(utilisateur=request.user, type_appel=JournalIA.Type.FICHE,
+                                      date__gte=timezone.now() - timedelta(hours=1)).count() \
+                >= reglage("ASSISTANT_FICHES_PAR_HEURE"):
+            erreur = "Limite de fiches atteinte pour cette heure. Réessayez plus tard."
+        elif FicheRevision.objects.filter(session=session, statut=FicheRevision.Statut.EN_COURS).exists():
+            erreur = "Une fiche est déjà en cours de génération."
+        if erreur:
+            messages.error(request, erreur)
+            return redirect("fiche-assistant", pk=pk)
+        fiche, _ = FicheRevision.objects.update_or_create(session=session, defaults={
+            "statut": FicheRevision.Statut.EN_COURS, "message_erreur": "",
+            "nb_messages": session.messages.filter(statut=MessageVocal.Statut.PRET).count(),
+        })
+
+        def echec():
+            FicheRevision.objects.filter(pk=fiche.pk).update(
+                statut=FicheRevision.Statut.ERREUR,
+                message_erreur="Le service de génération est injoignable. Réessayez plus tard.")
+
+        lancer_apres_validation(generer_fiche_revision, fiche.pk, echec)
+        return redirect("fiche-assistant", pk=pk)
+
+
+class EtatFicheView(AssistantRequisMixin, View):
+    def get(self, request, pk):
+        fiche = FicheRevision.objects.filter(session=self.get_session()).first()
+        statut = fiche.statut if fiche else ""
+        return JsonResponse({"statut": statut, "fini": statut != FicheRevision.Statut.EN_COURS})
 
 
 # ---------- Messages ----------

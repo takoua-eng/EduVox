@@ -5,6 +5,14 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 
+class Langue(models.TextChoices):
+    """Langues prises en charge (codes Whisper / BCP 47)."""
+
+    FR = "fr", "Français"
+    EN = "en", "English"
+    AR = "ar", "العربية"
+
+
 class SessionAssistant(models.Model):
     """Conversation d'un utilisateur avec l'assistant, éventuellement rattachée à un cours (contexte)."""
 
@@ -19,6 +27,8 @@ class SessionAssistant(models.Model):
     mode_reponse = models.CharField("Réponse de l'assistant", max_length=5, choices=ModeReponse.choices,
                                     default=ModeReponse.TEXTE,
                                     help_text="Parole : la réponse est aussi lue à voix haute au fur et à mesure")
+    langue = models.CharField("Langue", max_length=2, choices=Langue.choices, blank=True, default="",
+                              help_text="Vide : détectée automatiquement à chaque question")
     active = models.BooleanField(default=True)
     date_ouverture = models.DateTimeField(auto_now_add=True)
     date_fermeture = models.DateTimeField(null=True, blank=True)
@@ -71,6 +81,9 @@ class MessageVocal(models.Model):
     duree_audio_s = models.FloatField(null=True, blank=True)
     statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.PRET)
     message_erreur = models.CharField(max_length=255, blank=True)
+    langue = models.CharField(max_length=2, choices=Langue.choices, blank=True)
+    sources = models.JSONField(default=list, blank=True,
+                               help_text="Passages du cours fournis à l'IA : [{n, ordre, total, extrait, score}]")
     evaluation = models.SmallIntegerField(choices=Evaluation.choices, null=True, blank=True)
     modele = models.CharField(max_length=80, blank=True)
     duree_ms = models.PositiveIntegerField(null=True, blank=True, help_text="Durée totale du traitement IA")
@@ -88,6 +101,10 @@ class MessageVocal(models.Model):
     @property
     def est_question(self):
         return self.role == self.Role.UTILISATEUR
+
+    @property
+    def est_rtl(self):
+        return self.langue == Langue.AR
 
 
 class Illustration(models.Model):
@@ -125,6 +142,56 @@ class Illustration(models.Model):
         return f"{self.get_type_illustration_display()} : {self.demande[:60]}"
 
 
+class PassageCours(models.Model):
+    """Morceau du texte d'un cours et son vecteur (embedding Gemini), pour retrouver les passages pertinents (RAG)."""
+
+    cours = models.ForeignKey("courses.Cours", on_delete=models.CASCADE, related_name="passages_assistant")
+    ordre = models.PositiveIntegerField()
+    texte = models.TextField()
+    vecteur = models.JSONField()
+    empreinte = models.CharField(max_length=32, help_text="Empreinte du texte source et du modèle : réindexation si elle change")
+    date = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["cours", "ordre"]
+        constraints = [models.UniqueConstraint(fields=["cours", "ordre"], name="passage_unique_par_cours")]
+        verbose_name = "passage de cours"
+        verbose_name_plural = "passages de cours (index)"
+
+    def __str__(self):
+        return f"{self.cours_id} §{self.ordre}"
+
+
+class FicheRevision(models.Model):
+    """Fiche de révision générée par Gemini à partir de la conversation."""
+
+    class Statut(models.TextChoices):
+        EN_COURS = "EN_COURS", "Génération en cours"
+        TERMINEE = "TERMINEE", "Prête"
+        ERREUR = "ERREUR", "Erreur"
+
+    session = models.OneToOneField(SessionAssistant, on_delete=models.CASCADE, related_name="fiche")
+    statut = models.CharField(max_length=10, choices=Statut.choices, default=Statut.EN_COURS)
+    contenu = models.JSONField(default=dict, blank=True)
+    langue = models.CharField(max_length=2, choices=Langue.choices, blank=True)
+    nb_messages = models.PositiveIntegerField(default=0, help_text="Messages de la session lors de la génération")
+    message_erreur = models.CharField(max_length=255, blank=True)
+    modele = models.CharField(max_length=80, blank=True)
+    duree_ms = models.PositiveIntegerField(null=True, blank=True)
+    date_maj = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "fiche de révision"
+        verbose_name_plural = "fiches de révision"
+
+    def __str__(self):
+        return f"Fiche – {self.session.titre}"
+
+    @property
+    def est_rtl(self):
+        return self.langue == Langue.AR
+
+
 class JournalIA(models.Model):
     """Journal technique de chaque appel IA : sert aux métriques (taux de succès, latence)."""
 
@@ -133,6 +200,9 @@ class JournalIA(models.Model):
         REPONSE = "REPONSE", "Réponse (Gemini)"
         ILLUSTRATION = "ILLUSTRATION", "Illustration (Hugging Face)"
         DIAGRAMME = "DIAGRAMME", "Diagramme (Gemini)"
+        INDEXATION = "INDEXATION", "Indexation d'un cours (embeddings)"
+        RECHERCHE = "RECHERCHE", "Recherche de passages (embeddings)"
+        FICHE = "FICHE", "Fiche de révision (Gemini)"
 
     utilisateur = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                     related_name="+")

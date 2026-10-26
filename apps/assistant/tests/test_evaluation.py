@@ -24,8 +24,8 @@ class EvaluerWhisperTests(SimpleTestCase):
     def test_calcul_du_wer(self):
         hypotheses = {"q1.wav": "Qu'est-ce qu'un déterminant", "q2.wav": "Explique la photo synthèse"}
         sortie_json = self.dossier / "resultats.json"
-        with mock.patch("apps.assistant.management.commands.evaluer_whisper.transcrire_wav",
-                        side_effect=lambda chemin: hypotheses[Path(chemin).name]):
+        with mock.patch("apps.assistant.management.commands.evaluer_whisper.transcrire_question",
+                        side_effect=lambda chemin, langue=None: (hypotheses[Path(chemin).name], "fr", 1.0)):
             sortie = io.StringIO()
             call_command("evaluer_whisper", str(self.dossier), "--json", str(sortie_json), stdout=sortie)
         resultats = json.loads(sortie_json.read_text(encoding="utf-8"))

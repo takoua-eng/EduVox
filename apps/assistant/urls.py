@@ -12,6 +12,9 @@ urlpatterns = [
     path("sessions/<int:pk>/rouvrir/", views.RouvrirSessionView.as_view(), name="rouvrir-session-assistant"),
     path("sessions/<int:pk>/exporter/", views.ExporterSessionView.as_view(), name="exporter-session-assistant"),
     path("sessions/<int:pk>/mode-reponse/", views.ModeReponseView.as_view(), name="mode-reponse-assistant"),
+    path("sessions/<int:pk>/fiche/", views.FicheView.as_view(), name="fiche-assistant"),
+    path("sessions/<int:pk>/fiche/generer/", views.GenererFicheView.as_view(), name="generer-fiche-assistant"),
+    path("sessions/<int:pk>/fiche/etat/", views.EtatFicheView.as_view(), name="etat-fiche-assistant"),
 
     # Questions (écrites, orales) et réponses
     path("sessions/<int:pk>/question/", views.QuestionView.as_view(), name="question-assistant"),

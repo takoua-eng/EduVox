@@ -78,9 +78,9 @@ class AssistantConsumer(AsyncJsonWebsocketConsumer):
 
     @database_sync_to_async
     def _preparer(self, texte, message_id):
-        self.session.refresh_from_db(fields=["active", "cours"])
+        self.session.refresh_from_db(fields=["active", "cours", "langue", "mode_reponse"])
         question, reponse = preparer_question(self.session, texte, message_id)
-        return question, reponse, construire_contenus(question), configuration_reponse(self.session)
+        return question, reponse, construire_contenus(question), configuration_reponse(self.session, question, reponse)
 
     async def _repondre(self, texte, message_id):
         try:
@@ -93,7 +93,7 @@ class AssistantConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"type": "erreur", "message": "Erreur inattendue. Réessayez."})
             return
 
-        await self.send_json({"type": "debut", "reponse_id": reponse.pk, "question": {
+        await self.send_json({"type": "debut", "reponse_id": reponse.pk, "langue": reponse.langue, "question": {
             "id": question.pk, "texte": question.texte, "mode": question.mode, "html": rendre_markdown(question.texte),
         }})
         debut = time.monotonic()
