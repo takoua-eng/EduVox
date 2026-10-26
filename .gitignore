@@ -196,3 +196,6 @@ donnees*.json
 
 # EduSprint : livrables deposes par les etudiants (stockage prive)
 stockage_prive/
+
+# Broker Celery local (filesystem://)
+.celery_broker/

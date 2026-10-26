@@ -5,10 +5,15 @@ anyio==4.14.2
 arabic-reshaper==3.0.1
 asgiref==3.9.1
 async-timeout==5.0.1
+attrs==26.1.0
+autobahn==26.10.2
+Automat==25.4.16
 billiard==4.3.1
+cbor2==6.1.5
 celery==5.6.3
 certifi==2026.10.23
 cffi==2.1.1
+channels==4.3.2
 charset-normalizer==3.5.2
 click==8.5.0
 click-didyoumean==0.3.1
@@ -16,8 +21,11 @@ click-plugins==1.1.1.2
 click-repl==0.4.1
 cloudpickle==3.1.2
 colorama==0.4.6
+constantly==23.10.4
+coverage==7.17.0
 cryptography==50.0.2
 cssselect2==0.10.1
+daphne==4.2.3
 distro==1.9.0
 Django==5.2.5
 filelock==4.2.4
@@ -33,7 +41,9 @@ httpcore2==2.16.0
 httpx==0.28.1
 httpx2==2.16.0
 huggingface_hub==2.3.0
+hyperlink==21.0.0
 idna==3.20
+Incremental==24.11.0
 Jinja2==3.1.6
 joblib==1.6.0
 kombu==5.6.2
@@ -42,6 +52,7 @@ markdown-it-py==4.2.0
 MarkupSafe==3.0.4
 mdurl==0.1.2
 mpmath==1.3.0
+msgpack==1.2.3
 narwhals==2.27.1
 networkx==3.6.1
 numpy==2.4.6
@@ -59,6 +70,7 @@ pycparser==3.12
 pydantic==2.13.5
 pydantic_core==2.46.5
 Pygments==2.21.0
+pyOpenSSL==26.4.0
 PyOTP==2.10.0
 pypdf==6.21.2
 pypdfium2==5.14.0
@@ -74,6 +86,7 @@ rich==15.0.0
 safetensors==0.8.0
 scikit-learn==1.9.1
 scipy==1.17.1
+service-identity==26.1.0
 shellingham==1.5.4
 six==1.17.0
 sniffio==1.3.1
@@ -88,11 +101,14 @@ torch==2.14.1
 tqdm==4.70.1
 transformers==5.20.2
 truststore==0.10.5
+Twisted==26.4.0
+txaio==26.6.1
 typer==0.27.3
 typing-inspection==0.4.2
 typing_extensions==4.14.1
 tzdata==2026.5
 tzlocal==5.4.5
+ujson==6.0.0
 urllib3==2.8.0
 vine==5.1.0
 wcwidth==0.9.4
@@ -100,3 +116,5 @@ webencodings==0.6.1
 websockets==17.3
 whitenoise==6.9.0
 xhtml2pdf==0.2.27
+zope.interface==8.7
+pywin32==312; sys_platform == "win32"

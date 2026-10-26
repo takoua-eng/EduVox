@@ -1,0 +1,56 @@
+<article class="ast-illustration" id="illustration-{{ illustration.pk }}" data-statut="{{ illustration.statut }}"
+         data-titre="{{ illustration.demande }}" data-type="{{ illustration.get_type_illustration_display }}"
+         data-date="{{ illustration.date|date:'d/m/Y H:i' }}" data-alt="{{ illustration.texte_alternatif }}"
+         data-url-etat="{% url 'etat-illustration-assistant' illustration.pk %}" aria-labelledby="ill-titre-{{ illustration.pk }}">
+  {% if illustration.statut == 'TERMINEE' and illustration.type_illustration == 'IMAGE' and illustration.image %}
+    <figure>
+      <a href="{{ illustration.image.url }}" target="_blank" rel="noopener" aria-label="Ouvrir l'image en grand (nouvel onglet)">
+        <img src="{{ illustration.image.url }}" alt="{{ illustration.texte_alternatif|default:illustration.demande }}" loading="lazy" width="512" height="512" />
+      </a>
+      <figcaption id="ill-titre-{{ illustration.pk }}">{{ illustration.demande }}</figcaption>
+    </figure>
+  {% elif illustration.statut == 'TERMINEE' and illustration.type_illustration == 'DIAGRAMME' %}
+    <figure>
+      <div class="ast-mermaid" role="img" aria-label="{{ illustration.texte_alternatif|default:illustration.demande }}" data-code="{{ illustration.code_mermaid }}">
+        <pre class="small mb-0">{{ illustration.code_mermaid }}</pre>
+      </div>
+      <figcaption id="ill-titre-{{ illustration.pk }}">{{ illustration.demande }}</figcaption>
+    </figure>
+    <details class="px-3 pb-2 small">
+      <summary>Code Mermaid et description</summary>
+      <p class="mb-1 mt-2">{{ illustration.texte_alternatif }}</p>
+      <pre class="mb-0">{{ illustration.code_mermaid }}</pre>
+    </details>
+  {% elif illustration.statut == 'EN_COURS' %}
+    <div class="ast-chargement" role="status">
+      <div>
+        <div class="spinner-border text-success mb-2" aria-hidden="true"></div>
+        <p class="mb-0" id="ill-titre-{{ illustration.pk }}">{{ illustration.get_type_illustration_display }} en cours de génération…<br><span class="small">« {{ illustration.demande|truncatechars:80 }} »</span></p>
+      </div>
+    </div>
+  {% else %}
+    <div class="ast-chargement">
+      <div>
+        <i class="icon-base ri ri-error-warning-line text-danger" style="font-size: 2rem" aria-hidden="true"></i>
+        <p class="mb-1" id="ill-titre-{{ illustration.pk }}">« {{ illustration.demande|truncatechars:80 }} »</p>
+        <p class="ast-erreur small mb-0">{{ illustration.message_erreur|default:"La génération a échoué." }}</p>
+      </div>
+    </div>
+  {% endif %}
+  <div class="ast-ill-corps d-flex justify-content-between align-items-center gap-2 mt-auto">
+    <span class="ast-badge ast-badge--info">
+      <i class="icon-base ri {% if illustration.type_illustration == 'IMAGE' %}ri-image-line{% else %}ri-flow-chart{% endif %}" aria-hidden="true"></i>
+      {{ illustration.get_type_illustration_display }}{% if illustration.duree_ms and illustration.statut == 'TERMINEE' %} · {{ illustration.duree_ms|floatformat:"0" }} ms{% endif %}
+    </span>
+    <span class="d-flex gap-1">
+      {% if illustration.statut == 'TERMINEE' %}<button type="button" class="btn btn-sm btn-outline-secondary ast-js-seul" data-export-pdf-carte aria-label="Exporter en PDF"><i class="icon-base ri ri-file-pdf-2-line" aria-hidden="true"></i></button>{% endif %}
+      {% if illustration.image %}<a class="btn btn-sm btn-outline-secondary" href="{{ illustration.image.url }}" download aria-label="Télécharger l'image"><i class="icon-base ri ri-download-line" aria-hidden="true"></i></a>{% endif %}
+      {% if illustration.statut != 'EN_COURS' and not lecture_seule %}
+      <form method="post" action="{% url 'supprimer-illustration-assistant' illustration.pk %}" class="ast-form-supprimer-ill">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-secondary" aria-label="Supprimer cette illustration"><i class="icon-base ri ri-delete-bin-line" aria-hidden="true"></i></button>
+      </form>
+      {% endif %}
+    </span>
+  </div>
+</article>

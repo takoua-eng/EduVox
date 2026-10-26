@@ -14,6 +14,7 @@ import random
 import string
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 from .template import  THEME_LAYOUT_DIR, THEME_VARIABLES
@@ -30,19 +31,32 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Update secret key in .env file and .env.prod file
 # SECRET_KEY = os.environ.get("SECRET_KEY", default='')
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# If using the .env file for SECRET_KEY then comment below random SECRET_KEY generation code.
-SECRET_KEY = os.environ.get("SECRET_KEY")
-if not SECRET_KEY:
-    SECRET_KEY = "".join(random.choice(string.ascii_lowercase) for i in range(32))
+def _booleen(nom, defaut):
+    return os.environ.get(nom, str(defaut)).strip().lower() in ["true", "yes", "1"]
+
+
+def _liste(nom, defaut=""):
+    """Variable d'environnement « a,b,c » → ["a", "b", "c"]."""
+    return [valeur.strip() for valeur in os.environ.get(nom, defaut).split(",") if valeur.strip()]
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", 'True').lower() in ['true', 'yes', '1']
+# Désactivé par défaut : il faut DEBUG=True dans le .env de développement (voir .env.example).
+DEBUG = _booleen("DEBUG", False)
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        # Une clé aléatoire changerait à chaque redémarrage : sessions et liens signés invalidés
+        raise ImproperlyConfigured("SECRET_KEY doit être définie (variable d'environnement) quand DEBUG=False.")
+    SECRET_KEY = "".join(random.choice(string.ascii_lowercase) for i in range(32))
 
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1"]
+# En production : ALLOWED_HOSTS=eduvox.example.com et CSRF_TRUSTED_ORIGINS=https://eduvox.example.com
+ALLOWED_HOSTS = _liste("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0")
+CSRF_TRUSTED_ORIGINS = _liste("CSRF_TRUSTED_ORIGINS")
 
 # Current DJANGO_ENVIRONMENT
 ENVIRONMENT = os.environ.get("DJANGO_ENVIRONMENT", default="local")
@@ -51,6 +65,7 @@ ENVIRONMENT = os.environ.get("DJANGO_ENVIRONMENT", default="local")
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",  # serveur ASGI : runserver gère aussi les WebSockets (module assistant)
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -63,6 +78,8 @@ INSTALLED_APPS = [
     "apps.courses",
     "apps.quizzes",
     "apps.challenges",
+    "apps.assistant",
+    "channels",
 
 ]
 
@@ -205,6 +222,22 @@ CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/
 # True : les tâches s'exécutent directement, sans worker ni Redis (pratique en développement)
 CELERY_TASK_ALWAYS_EAGER = os.environ.get("CELERY_TASK_ALWAYS_EAGER", "True").lower() in ["true", "yes", "1"]
 CELERY_TASK_EAGER_PROPAGATES = False
+# Sans Redis (Windows, démo) : CELERY_BROKER_URL=filesystem:// fait passer les tâches par un dossier local,
+# avec un vrai worker séparé : celery -A config worker --pool=solo -l info
+if CELERY_BROKER_URL.startswith("filesystem://"):
+    _DOSSIER_CELERY = BASE_DIR / ".celery_broker"
+    for _sous_dossier in ("messages", "traites", "controle"):
+        (_DOSSIER_CELERY / _sous_dossier).mkdir(parents=True, exist_ok=True)
+    CELERY_BROKER_TRANSPORT_OPTIONS = {
+        "data_folder_in": str(_DOSSIER_CELERY / "messages"),
+        "data_folder_out": str(_DOSSIER_CELERY / "messages"),
+        "processed_folder": str(_DOSSIER_CELERY / "traites"),
+        "control_folder": str(_DOSSIER_CELERY / "controle"),
+    }
+
+# Django Channels (WebSocket de l'assistant). En production avec plusieurs processus : channels_redis
+ASGI_APPLICATION = "config.asgi.application"
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
 
 # Module cours : taille maximale d'un fichier envoyé (en Mo)
 COURS_TAILLE_MAX_MO = int(os.environ.get("COURS_TAILLE_MAX_MO", "50"))
@@ -214,3 +247,24 @@ FACE_SEUIL = float(os.environ.get("FACE_SEUIL", "0.363"))
 # Sessions : déconnexion automatique après 30 minutes d'inactivité
 SESSION_COOKIE_AGE = 30 * 60
 SESSION_SAVE_EVERY_REQUEST = True   # chaque clic repousse l'expiration
+
+# Sécurité en production (DEBUG=False) : HTTPS obligatoire, cookies sécurisés, en-têtes de protection.
+# Vérification : DEBUG=False python manage.py check --deploy
+SESSION_COOKIE_HTTPONLY = True
+X_FRAME_OPTIONS = "DENY"  # aucune page n'est affichée dans une iframe (anti-clickjacking)
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = _booleen("SECURE_SSL_REDIRECT", True)
+    # Derrière un hébergeur / proxy HTTPS (Render, Railway, Nginx…) qui transmet X-Forwarded-Proto
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    # HSTS : le navigateur n'utilise plus que HTTPS. Commencer petit (1 h), augmenter une fois le site validé.
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "3600"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _booleen("SECURE_HSTS_INCLUDE_SUBDOMAINS", False)
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        # Fichiers statiques compressés et servis par WhiteNoise (après python manage.py collectstatic)
+        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+    }

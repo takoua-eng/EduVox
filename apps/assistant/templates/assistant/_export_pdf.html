@@ -1,0 +1,176 @@
+<script>
+/* Export PDF des illustrations et diagrammes, généré dans le navigateur (jsPDF) :
+   les diagrammes n'existent qu'en SVG rendu côté client par Mermaid.
+   - [data-export-pdf="<sélecteur>"] : toutes les illustrations terminées du conteneur
+   - [data-export-pdf-carte]          : l'illustration qui contient le bouton */
+(function () {
+  'use strict';
+  let chargement = null;
+  function charger() {
+    if (!chargement) {
+      chargement = new Promise(function (ok, ko) {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+        s.onload = function () { ok(window.jspdf.jsPDF); };
+        s.onerror = function () { chargement = null; ko(new Error('jspdf')); };
+        document.head.appendChild(s);
+      });
+    }
+    return chargement;
+  }
+
+  // Les polices standard du PDF ne couvrent que le Latin-1 : on remplace les autres symboles
+  const REMPLACEMENTS = { '≠': '!=', '≤': '<=', '≥': '>=', '⁻¹': '^-1', '→': '->', '←': '<-', '⇒': '=>', '’': "'", '‘': "'",
+    '“': '"', '”': '"', '–': '-', '—': '-', '…': '...', 'œ': 'oe', 'Œ': 'OE', '√': 'racine ', '∞': 'infini', '≈': '~' };
+  function latin1(texte) {
+    let t = texte || '';
+    Object.keys(REMPLACEMENTS).forEach(function (c) { t = t.split(c).join(REMPLACEMENTS[c]); });
+    return t.replace(/[^\x00-\xFF]/g, '?');
+  }
+  function nomFichier(titre) {
+    return (titre || 'illustrations').normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'illustrations';
+  }
+  function chargerImage(src) {
+    return new Promise(function (ok, ko) { const im = new Image(); im.onload = function () { ok(im); }; im.onerror = ko; im.src = src; });
+  }
+  function rasteriser(im, largeur, hauteur) {
+    const echelle = Math.min(1, 2000 / Math.max(largeur, hauteur));
+    const c = document.createElement('canvas');
+    c.width = Math.round(largeur * echelle);
+    c.height = Math.round(hauteur * echelle);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(im, 0, 0, c.width, c.height);
+    return { donnees: c.toDataURL('image/jpeg', 0.92), l: c.width, h: c.height };
+  }
+
+  /** Visuel d'une carte (image ou diagramme SVG) en JPEG, ou null s'il n'est pas disponible. */
+  async function visuel(carte) {
+    try {
+      const img = carte.querySelector('img');
+      if (img) {
+        const im = await chargerImage(img.currentSrc || img.src);
+        return rasteriser(im, im.naturalWidth, im.naturalHeight);
+      }
+      const svg = carte.querySelector('.ast-mermaid svg');
+      if (!svg) return null;
+      const boite = svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width ? svg.viewBox.baseVal : svg.getBBox();
+      const copie = svg.cloneNode(true);
+      copie.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      copie.setAttribute('width', boite.width * 2);
+      copie.setAttribute('height', boite.height * 2);
+      copie.style.maxWidth = 'none';
+      const source = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(copie));
+      return rasteriser(await chargerImage(source), boite.width * 2, boite.height * 2);
+    } catch (e) {
+      return null; // image illisible : la fiche garde au moins son titre et sa description
+    }
+  }
+
+  async function exporter(cartes, titre) {
+    const JsPDF = await charger();
+    const doc = new JsPDF({ unit: 'mm', format: 'a4' });
+    const L = 210, H = 297, M = 16, larg = L - 2 * M;
+    let y = M;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(6, 78, 59);
+    doc.text('EduVox - Illustrations', M, y + 5);
+    y += 13;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(31, 42, 39);
+    const lignesTitre = doc.splitTextToSize(latin1(titre), larg);
+    doc.text(lignesTitre, M, y);
+    y += lignesTitre.length * 5;
+    doc.setFontSize(9); doc.setTextColor(75, 90, 85);
+    doc.text(latin1(cartes.length + ' illustration' + (cartes.length > 1 ? 's' : '') + ' - exporté le ' +
+      new Date().toLocaleDateString('fr-FR')), M, y + 1);
+    y += 5;
+    doc.setDrawColor(219, 231, 225); doc.line(M, y, L - M, y);
+    y += 9;
+
+    for (let i = 0; i < cartes.length; i++) {
+      const carte = cartes[i];
+      const image = await visuel(carte);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13);
+      const lignes = doc.splitTextToSize(latin1((i + 1) + '. ' + (carte.dataset.titre || '')), larg);
+      doc.setFont('helvetica', 'italic'); doc.setFontSize(10);
+      const alt = carte.dataset.alt ? doc.splitTextToSize(latin1(carte.dataset.alt), larg) : [];
+      let hImg = 0, lImg = 0;
+      if (image) {
+        hImg = Math.min(larg * image.h / image.l, 165);
+        lImg = hImg * image.l / image.h;
+      }
+      const besoin = lignes.length * 6 + 7 + hImg + alt.length * 5 + 10;
+      if (y + besoin > H - 16 && y > M + 20) { doc.addPage(); y = M; }
+
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(31, 42, 39);
+      doc.text(lignes, M, y);
+      y += lignes.length * 6;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(75, 90, 85);
+      doc.text(latin1((carte.dataset.type || '') + (carte.dataset.date ? ' - ' + carte.dataset.date : '')), M, y);
+      y += 5;
+      if (image) {
+        doc.setDrawColor(219, 231, 225);
+        doc.roundedRect(M + (larg - lImg) / 2 - 1, y - 1, lImg + 2, hImg + 2, 2, 2);
+        doc.addImage(image.donnees, 'JPEG', M + (larg - lImg) / 2, y, lImg, hImg);
+        y += hImg + 6;
+      } else {
+        doc.text('(aperçu indisponible)', M, y + 3);
+        y += 8;
+      }
+      if (alt.length) {
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(10); doc.setTextColor(31, 42, 39);
+        doc.text(alt, M, y);
+        y += alt.length * 5;
+      }
+      y += 10;
+    }
+
+    const pages = doc.getNumberOfPages();
+    for (let p = 1; p <= pages; p++) {
+      doc.setPage(p);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120, 130, 126);
+      doc.text('EduVox - page ' + p + ' / ' + pages, L / 2, H - 8, { align: 'center' });
+    }
+    doc.save(nomFichier(titre) + '.pdf');
+  }
+
+  function annoncer(message, erreur) {
+    const etat = document.getElementById('ast-etat');
+    if (etat) { etat.textContent = message; etat.classList.toggle('ast-erreur', !!erreur); }
+    else if (erreur) alert(message);
+  }
+
+  document.addEventListener('click', async function (e) {
+    const tout = e.target.closest('[data-export-pdf]');
+    const une = e.target.closest('[data-export-pdf-carte]');
+    if (!tout && !une) return;
+    const bouton = tout || une;
+    let cartes, titre;
+    if (tout) {
+      const conteneur = document.querySelector(tout.dataset.exportPdf);
+      cartes = conteneur ? Array.from(conteneur.querySelectorAll('.ast-illustration[data-statut="TERMINEE"]')) : [];
+      titre = tout.dataset.titrePdf || 'Mes illustrations';
+    } else {
+      const carte = une.closest('.ast-illustration');
+      cartes = [carte];
+      titre = carte.dataset.titre;
+    }
+    if (!cartes.length) { annoncer('Aucune illustration terminée à exporter.', true); return; }
+    bouton.disabled = true;
+    bouton.setAttribute('aria-busy', 'true');
+    annoncer('Préparation du PDF…');
+    try {
+      if (window.astRendreDiagrammes) await window.astRendreDiagrammes();
+      await exporter(cartes, titre);
+      annoncer('PDF téléchargé.');
+    } catch (err) {
+      annoncer("L'export PDF a échoué (connexion requise pour charger le générateur).", true);
+    } finally {
+      bouton.disabled = false;
+      bouton.removeAttribute('aria-busy');
+    }
+  });
+})();
+</script>

@@ -5,8 +5,8 @@
 <nav class="layout-navbar {{container_class}} navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme" id="layout-navbar">
   {% if not navbar_hide_toggle %}
   <div class="layout-menu-toggle navbar-nav align-items-xl-center me-4 me-xl-0 d-xl-none">
-    <a class="nav-item nav-link px-0 me-xl-6" href="javascript:void(0)">
-      <i class="icon-base ri ri-menu-line icon-md"></i>
+    <a class="nav-item nav-link px-0 me-xl-6" href="javascript:void(0)" aria-label="Ouvrir le menu">
+      <i class="icon-base ri ri-menu-line icon-md" aria-hidden="true"></i>
     </a>
   </div>
   {% endif %}
@@ -25,7 +25,7 @@
 
       <!-- User -->
       <li class="nav-item navbar-dropdown dropdown-user dropdown">
-        <a class="nav-link dropdown-toggle hide-arrow p-0" href="javascript:void(0);" data-bs-toggle="dropdown">
+        <a class="nav-link dropdown-toggle hide-arrow p-0" href="javascript:void(0);" data-bs-toggle="dropdown" aria-label="Menu du compte">
           <div class="avatar avatar-online">
             {% include "partials/avatar.html" with utilisateur=request.user %}
           </div>
