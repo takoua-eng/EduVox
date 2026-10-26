@@ -97,6 +97,8 @@ def traduire_erreur(erreur):
         code = getattr(reponse, "status_code", None)
     if code == 429:
         return ErreurAssistant("Quota du service d'IA atteint. Réessayez plus tard.", "quota")
+    if code == 402:  # Hugging Face : crédit Inference Providers épuisé
+        return ErreurAssistant("Crédit du service d'images épuisé. Les diagrammes restent disponibles.", "credit")
     if code in (401, 403):
         return ErreurAssistant("Clé d'API refusée par le service d'IA. Contactez l'administrateur.", "configuration")
     if code == 404:

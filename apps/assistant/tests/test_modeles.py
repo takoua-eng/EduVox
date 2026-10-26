@@ -180,6 +180,7 @@ class FonctionsPuresTests(SimpleTestCase):
             def __init__(self, code):
                 self.code = code
         self.assertEqual(traduire_erreur(ErreurApi(429)).code, "quota")
+        self.assertEqual(traduire_erreur(ErreurApi(402)).code, "credit")
         self.assertEqual(traduire_erreur(ErreurApi(403)).code, "configuration")
         self.assertEqual(traduire_erreur(ErreurApi(503)).code, "indisponible")
         self.assertEqual(traduire_erreur(ValueError()).code, "service")
