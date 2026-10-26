@@ -12,11 +12,9 @@ import re
 import string
 import time
 from datetime import timedelta
-from statistics import median
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Count, Q
 from django.utils import timezone
 from markdown_it import MarkdownIt
 
@@ -45,7 +43,7 @@ _markdown = MarkdownIt("commonmark", {"html": False, "linkify": False, "typograp
 
 
 class ErreurAssistant(Exception):
-    """Échec affichable à l'utilisateur ; `code` alimente les statistiques."""
+    """Échec affichable à l'utilisateur ; `code` est enregistré dans le journal des appels IA."""
 
     def __init__(self, message, code="service"):
         super().__init__(message)
@@ -386,62 +384,6 @@ def generer_diagramme(illustration):
     )
     code = nettoyer_mermaid(str(donnees.get("code_mermaid", "")))
     return code, str(donnees.get("texte_alternatif", "")).strip()[:300], duree
-
-
-# ---------- Métriques ----------
-
-def centile(valeurs, p):
-    valeurs = sorted(v for v in valeurs if v is not None)
-    if not valeurs:
-        return None
-    rang = (len(valeurs) - 1) * p / 100
-    bas = int(rang)
-    haut = min(bas + 1, len(valeurs) - 1)
-    return round(valeurs[bas] + (valeurs[haut] - valeurs[bas]) * (rang - bas))
-
-
-def metriques(jours=30):
-    depuis = timezone.now() - timedelta(days=jours)
-    appels = JournalIA.objects.filter(date__gte=depuis)
-    par_type = []
-    for valeur, libelle in JournalIA.Type.choices:
-        lignes = list(appels.filter(type_appel=valeur).values("succes", "code", "duree_ms", "premier_morceau_ms"))
-        reussis = [ligne for ligne in lignes if ligne["succes"]]
-        durees = [ligne["duree_ms"] for ligne in reussis]
-        premiers = [ligne["premier_morceau_ms"] for ligne in reussis if ligne["premier_morceau_ms"]]
-        erreurs = {}
-        for ligne in lignes:
-            if not ligne["succes"]:
-                erreurs[ligne["code"]] = erreurs.get(ligne["code"], 0) + 1
-        par_type.append({
-            "type": valeur, "libelle": libelle, "total": len(lignes), "reussis": len(reussis),
-            "taux_succes": round(100 * len(reussis) / len(lignes)) if lignes else None,
-            "mediane_ms": round(median(durees)) if durees else None, "p95_ms": centile(durees, 95),
-            "premier_morceau_ms": round(median(premiers)) if premiers else None,
-            "erreurs": sorted(erreurs.items(), key=lambda e: -e[1]),
-        })
-
-    reponses = MessageVocal.objects.filter(role=MessageVocal.Role.ASSISTANT, date__gte=depuis)
-    avis = reponses.aggregate(utiles=Count("pk", filter=Q(evaluation=1)), inutiles=Count("pk", filter=Q(evaluation=-1)))
-    evaluees = avis["utiles"] + avis["inutiles"]
-
-    vocaux = MessageVocal.objects.filter(mode=MessageVocal.Mode.VOCAL, statut=MessageVocal.Statut.PRET,
-                                         date__gte=depuis, duree_audio_s__gt=0, duree_ms__isnull=False)
-    facteurs = [m.duree_ms / 1000 / m.duree_audio_s for m in vocaux.only("duree_ms", "duree_audio_s")]
-
-    questions = MessageVocal.objects.filter(role=MessageVocal.Role.UTILISATEUR, date__gte=depuis)
-    return {
-        "jours": jours,
-        "par_type": par_type,
-        "satisfaction": round(100 * avis["utiles"] / evaluees) if evaluees else None,
-        "avis_utiles": avis["utiles"], "avis_inutiles": avis["inutiles"],
-        "taux_avis": round(100 * evaluees / reponses.count()) if reponses.exists() else None,
-        "facteur_temps_reel": round(median(facteurs), 2) if facteurs else None,
-        "questions_ecrites": questions.filter(mode=MessageVocal.Mode.TEXTE).count(),
-        "questions_orales": questions.filter(mode=MessageVocal.Mode.VOCAL).count(),
-        "illustrations": Illustration.objects.filter(date__gte=depuis).values("type_illustration", "statut")
-        .annotate(n=Count("pk")).order_by(),
-    }
 
 
 # ---------- Évaluation de Whisper ----------

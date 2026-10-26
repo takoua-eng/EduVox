@@ -16,13 +16,12 @@ from web_project import TemplateLayout
 
 from .forms import IllustrationForm, ModeReponseForm, QuestionForm, SessionForm
 from .models import Illustration, MessageVocal, SessionAssistant
-from .permissions import AssistantRequisMixin, ModerationRequisMixin, StatistiquesRequisMixin, sessions_de
+from .permissions import AssistantRequisMixin, ModerationRequisMixin, sessions_de
 from .reglages import reglage
 from .services import (
     ErreurAssistant,
     gemini_configure,
     hugging_face_configure,
-    metriques,
     preparer_question,
     rendre_markdown,
     repondre,
@@ -512,21 +511,3 @@ class ModerationSessionView(ModerationRequisMixin, LayoutMixin, TemplateView):
 class ModerationExporterView(ModerationRequisMixin, View):
     def get(self, request, pk):
         return exporter_markdown(self.get_session())
-
-
-# ---------- Statistiques (administrateur) ----------
-
-class StatistiquesView(StatistiquesRequisMixin, LayoutMixin, TemplateView):
-    """Métriques de performance et de qualité de l'IA du module (données agrégées, sans contenu personnel)."""
-
-    template_name = "assistant/statistiques.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        try:
-            jours = min(max(int(self.request.GET.get("jours", 30)), 1), 365)
-        except ValueError:
-            jours = 30
-        context["m"] = metriques(jours)
-        context["periodes"] = [7, 30, 90]
-        return context

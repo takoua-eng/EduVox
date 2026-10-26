@@ -28,8 +28,6 @@ urlpatterns = [
     path("illustrations/<int:pk>/supprimer/", views.SupprimerIllustrationView.as_view(),
          name="supprimer-illustration-assistant"),
 
-    path("statistiques/", views.StatistiquesView.as_view(), name="statistiques-assistant"),
-
     # Modération (administrateur) : consultation en lecture seule
     path("moderation/", views.ModerationListeView.as_view(), name="moderation-assistant"),
     path("moderation/sessions/<int:pk>/", views.ModerationSessionView.as_view(), name="moderation-session-assistant"),

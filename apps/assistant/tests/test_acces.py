@@ -105,11 +105,6 @@ class AccesTests(BaseAssistantTestCase):
         self.connecter()
         self.assertContains(self.client.get(reverse("assistant")), "peuvent consulter les conversations")
 
-    def test_statistiques_reservees_a_l_admin(self):
-        for user in (self.etudiant, self.prof):
-            self.connecter(user)
-            self.assertEqual(self.client.get(reverse("statistiques-assistant")).status_code, 403)
-
     def test_liste_ne_montre_que_mes_sessions(self):
         SessionAssistant.objects.create(utilisateur=self.autre_etudiant, titre="Session privée de l'autre")
         self.connecter()

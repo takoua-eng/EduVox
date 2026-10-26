@@ -6,7 +6,6 @@
 - Modération : l'administrateur (permission « accounts.gerer_utilisateurs ») consulte toutes les conversations
   en LECTURE SEULE, dans un espace dédié (/assistant/moderation/) ; il ne peut ni y écrire ni les modifier.
   Les étudiants en sont informés sur la page de l'assistant.
-- Statistiques du module : permission « accounts.voir_statistiques » (administrateur).
 """
 
 from django.contrib.auth.mixins import PermissionRequiredMixin
@@ -17,7 +16,6 @@ from apps.courses.permissions import cours_visibles
 from .models import Illustration, MessageVocal, SessionAssistant
 
 PERMISSION_ASSISTANT = "accounts.poser_question"
-PERMISSION_STATISTIQUES = "accounts.voir_statistiques"
 PERMISSION_MODERATION = "accounts.gerer_utilisateurs"
 
 
@@ -47,10 +45,6 @@ class AssistantRequisMixin(PermissionRequiredMixin):
     def get_illustration(self, pk=None):
         return get_object_or_404(Illustration.objects.filter(session__utilisateur=self.request.user)
                                  .select_related("session"), pk=pk or self.kwargs["pk"])
-
-
-class StatistiquesRequisMixin(PermissionRequiredMixin):
-    permission_required = PERMISSION_STATISTIQUES
 
 
 class ModerationRequisMixin(PermissionRequiredMixin):

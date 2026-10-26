@@ -200,17 +200,3 @@ class MessagesTests(BaseAssistantTestCase):
         self.assertContains(reponse, f'id="message-{self.reponse.pk}"')
         self.assertContains(reponse, 'aria-label="Réponse utile"')
         self.assertNotContains(reponse, "<html")
-
-    def test_statistiques(self):
-        self.reponse.evaluation = 1
-        self.reponse.save()
-        JournalIA.objects.create(type_appel=JournalIA.Type.REPONSE, succes=True, duree_ms=1200, premier_morceau_ms=400)
-        JournalIA.objects.create(type_appel=JournalIA.Type.REPONSE, succes=False, code="quota")
-        self.connecter(self.admin)
-        reponse = self.client.get(reverse("statistiques-assistant"), {"jours": 7})
-        self.assertEqual(reponse.status_code, 200)
-        ligne = next(t for t in reponse.context["m"]["par_type"] if t["type"] == JournalIA.Type.REPONSE)
-        self.assertEqual((ligne["total"], ligne["taux_succes"], ligne["mediane_ms"]), (2, 50, 1200))
-        self.assertEqual(ligne["erreurs"], [("quota", 1)])
-        self.assertEqual(reponse.context["m"]["satisfaction"], 100)
-        self.assertEqual(self.client.get(reverse("statistiques-assistant"), {"jours": "x"}).context["m"]["jours"], 30)

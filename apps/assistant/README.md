@@ -22,7 +22,6 @@ explication par un diagramme ou une image.
 | Illustrations | idem | Gemini rédige un prompt anglais + un **texte alternatif**, puis **Hugging Face** (FLUX.1-schnell par défaut) génère l'image (tâche Celery) |
 | Export PDF | panneau Illustrations, menu de la session, chaque carte, galerie | PDF A4 généré dans le navigateur (jsPDF) : titre, type, date, visuel et description de chaque illustration ou diagramme |
 | Galerie | `/assistant/illustrations/` | Toutes mes illustrations, filtrables par type, exportables en PDF |
-| Pilotage IA (admin) | `/assistant/statistiques/` | Taux de succès, latence médiane / p95, délai du 1er morceau, satisfaction, facteur temps réel Whisper |
 | Conversations (admin) | `/assistant/moderation/` | Toutes les sessions (recherche par titre, utilisateur, e-mail ou contenu ; filtres utilisateur et état), consultation et export **en lecture seule** |
 
 > **Pourquoi Mermaid pour les diagrammes ?** Les modèles texte → image dessinent des schémas illisibles (texte
@@ -43,7 +42,7 @@ apps/assistant/
 ├── consumers.py       WebSocket : streaming de la réponse, arrêt, contrôle d'accès (code 4403)
 ├── routing.py         ws/assistant/sessions/<id>/
 ├── tasks.py           Celery : transcrire_message, generer_illustration
-├── views.py / urls.py CRUD, question (repli HTTP sans streaming), audio, illustrations, statistiques
+├── views.py / urls.py CRUD, question (repli HTTP sans streaming), audio, illustrations, modération
 ├── management/commands/evaluer_whisper.py   mesure du WER sur un jeu de test
 └── tests/             108 tests (SQLite en mémoire, IA simulée)
 ```
@@ -72,8 +71,8 @@ apps/assistant/
 
 ## 4. Métriques et performance (critère IA 5.2)
 
-Chaque appel IA est journalisé (`JournalIA` : succès, code d'erreur, durée, délai du 1er morceau) et affiché
-dans `/assistant/statistiques/`.
+Chaque appel IA est journalisé (`JournalIA` : succès, code d'erreur, durée, délai du 1er morceau), consultable
+dans l'administration Django (`/admin/` → « Journal des appels IA »), avec les avis utile / pas utile des réponses.
 
 **Mesures réalisées pendant le développement** (CPU, gemini-3.5-flash, whisper-small) :
 
@@ -93,7 +92,7 @@ python manage.py evaluer_whisper chemin/vers/dossier --json resultats.json
 ```
 
 Gemini étant un modèle génératif, sa qualité est évaluée **qualitativement** (avis utile / pas utile des
-étudiants, taux de satisfaction dans le tableau de bord) et par sa **latence**.
+étudiants) et par sa **latence**.
 
 ## 5. Accessibilité
 

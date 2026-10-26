@@ -11,7 +11,6 @@ from apps.assistant.models import Illustration, MessageVocal, SessionAssistant
 from apps.assistant.reglages import reglage
 from apps.assistant.services import (
     ErreurAssistant,
-    centile,
     contexte_cours,
     instruction_systeme,
     nettoyer_mermaid,
@@ -152,11 +151,6 @@ class FonctionsPuresTests(SimpleTestCase):
     def test_wer_references_vides(self):
         self.assertEqual(taux_erreur_mots("", ""), 0.0)
         self.assertEqual(taux_erreur_mots("", "bruit"), 1.0)
-
-    def test_centile(self):
-        self.assertEqual(centile([100, 200, 300, 400, 500], 50), 300)
-        self.assertEqual(centile([100, 200], 95), 195)
-        self.assertIsNone(centile([], 95))
 
     def test_markdown_sans_html_ni_javascript(self):
         html = rendre_markdown("**gras** <script>alert(1)</script> [lien](javascript:alert(1))")
