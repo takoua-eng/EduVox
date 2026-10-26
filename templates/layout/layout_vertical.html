@@ -2,6 +2,8 @@
 
 
 {% block layout %}
+<!-- Accessibilité : lien d'évitement, visible seulement au clavier -->
+<a href="#contenu-principal" class="visually-hidden-focusable btn btn-primary position-absolute top-0 start-0 m-2" style="z-index: 2000">Aller au contenu</a>
 <!-- Layout wrapper: Start -->
 <div class="layout-wrapper layout-content-navbar {{ is_menu|yesno:',layout-without-menu' }}">
   <div class="layout-container">
@@ -27,14 +29,14 @@
       <div class="content-wrapper">
         <!-- Content: Start -->
         {% if is_flex %}
-        <div class="{{container_class}} d-flex align-items-stretch flex-grow-1 p-0">
+        <main id="contenu-principal" tabindex="-1" class="{{container_class}} d-flex align-items-stretch flex-grow-1 p-0">
           {% else %}
-          <div class="{{container_class}} flex-grow-1 container-p-y">
+          <main id="contenu-principal" tabindex="-1" class="{{container_class}} flex-grow-1 container-p-y">
             {% endif %}
             {% block content %}
             {% endblock content %}
 
-          </div>
+          </main>
           <!-- / Content: End -->
 
           {% if is_footer %}

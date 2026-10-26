@@ -14,6 +14,23 @@ html:not(.ast-js) .ast-js-seul { display: none !important; } /* commandes qui n'
 .assistant-module [tabindex]:focus-visible, .assistant-module .btn-check:focus-visible + label {
   outline: 3px solid var(--ast-vert-fonce); outline-offset: 2px; box-shadow: none; }
 .assistant-module .ast-doux { color: var(--ast-doux); }
+
+/* Contrastes AA : les couleurs du thème (#8c57ff, #8a8d93) n'atteignent pas 4,5:1 sur les petits textes */
+.assistant-module a:not(.btn):not(.dropdown-item):not(.ast-cite):not(.ast-puce):not(.page-link) { color: var(--ast-vert-fonce); }
+.assistant-module .btn-primary { --bs-btn-bg: var(--ast-vert); --bs-btn-border-color: var(--ast-vert); --bs-btn-color: #fff;
+  --bs-btn-hover-bg: var(--ast-vert-fonce); --bs-btn-hover-border-color: var(--ast-vert-fonce); --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: var(--ast-vert-fonce); --bs-btn-active-border-color: var(--ast-vert-fonce);
+  --bs-btn-disabled-bg: var(--ast-vert); --bs-btn-disabled-border-color: var(--ast-vert);
+  background-color: var(--bs-btn-bg); border-color: var(--bs-btn-border-color); color: var(--bs-btn-color); }
+.assistant-module .btn-primary:hover, .assistant-module .btn-primary:focus-visible { background-color: var(--ast-vert-fonce); border-color: var(--ast-vert-fonce); color: #fff; }
+.assistant-module .btn-outline-primary { color: var(--ast-vert-fonce); border-color: var(--ast-vert); }
+.assistant-module .btn-outline-primary:hover { color: #fff; background-color: var(--ast-vert); border-color: var(--ast-vert); }
+.assistant-module .btn-outline-secondary { color: #3f4a46; border-color: #8f9b96; }
+.assistant-module .btn-outline-secondary:hover { color: #1f2a27; background-color: #e9efec; border-color: #6b7873; }
+.assistant-module .btn-success { background-color: var(--ast-vert); border-color: var(--ast-vert); color: #fff; }
+.assistant-module .btn-success:hover { background-color: var(--ast-vert-fonce); border-color: var(--ast-vert-fonce); }
+.assistant-module .page-item.active .page-link { background-color: var(--ast-vert); border-color: var(--ast-vert); color: #fff; }
+.assistant-module .page-link { color: var(--ast-vert-fonce); }
 .assistant-module .ast-erreur { color: var(--ast-rouge); font-weight: 500; }
 .min-w-0 { min-width: 0; }
 @media (prefers-reduced-motion: reduce) { .assistant-module * { animation: none !important; transition: none !important; } }
@@ -50,7 +67,8 @@ html:not(.ast-js) .ast-js-seul { display: none !important; } /* commandes qui n'
 .ast-carte .ast-meta { display: flex; flex-wrap: wrap; gap: 1rem; font-size: .875rem; color: var(--ast-doux); margin-top: auto; }
 .ast-onglets { display: flex; flex-wrap: wrap; gap: .25rem; }
 .ast-onglets a { padding: .4rem .9rem; border-radius: 2rem; color: var(--ast-doux); border: 1px solid transparent; }
-.ast-onglets a[aria-current="page"] { color: #fff; background: var(--ast-vert); }
+.assistant-module .ast-onglets a { color: var(--ast-doux); }
+.assistant-module .ast-onglets a[aria-current="page"] { color: #fff; background: var(--ast-vert); }
 .ast-onglets a:hover:not([aria-current]) { border-color: var(--ast-bord); }
 
 /* ---------- Page de session : mise en page ---------- */
@@ -95,7 +113,7 @@ html:not(.ast-js) .ast-js-seul { display: none !important; } /* commandes qui n'
 .ast-message--question .ast-bulle { background: var(--ast-vert); color: #fff; border-radius: 1.1rem 1.1rem .25rem 1.1rem;
   padding: .7rem 1rem; }
 .ast-message--question .ast-entete, .ast-message--question .ast-entete time { color: #d1fae5; }
-.ast-message--question .ast-badge--info { color: #fff; background: rgba(255,255,255,.16); border-color: rgba(255,255,255,.3); }
+.ast-message--question .ast-badge--info { color: #fff; background: var(--ast-vert-fonce); border-color: rgba(255,255,255,.35); }
 .ast-entete { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; font-size: .75rem; color: var(--ast-doux);
   margin-bottom: .3rem; }
 .ast-entete strong { font-size: .8125rem; }
@@ -205,7 +223,9 @@ html:not(.ast-js) .ast-js-seul { display: none !important; } /* commandes qui n'
 .ast-mode { flex: 0 0 auto; }
 .ast-segments--compact { display: inline-grid; grid-template-columns: auto auto; margin: 0; padding: .2rem; }
 .ast-segments--compact label { padding: .25rem .6rem; font-size: .8125rem; display: inline-flex; align-items: center; gap: .3rem; }
-@media (max-width: 575.98px) { .ast-mode-libelle { display: none; } }
+@media (max-width: 575.98px) {  /* masqué visuellement mais toujours lu : le bouton garde son nom accessible */
+  .ast-mode-libelle { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 .ast-parle .ast-conv-avatar { animation: ast-parle 1.2s infinite ease-in-out; }
 @keyframes ast-parle { 50% { box-shadow: 0 0 0 6px rgba(4, 120, 87, .18) } }
 .ast-bandeau-lecture { display: flex; gap: .6rem; align-items: center; padding: .75rem 1rem; border-radius: .875rem;

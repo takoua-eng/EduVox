@@ -117,3 +117,4 @@ websockets==17.3
 whitenoise==6.9.0
 xhtml2pdf==0.2.27
 zope.interface==8.7
+pywin32==312; sys_platform == "win32"
