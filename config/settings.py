@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 import os
 import random
 import string
+import sys
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -141,6 +142,10 @@ DATABASES = {
         "OPTIONS": {"sslmode": os.environ.get("DB_SSLMODE", "prefer")},
     }
 }
+
+# Tests automatiques : base SQLite temporaire, rapide et isolée (ne touche jamais la base commune Neon)
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "test_eduvox.sqlite3"}}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

@@ -15,6 +15,12 @@ class Utilisateur(AbstractUser):
     email_verifie = models.BooleanField(default=False)
     double_auth_active = models.BooleanField(default=False)
     secret_totp = models.CharField(max_length=32, blank=True)
+    bloque_jusqua = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def est_bloque(self):
+        from django.utils import timezone
+        return bool(self.bloque_jusqua and self.bloque_jusqua > timezone.now())
 
     def __str__(self):
         return f"{self.get_full_name() or self.username} ({self.get_role_display()})"

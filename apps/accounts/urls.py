@@ -14,6 +14,7 @@ urlpatterns = [
     path("utilisateurs/ajouter/", views.AjouterUtilisateurView.as_view(), name="ajouter-utilisateur"),
     path("utilisateurs/<int:pk>/modifier/", views.ModifierUtilisateurView.as_view(), name="modifier-utilisateur"),
     path("utilisateurs/<int:pk>/activer/", views.ActiverUtilisateurView.as_view(), name="activer-utilisateur"),
+    path("utilisateurs/<int:pk>/debloquer/", views.DebloquerUtilisateurView.as_view(), name="debloquer-utilisateur"),
     path("utilisateurs/<int:pk>/supprimer/", views.SupprimerUtilisateurView.as_view(), name="supprimer-utilisateur"),
     
         # Mot de passe oublié

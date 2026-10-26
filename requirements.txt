@@ -28,6 +28,7 @@ cssselect2==0.10.1
 daphne==4.2.3
 distro==1.9.0
 Django==5.2.5
+et_xmlfile==2.0.0
 filelock==4.2.4
 fsspec==2026.9.0
 google-auth==2.62.0
@@ -57,6 +58,7 @@ narwhals==2.27.1
 networkx==3.6.1
 numpy==2.4.6
 opencv-python==5.0.0.93
+openpyxl==3.1.5
 packaging==25.0
 pdfminer.six==20260107
 pdfplumber==0.11.10
@@ -76,6 +78,7 @@ pypdf==6.21.2
 pypdfium2==5.14.0
 python-dateutil==3.0.0
 python-dotenv==1.1.1
+pywin32==312
 PyYAML==6.0.3
 qrcode==8.2
 redis==6.4.0
@@ -117,4 +120,3 @@ websockets==17.3
 whitenoise==6.9.0
 xhtml2pdf==0.2.27
 zope.interface==8.7
-pywin32==312; sys_platform == "win32"

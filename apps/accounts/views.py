@@ -238,6 +238,21 @@ class ReinitialiserMotDePasseView(SansMenuMixin, auth_views.PasswordResetConfirm
     template_name = "accounts/mdp_reinitialiser.html"
     success_url = reverse_lazy("mdp-termine")
 
+    def form_valid(self, form):
+        from .securite import debloquer
+        reponse = super().form_valid(form)
+        debloquer(form.user)  # nouveau mot de passe : le compte est débloqué
+        return reponse
+
+
+class DebloquerUtilisateurView(AdminRequiredMixin, View):
+    def post(self, request, pk):
+        from .securite import debloquer
+        user = get_object_or_404(Utilisateur, pk=pk)
+        debloquer(user)
+        messages.success(request, f"Le compte de {user.username} a été débloqué.")
+        return redirect("liste-utilisateurs")
+
 
 class MotDePasseTermineView(SansMenuMixin, auth_views.PasswordResetCompleteView):
     template_name = "accounts/mdp_termine.html"

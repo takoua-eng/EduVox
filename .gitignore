@@ -199,3 +199,8 @@ stockage_prive/
 
 # Broker Celery local (filesystem://)
 .celery_broker/
+
+# Tests et couverture
+.coverage
+htmlcov/
+test_eduvox.sqlite3

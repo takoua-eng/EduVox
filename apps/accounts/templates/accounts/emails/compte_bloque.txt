@@ -1,0 +1,12 @@
+Bonjour {{ user.first_name|default:user.username }},
+
+Plusieurs mots de passe incorrects ont été saisis sur votre compte EduVox.
+Par sécurité, votre compte est bloqué jusqu'à {{ jusqua|date:"H:i" }}.
+
+Si c'était vous, patientez ou réinitialisez votre mot de passe (cela débloque aussitôt votre compte) :
+{{ lien_mdp }}
+
+Si ce n'était pas vous, quelqu'un essaie peut-être de deviner votre mot de passe :
+réinitialisez-le et activez la double authentification depuis votre profil.
+
+L'équipe EduVox

@@ -1,14 +1,21 @@
 """Journal des connexions et détection IA des connexions suspectes."""
 
 import math
+from datetime import timedelta
 
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.utils.timezone import localtime
 
 HISTORIQUE_MIN_IA = 8       # connexions réussies nécessaires pour entraîner le modèle
 SEUIL_SUSPECT = 60          # score de risque (sur 100) à partir duquel la connexion est suspecte
 POIDS = {"heure": 40, "appareil": 35, "ip": 25}
+
+MAX_ECHECS_COMPTE = 5       # mots de passe faux avant blocage du compte
+MAX_ECHECS_IP = 20          # échecs depuis un même appareil avant blocage de cet appareil
+MOTIF_PENDANT_BLOCAGE = "Tentative pendant le blocage"
+DUREE_BLOCAGE = timedelta(minutes=15)
 
 
 # ---------- Informations sur la requête ----------
@@ -156,4 +163,63 @@ def alerter_utilisateur(request, entree):
         "lien_profil": request.build_absolute_uri("/profil/connexions/"),
     })
     send_mail("EduVox – Connexion inhabituelle à votre compte", message, None, [entree.utilisateur.email],
+              fail_silently=True)
+
+
+
+# ---------- Protection contre la force brute ----------
+
+def _debut_comptage(utilisateur):
+    """On compte les échecs depuis : il y a 15 min, la dernière connexion réussie, ou la fin du dernier blocage."""
+    from .models import JournalConnexion
+
+    debut = timezone.now() - DUREE_BLOCAGE
+    derniere_reussite = JournalConnexion.objects.filter(utilisateur=utilisateur, succes=True).order_by("-date").first()
+    if derniere_reussite and derniere_reussite.date > debut:
+        debut = derniere_reussite.date
+    if utilisateur.bloque_jusqua and utilisateur.bloque_jusqua > debut:
+        debut = utilisateur.bloque_jusqua
+    return debut
+
+
+def bloquer_si_necessaire(request, utilisateur):
+    """Après un mot de passe faux : bloque le compte au bout de 5 échecs."""
+    from .models import JournalConnexion
+
+    echecs = JournalConnexion.objects.filter(
+        utilisateur=utilisateur, succes=False, methode=JournalConnexion.Methode.MOT_DE_PASSE,
+        date__gt=_debut_comptage(utilisateur),
+    ).exclude(motif=MOTIF_PENDANT_BLOCAGE).count()
+    if echecs >= MAX_ECHECS_COMPTE:
+        utilisateur.bloque_jusqua = timezone.now() + DUREE_BLOCAGE
+        utilisateur.save(update_fields=["bloque_jusqua"])
+        alerter_blocage(request, utilisateur)
+
+
+def ip_bloquee(request):
+    """Trop d'échecs depuis cet appareil (même sur des comptes différents) ?"""
+    from .models import JournalConnexion
+
+    ip = adresse_ip(request)
+    if not ip:
+        return False
+    return JournalConnexion.objects.filter(
+        ip=ip, succes=False, date__gte=timezone.now() - DUREE_BLOCAGE,
+    ).exclude(motif=MOTIF_PENDANT_BLOCAGE).count() >= MAX_ECHECS_IP
+
+
+def debloquer(utilisateur):
+    """Débloque le compte (les échecs précédents ne sont plus comptés)."""
+    utilisateur.bloque_jusqua = timezone.now()
+    utilisateur.save(update_fields=["bloque_jusqua"])
+
+
+def alerter_blocage(request, utilisateur):
+    if not utilisateur.email:
+        return
+    message = render_to_string("accounts/emails/compte_bloque.txt", {
+        "user": utilisateur, "jusqua": utilisateur.bloque_jusqua,
+        "lien_mdp": request.build_absolute_uri("/mot-de-passe-oublie/"),
+    })
+    send_mail("EduVox – Votre compte est temporairement bloqué", message, None, [utilisateur.email],
               fail_silently=True)
