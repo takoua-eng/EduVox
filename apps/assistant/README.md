@@ -50,7 +50,7 @@ apps/assistant/
 ├── tasks.py           Celery : transcrire_message, generer_illustration, indexer_cours, generer_fiche_revision
 ├── views.py / urls.py CRUD, question (repli HTTP sans streaming), audio, illustrations, modération
 ├── management/commands/evaluer_whisper.py   mesure du WER sur un jeu de test
-└── tests/             134 tests (SQLite en mémoire, IA simulée)
+└── tests/             139 tests (SQLite en mémoire, IA simulée)
 ```
 
 - **ASGI** : `config/asgi.py` route HTTP vers Django et WebSocket vers Channels (`AuthMiddlewareStack` +
@@ -70,7 +70,8 @@ apps/assistant/
 | WebSocket | Même contrôle à la connexion (refus code 4403), vérification de l'origine (anti-CSWSH) |
 | Contexte de cours | Un cours non visible (brouillon, masqué) n'est jamais envoyé à Gemini |
 | Contrôle de saisie | Mêmes règles côté navigateur (message sous le champ, `aria-invalid`, focus sur l'erreur) et côté serveur (`forms.py`, aussi appliqué au WebSocket) : titre 3–150 caractères, au moins une lettre, **unique par utilisateur** ; question 2–2 000 caractères avec au moins une lettre (compteur affiché près de la limite) ; demande d'illustration 3–500 caractères ; espaces superflus supprimés ; audio : en-tête `RIFF/WAVE` vérifié, 0,5 à 120 s, ≤ 8 Mo |
-| Abus / coûts | 30 questions et 10 illustrations par heure et par utilisateur (configurable) |
+| Abus / coûts | 30 questions, 10 illustrations et 5 fiches par heure et par utilisateur (configurable) |
+| Disponibilité | Quota Gemini gratuit = 20 requêtes / jour / modèle : en cas de quota atteint (429) ou de modèle indisponible (5xx), bascule automatique sur le modèle de secours, y compris en streaming (avant le 1er mot). Une seule tentative côté SDK, pour ne jamais rester bloqué sur le délai d'attente suggéré par l'API |
 | XSS | Réponses rendues en Markdown **sans HTML brut** (markdown-it, liens `javascript:` refusés) ; Mermaid en mode strict, code validé |
 | Secrets | `GEMINI_API_KEY`, `HF_TOKEN` dans `.env` uniquement |
 | CSRF | Tous les POST (formulaires et `fetch`) portent le jeton CSRF |
@@ -119,6 +120,8 @@ raccourcis clavier (Entrée, Maj+Entrée, Alt+M), `prefers-reduced-motion` respe
 | `HF_IMAGE_MODEL` | `black-forest-labs/FLUX.1-schnell` | Modèle texte → image |
 | `WHISPER_MODEL` | `openai/whisper-small` | `openai/whisper-base` est 2 à 3 fois plus rapide sur CPU, un peu moins précis |
 | `WHISPER_LANGUE` | `french` | Langue de `transcrire_wav()` (enregistrements > 30 s) ; les questions courtes suivent la langue de la session |
+| `ASSISTANT_GEMINI_MODEL` | `GEMINI_MODEL` | Modèle principal propre à l'assistant (sinon celui de l'équipe) |
+| `ASSISTANT_GEMINI_MODELE_SECOURS` | `gemini-3.5-flash-lite` | Modèle utilisé automatiquement si le quota du principal est atteint (vide = aucun) |
 | `ASSISTANT_EMBEDDING_MODEL` | `gemini-embedding-001` | Modèle d'embedding du RAG |
 | `ASSISTANT_FICHES_PAR_HEURE` | 5 | Fiches de révision par heure et par utilisateur |
 | `ASSISTANT_GEMINI_REFLEXION` | `minimal` | Niveau de réflexion de Gemini (`minimal`, `low`, `medium`, `high`, vide = défaut du modèle) |

@@ -98,9 +98,17 @@ def patch_gemini(**kwargs):
     return mock.patch("apps.assistant.services._client", return_value=faux_client(**kwargs))
 
 
+ENV_TEST = {"GEMINI_API_KEY": "cle-de-test", "GEMINI_MODEL": "gemini-test", "ASSISTANT_GEMINI_MODEL": "",
+            "HF_TOKEN": ""}
+
+
 @override_settings(MEDIA_ROOT=MEDIA_TEST)
-@mock.patch.dict(os.environ, {"GEMINI_API_KEY": "cle-de-test", "GEMINI_MODEL": "gemini-test"})
 class BaseAssistantTestCase(TestCase):
+    """Base des tests : variables d'environnement de test et faux client Gemini par défaut.
+
+    Aucun test ne doit joindre le réseau : un test qui a besoin d'une réponse précise remplace le faux client
+    avec patch_gemini(...) (le patch le plus récent l'emporte).
+    """
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
@@ -117,6 +125,10 @@ class BaseAssistantTestCase(TestCase):
         cls.cours_brouillon = creer_cours(cls.prof.enseignant, titre="Brouillon secret", publie=False)
 
     def setUp(self):
+        for patch in (mock.patch.dict(os.environ, ENV_TEST),
+                      mock.patch("apps.assistant.services._client", return_value=faux_client(reponses="ok"))):
+            patch.start()
+            self.addCleanup(patch.stop)
         self.session = SessionAssistant.objects.create(utilisateur=self.etudiant, titre="Révisions", cours=self.cours)
 
     def connecter(self, user=None):

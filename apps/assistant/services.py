@@ -29,7 +29,8 @@ from .reglages import reglage
 logger = logging.getLogger(__name__)
 
 SYSTEME = """Tu es l'assistant pédagogique d'EduVox, une plateforme d'apprentissage.
-- Adopte un ton bienveillant et clair.
+- Adopte un ton bienveillant et clair ; entre directement dans le sujet, sans salutation ni compliment
+  sur la question (« Bonjour », « Excellente question »…).
 - Va à l'essentiel : une explication structurée, des exemples si utile, au plus 300 mots sauf demande contraire.
 - Utilise le Markdown simple (titres courts, listes, **gras**, `code`, tableaux) ; jamais de HTML ni de LaTeX :
   écris les formules en texte lisible (A⁻¹, x², √2, a × b, ≤) car elles ne sont pas mises en forme.
@@ -57,8 +58,31 @@ def rendre_markdown(texte):
     return _markdown.render(texte or "")
 
 
+MODELE_SECOURS = "gemini-3.5-flash-lite"
+
+
 def modele_gemini():
-    return os.environ.get("GEMINI_MODEL") or MODELE_PAR_DEFAUT
+    """Modèle principal : ASSISTANT_GEMINI_MODEL (propre au module), sinon GEMINI_MODEL de l'équipe."""
+    return os.environ.get("ASSISTANT_GEMINI_MODEL") or os.environ.get("GEMINI_MODEL") or MODELE_PAR_DEFAUT
+
+
+def modeles_gemini():
+    """Modèles à essayer dans l'ordre : le principal, puis le modèle de secours si le quota du premier est atteint.
+
+    Le quota gratuit de Gemini est compté par modèle (20 requêtes / jour sur gemini-3.5-flash) : basculer sur
+    un modèle plus léger garde l'assistant disponible. ASSISTANT_GEMINI_MODELE_SECOURS vide = pas de secours.
+    """
+    principal = modele_gemini()
+    secours = os.environ.get("ASSISTANT_GEMINI_MODELE_SECOURS", MODELE_SECOURS).strip()
+    return [principal] + ([secours] if secours and secours != principal else [])
+
+
+def _bascule(erreur, modele, suivants):
+    """Vrai si l'on doit réessayer avec le modèle suivant (quota atteint ou modèle indisponible)."""
+    if suivants and erreur.code in ("quota", "indisponible"):
+        logger.warning("Gemini %s : %s, bascule sur %s", modele, erreur.code, suivants[0])
+        return True
+    return False
 
 
 def gemini_configure():
@@ -76,8 +100,10 @@ def _client():
     cle = os.environ.get("GEMINI_API_KEY")
     if not cle:
         raise ErreurAssistant("L'assistant n'est pas configuré sur ce serveur (clé Gemini absente).", "configuration")
-    return genai.Client(api_key=cle,
-                        http_options=types.HttpOptions(timeout=reglage("ASSISTANT_GEMINI_TIMEOUT_S") * 1000))
+    # Une seule tentative côté SDK : nos propres reprises (et la bascule de modèle) restent maîtrisées ;
+    # sinon, après un quota atteint, le SDK peut attendre le délai suggéré par l'API (plusieurs heures).
+    return genai.Client(api_key=cle, http_options=types.HttpOptions(
+        timeout=reglage("ASSISTANT_GEMINI_TIMEOUT_S") * 1000, retry_options=types.HttpRetryOptions(attempts=1)))
 
 
 def _nom_dans_mro(erreur, nom):
@@ -303,7 +329,7 @@ def terminer_reponse(reponse, texte, duree_ms, premier_morceau_ms=None, interrom
     reponse.texte = texte
     reponse.statut = MessageVocal.Statut.PRET
     reponse.duree_ms, reponse.premier_morceau_ms = duree_ms, premier_morceau_ms
-    reponse.save(update_fields=["texte", "statut", "duree_ms", "premier_morceau_ms"])
+    reponse.save(update_fields=["texte", "statut", "duree_ms", "premier_morceau_ms", "modele"])
     journaliser(JournalIA.Type.REPONSE, reponse.session.utilisateur, modele=reponse.modele,
                 erreur=ErreurAssistant("Interrompue", "interrompue") if interrompue else None,
                 duree_ms=duree_ms, premier_morceau_ms=premier_morceau_ms)
@@ -323,10 +349,17 @@ def repondre(question, reponse):
     debut = time.monotonic()
     try:
         client = _client()  # garder une référence : le SDK ferme sa connexion quand le client est libéré
-        resultat = client.models.generate_content(
-            model=reponse.modele, contents=construire_contenus(question),
-            config=configuration_reponse(question.session, question, reponse),
-        )
+        contenus = construire_contenus(question)
+        configuration = configuration_reponse(question.session, question, reponse)
+        modeles = modeles_gemini()
+        for i, modele in enumerate(modeles):
+            try:
+                resultat = client.models.generate_content(model=modele, contents=contenus, config=configuration)
+                reponse.modele = modele
+                break
+            except Exception as exception:
+                if not _bascule(traduire_erreur(exception), modele, modeles[i + 1:]):
+                    raise
         texte = (resultat.text or "").strip()
         if not texte:
             raise ErreurAssistant("L'IA a renvoyé une réponse vide. Reformulez votre question.", "vide")
@@ -344,11 +377,22 @@ def repondre(question, reponse):
 async def flux_reponse(question, reponse, contenus, configuration):
     """Générateur asynchrone des morceaux de texte renvoyés par Gemini au fil de l'eau."""
     client = _client()  # référence conservée pendant toute la durée du flux
-    flux = await client.aio.models.generate_content_stream(model=reponse.modele, contents=contenus,
-                                                              config=configuration)
-    async for morceau in flux:
-        if morceau.text:
-            yield morceau.text
+    modeles = modeles_gemini()
+    for i, modele in enumerate(modeles):
+        recu = False
+        try:
+            flux = await client.aio.models.generate_content_stream(model=modele, contents=contenus,
+                                                                      config=configuration)
+            async for morceau in flux:
+                if not recu:
+                    reponse.modele, recu = modele, True
+                if morceau.text:
+                    yield morceau.text
+            return
+        except Exception as exception:
+            # Bascule seulement si rien n'a encore été envoyé à l'étudiant
+            if recu or not _bascule(traduire_erreur(exception), modele, modeles[i + 1:]):
+                raise
 
 
 # ---------- Illustrations ----------
@@ -401,10 +445,18 @@ def appeler_gemini_json(prompt, schema, systeme, essais=2):
     debut = time.monotonic()
     config = types.GenerateContentConfig(system_instruction=systeme, temperature=0.3, thinking_config=configuration_thinking(),
                                          response_mime_type="application/json", response_json_schema=schema)
+    modeles = modeles_gemini()
     for essai in range(1, essais + 1):
         try:
             client = _client()  # garder une référence : le SDK ferme sa connexion quand le client est libéré
-            resultat = client.models.generate_content(model=modele_gemini(), contents=prompt, config=config)
+            resultat = None
+            for i, modele in enumerate(modeles):
+                try:
+                    resultat = client.models.generate_content(model=modele, contents=prompt, config=config)
+                    break
+                except Exception as exception:
+                    if not _bascule(traduire_erreur(exception), modele, modeles[i + 1:]):
+                        raise
             donnees = json.loads((resultat.text or "").strip())
             if not isinstance(donnees, dict):
                 raise json.JSONDecodeError("objet attendu", "", 0)
