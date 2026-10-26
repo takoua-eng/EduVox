@@ -2,10 +2,14 @@
 
 
 {% block layout %}
+<!-- Accessibilité : lien d'évitement, visible seulement au clavier -->
+<a href="#contenu-principal" class="visually-hidden-focusable btn btn-primary position-absolute top-0 start-0 m-2" style="z-index: 2000">Aller au contenu</a>
 
 <!-- Content: Start -->
+<main id="contenu-principal" tabindex="-1">
 {% block content %}
 {% endblock content %}
+</main>
 <!-- Content: End -->
 
 {% endblock layout %}

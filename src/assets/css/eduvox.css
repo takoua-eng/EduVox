@@ -1,16 +1,97 @@
+/* ==========================================================================
+   EduVox – charte graphique et accessibilité (WCAG 2.1 AA)
+   ⚠️ Ce fichier doit être chargé APRÈS vendor/css/core.css (voir styles.html)
+   Contrastes vérifiés : au moins 4,5:1 pour le texte normal.
+   ========================================================================== */
+
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap');
 
 :root, [data-bs-theme=light] {
-  --bs-primary: #7C3AED;
-  --bs-primary-rgb: 124, 58, 237;
-  --bs-link-color: #7C3AED;
-  --bs-link-color-rgb: 124, 58, 237;
-  --bs-success: #10B981;
-  --bs-info: #06B6D4;
-  --bs-warning: #F59E0B;
-  --bs-danger: #EF4444;
+  /* Couleurs de la marque, assombries juste ce qu'il faut pour le contraste */
+  --bs-primary: #7C3AED;      --bs-primary-rgb: 124, 58, 237;
+  --bs-success: #047857;      --bs-success-rgb: 4, 120, 87;
+  --bs-info: #0e7490;         --bs-info-rgb: 14, 116, 144;
+  --bs-warning: #b45309;      --bs-warning-rgb: 180, 83, 9;
+  --bs-danger: #b91c1c;       --bs-danger-rgb: 185, 28, 28;
+  --bs-secondary: #4b5563;    --bs-secondary-rgb: 75, 85, 99;
+
+  --bs-link-color: #6d28d9;   --bs-link-color-rgb: 109, 40, 217;
+  --bs-link-hover-color: #5b21b6;
+  --bs-secondary-color: #6b6672;          /* texte gris (.text-body-secondary) : 5,6:1 */
+  --bs-secondary-color-rgb: 107, 102, 114;
+  --bs-code-color: #9d174d;
 }
 
-h1, h2, h3, h4, h5, .app-brand-text {
+h1, h2, h3, h4, h5, .h1, .h2, .h3, .h4, .h5, .app-brand-text {
   font-family: 'Poppins', sans-serif;
+}
+
+/* ----- Textes gris du thème ----- */
+.menu-header-text,
+.form-floating > label,
+.form-floating-outline > label,
+.form-label,
+.text-muted {
+  color: #6b6672 !important;
+}
+
+/* ----- Badges « bg-label-* » : texte foncé sur fond clair ----- */
+.bg-label-primary   { color: #5b21b6 !important; }
+.bg-label-success   { color: #065f46 !important; }
+.bg-label-info      { color: #155e75 !important; }
+.bg-label-warning   { color: #92400e !important; }
+.bg-label-danger    { color: #991b1b !important; }
+.bg-label-secondary { color: #374151 !important; }
+.badge.bg-warning   { color: #1f2937 !important; background-color: #F59E0B !important; }
+
+/* ----- Messages d'alerte ----- */
+.alert-primary   { --bs-alert-color: #5b21b6; --bs-alert-link-color: #4c1d95; }
+.alert-success   { --bs-alert-color: #065f46; --bs-alert-link-color: #064e3b; }
+.alert-info      { --bs-alert-color: #155e75; --bs-alert-link-color: #164e63; }
+.alert-warning   { --bs-alert-color: #92400e; --bs-alert-link-color: #78350f; }
+.alert-danger    { --bs-alert-color: #991b1b; --bs-alert-link-color: #7f1d1d; }
+.alert-secondary { --bs-alert-color: #374151; --bs-alert-link-color: #1f2937; }
+
+/* ----- Boutons gris (contour) ----- */
+.btn-outline-secondary {
+  --bs-btn-color: #4b5563;
+  --bs-btn-border-color: #6b7280;
+}
+.btn-text-secondary { --bs-btn-color: #4b5563; }
+
+/* ----- Liens dans un texte : soulignés (pas seulement une couleur différente) ----- */
+p a:not(.btn), .alert a:not(.btn), li > span > a:not(.btn), small a:not(.btn) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ----- Focus clavier bien visible sur tous les éléments actifs ----- */
+:focus-visible {
+  outline: 3px solid #4F46E5 !important;
+  outline-offset: 2px !important;
+  box-shadow: none;
+}
+.menu-link:focus-visible,
+.dropdown-item:focus-visible {
+  outline-offset: -3px !important;
+}
+/* Champ fichier caché derrière un bouton : le bouton montre le focus */
+.btn:has(+ input[type="file"].visually-hidden:focus-visible) {
+  outline: 3px solid #4F46E5;
+  outline-offset: 2px;
+}
+
+/* ----- Animations réduites si l'utilisateur le demande (réglage du système) ----- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ----- Texte gris sur les lignes colorées des tableaux (ex. connexion suspecte) ----- */
+.table [class*="table-"] .text-body-secondary,
+tr[class*="table-"] .text-body-secondary {
+  color: #4b5563 !important;
 }

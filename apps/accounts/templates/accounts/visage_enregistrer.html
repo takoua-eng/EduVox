@@ -13,9 +13,9 @@
   <div class="col-lg-8">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">{% if deja_enregistre %}Mettre à jour mon visage{% else %}Enregistrer mon visage{% endif %}</h5>
+        <h1 class="h5 mb-0">{% if deja_enregistre %}Mettre à jour mon visage{% else %}Enregistrer mon visage{% endif %}</h1>
         <a href="{% url 'mon-profil' %}" class="btn btn-sm btn-outline-secondary">
-          <i class="icon-base ri ri-arrow-left-line me-1"></i> Retour
+          <i class="icon-base ri ri-arrow-left-line me-1" aria-hidden="true"></i> Retour
         </a>
       </div>
       <div class="card-body">
@@ -27,14 +27,14 @@
 
         <!-- Caméra -->
         <div class="position-relative mx-auto mb-4 rounded overflow-hidden bg-dark" style="max-width: 480px; aspect-ratio: 4 / 3;">
-          <video id="video" playsinline muted class="w-100 h-100" style="object-fit: cover; transform: scaleX(-1);"></video>
+          <video id="video" playsinline muted aria-label="Aperçu de votre caméra" class="w-100 h-100" style="object-fit: cover; transform: scaleX(-1);"></video>
           <div class="position-absolute top-50 start-50 translate-middle border border-3 border-white rounded-circle opacity-50"
                style="width: 55%; aspect-ratio: 3 / 4;"></div>
           <span id="decompte" class="position-absolute top-50 start-50 translate-middle display-1 fw-bold text-white d-none"></span>
         </div>
 
         <div id="miniatures" class="d-flex justify-content-center gap-3 mb-4"></div>
-        <div id="statut" class="alert d-none" role="alert"></div>
+        <div id="statut" class="alert d-none" role="status" aria-live="polite"></div>
 
         <!-- Consentement + mot de passe -->
         <div class="form-check mb-4">
@@ -50,7 +50,7 @@
         </div>
 
         <button id="demarrer" class="btn btn-primary w-100">
-          <i class="icon-base ri ri-camera-line me-1"></i> Démarrer la capture
+          <i class="icon-base ri ri-camera-line me-1" aria-hidden="true"></i> Démarrer la capture
         </button>
       </div>
     </div>
@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       images.push(image);
       miniatures.insertAdjacentHTML("beforeend",
-        `<img src="${image}" class="rounded border" style="width: 90px; transform: scaleX(-1);" />`);
+        `<img src="${image}" alt="Photo capturée" class="rounded border" style="width: 90px; transform: scaleX(-1);" />`);
     }
 
     afficher("Analyse du visage en cours…", "info");

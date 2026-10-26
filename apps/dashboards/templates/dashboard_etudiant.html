@@ -7,10 +7,10 @@
 <div class="card mb-6 border-0" style="background: linear-gradient(135deg, #4F46E5, #7C3AED);">
   <div class="card-body d-flex justify-content-between align-items-center p-6">
     <div>
-      <h4 class="text-white mb-2">Bonjour {{ request.user.first_name|default:request.user.username }}, prêt à apprendre aujourd'hui ? 👋</h4>
+      <h1 class="h4 text-white mb-2">Bonjour {{ request.user.first_name|default:request.user.username }}, prêt à apprendre aujourd'hui ? 👋</h1>
       <p class="text-white mb-0 opacity-75">Posez une question, consultez un cours ou testez vos connaissances.</p>
     </div>
-    <i class="icon-base ri ri-voiceprint-line text-white opacity-50 d-none d-md-block" style="font-size: 4rem;"></i>
+    <i class="icon-base ri ri-voiceprint-line text-white opacity-50 d-none d-md-block" aria-hidden="true" style="font-size: 4rem;"></i>
   </div>
 </div>
 
@@ -19,8 +19,8 @@
   <div class="col-sm-6 col-xl-3">
     <a href="#" class="card h-100 text-body">
       <div class="card-body">
-        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-mic-line icon-24px"></i></span></div>
-        <h6 class="mb-1">Poser une question vocale</h6>
+        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-mic-line icon-24px" aria-hidden="true"></i></span></div>
+        <h2 class="h6 mb-1">Poser une question vocale</h2>
         <small class="text-body-secondary">Parlez, l'IA transcrit et vous explique.</small>
       </div>
     </a>
@@ -28,8 +28,8 @@
   <div class="col-sm-6 col-xl-3">
     <a href="#" class="card h-100 text-body">
       <div class="card-body">
-        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-book-open-line icon-24px"></i></span></div>
-        <h6 class="mb-1">Mes cours</h6>
+        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-book-open-line icon-24px" aria-hidden="true"></i></span></div>
+        <h2 class="h6 mb-1">Mes cours</h2>
         <small class="text-body-secondary">Consultez vos cours et leurs résumés.</small>
       </div>
     </a>
@@ -37,8 +37,8 @@
   <div class="col-sm-6 col-xl-3">
     <a href="#" class="card h-100 text-body">
       <div class="card-body">
-        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-checkbox-circle-line icon-24px"></i></span></div>
-        <h6 class="mb-1">Passer un quiz</h6>
+        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-checkbox-circle-line icon-24px" aria-hidden="true"></i></span></div>
+        <h2 class="h6 mb-1">Passer un quiz</h2>
         <small class="text-body-secondary">Testez vos connaissances et obtenez un score.</small>
       </div>
     </a>
@@ -46,8 +46,8 @@
   <div class="col-sm-6 col-xl-3">
     <a href="#" class="card h-100 text-body">
       <div class="card-body">
-        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-user-follow-line icon-24px"></i></span></div>
-        <h6 class="mb-1">Marquer ma présence</h6>
+        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-user-follow-line icon-24px" aria-hidden="true"></i></span></div>
+        <h2 class="h6 mb-1">Marquer ma présence</h2>
         <small class="text-body-secondary">Vérification par reconnaissance faciale.</small>
       </div>
     </a>
@@ -58,7 +58,7 @@
 <div class="row g-6">
   <div class="col-lg-4">
     <div class="card h-100">
-      <div class="card-header"><h5 class="mb-0">Ma progression</h5></div>
+      <div class="card-header"><h2 class="h5 mb-0">Ma progression</h2></div>
       <div class="card-body">
         <div class="d-flex justify-content-between mb-1"><span>Score moyen aux quiz</span><span class="fw-medium">— %</span></div>
         <div class="progress mb-5" style="height: 8px;"><div class="progress-bar bg-success" style="width: 0%"></div></div>
@@ -70,9 +70,9 @@
   </div>
   <div class="col-lg-8">
     <div class="card h-100">
-      <div class="card-header"><h5 class="mb-0">Activité récente</h5></div>
+      <div class="card-header"><h2 class="h5 mb-0">Activité récente</h2></div>
       <div class="card-body text-center py-8">
-        <i class="icon-base ri ri-time-line text-body-secondary mb-3" style="font-size: 2.5rem;"></i>
+        <i class="icon-base ri ri-time-line text-body-secondary mb-3" aria-hidden="true" style="font-size: 2.5rem;"></i>
         <p class="mb-0 text-body-secondary">Aucune activité pour le moment. Commencez par poser une question ou ouvrir un cours !</p>
       </div>
     </div>

@@ -7,9 +7,9 @@
   <div class="col-lg-7">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">Activer la double authentification</h5>
+        <h1 class="h5 mb-0">Activer la double authentification</h1>
         <a href="{% url 'mon-profil' %}" class="btn btn-sm btn-outline-secondary">
-          <i class="icon-base ri ri-arrow-left-line me-1"></i> Retour
+          <i class="icon-base ri ri-arrow-left-line me-1" aria-hidden="true"></i> Retour
         </a>
       </div>
       <div class="card-body">
@@ -17,7 +17,7 @@
         <div class="d-flex mb-5">
           <span class="badge bg-primary rounded-pill me-3 align-self-start">1</span>
           <div>
-            <h6 class="mb-1">Installez une application d'authentification</h6>
+            <h2 class="h6 mb-1">Installez une application d'authentification</h2>
             <p class="mb-0 text-body-secondary">Google Authenticator, Microsoft Authenticator ou Authy (gratuites sur Android et iPhone).</p>
           </div>
         </div>
@@ -25,7 +25,7 @@
         <div class="d-flex mb-5">
           <span class="badge bg-primary rounded-pill me-3 align-self-start">2</span>
           <div class="w-100">
-            <h6 class="mb-1">Scannez ce QR code avec l'application</h6>
+            <h2 class="h6 mb-1">Scannez ce QR code avec l'application</h2>
             <div class="text-center my-4">
               <img src="data:image/png;base64,{{ qr_code }}" alt="QR code 2FA" width="200" height="200" class="border rounded p-2 bg-white" />
             </div>
@@ -37,7 +37,7 @@
         <div class="d-flex">
           <span class="badge bg-primary rounded-pill me-3 align-self-start">3</span>
           <div class="w-100">
-            <h6 class="mb-3">Saisissez le code à 6 chiffres affiché par l'application</h6>
+            <h2 class="h6 mb-3">Saisissez le code à 6 chiffres affiché par l'application</h2>
             {% if erreur %}<div class="alert alert-danger">{{ erreur }}</div>{% endif %}
             <form method="post" class="d-flex gap-3">
               {% csrf_token %}

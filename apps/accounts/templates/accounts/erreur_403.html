@@ -16,11 +16,11 @@
     <!-- Icône -->
     <div class="avatar mx-auto my-5" style="width: 88px; height: 88px;">
       <span class="avatar-initial rounded-circle bg-label-danger">
-        <i class="icon-base ri ri-shield-keyhole-line" style="font-size: 2.6rem;"></i>
+        <i class="icon-base ri ri-shield-keyhole-line" aria-hidden="true" style="font-size: 2.6rem;"></i>
       </span>
     </div>
 
-    <h3 class="mb-2">Accès refusé 🔒</h3>
+    <h2 class="h3 mb-2">Accès refusé 🔒</h2>
     <p class="mb-2 text-body-secondary">
       Vous n'avez pas la permission d'accéder à cette page.
     </p>
@@ -37,17 +37,17 @@
     <!-- Actions -->
     <div class="d-flex flex-wrap justify-content-center gap-3 mb-6">
       <a href="{% url 'index' %}" class="btn btn-primary">
-        <i class="icon-base ri ri-home-smile-line me-1"></i> Retour au tableau de bord
+        <i class="icon-base ri ri-home-smile-line me-1" aria-hidden="true"></i> Retour au tableau de bord
       </a>
       <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
-        <i class="icon-base ri ri-arrow-left-line me-1"></i> Page précédente
+        <i class="icon-base ri ri-arrow-left-line me-1" aria-hidden="true"></i> Page précédente
       </button>
     </div>
 
     <!-- Aide -->
     <div class="card shadow-none bg-label-secondary">
       <div class="card-body py-4 small text-start d-flex align-items-start gap-3">
-        <i class="icon-base ri ri-information-line icon-22px mt-1"></i>
+        <i class="icon-base ri ri-information-line icon-22px mt-1" aria-hidden="true"></i>
         <span>
           Si vous pensez qu'il s'agit d'une erreur, contactez un administrateur
           pour qu'il vérifie les permissions associées à votre rôle.
