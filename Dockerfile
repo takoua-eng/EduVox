@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # =====================================================================
 # EduVox : une seule image pour le site (Daphne, HTTP + WebSocket)
 # et pour le worker Celery (traitements IA en arrière-plan).
