@@ -176,6 +176,7 @@ pipeline {
                         # (le Secret eduvox-secrets et le certificat eduvox-tls sont créés à la main, une seule fois)
                         for f in k8s/*.yaml; do
                             sed "s#$IMAGE:latest#$IMAGE:$IMAGE_TAG#g" "$f"
+                            echo
                             echo "---"
                         done | kubectl apply -f -
 
