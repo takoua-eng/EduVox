@@ -36,7 +36,7 @@ from .recommandations import cours_similaires
 from .tasks import generer_resume_cours, transcrire_cours
 
 MEDIA_TEST = tempfile.mkdtemp()
-
+@override_settings(SESSION_COOKIE_AGE=24 * 3600)
 
 def creer_utilisateur(username, role, **extra):
     user = Utilisateur.objects.create_user(
@@ -1111,7 +1111,8 @@ class UtilitairesTests(TestCase):
     def test_pas_de_recommandation_sans_matiere_ni_mot_cle(self):
         self.assertEqual(cours_similaires(Cours(pk=1), Cours.objects.all()), [])
 
-
+# La date simulée avance de 2 h : la session (30 min) doit rester valide pendant le test
+@override_settings(SESSION_COOKIE_AGE=24 * 3600)
 class PublicationProgrammeeTests(BaseCoursTestCase):
     def test_le_cours_devient_visible_quand_la_date_est_passee(self):
         maintenant = timezone.now()
