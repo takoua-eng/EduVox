@@ -1,0 +1,43 @@
+# =====================================================================
+# Droits du compte de déploiement de Jenkins dans l'espace « eduvox »
+# Jenkins utilise le compte de service hr-platform:jenkins-deployer (projet RH).
+# Principe du moindre privilège : uniquement les ressources qu'il déploie,
+# uniquement dans « eduvox », et AUCUN accès aux Secrets (créés à la main).
+# À appliquer UNE fois par l'administrateur du cluster (sur le master) :
+#   kubectl apply -f k8s-admin/jenkins-rbac.yaml
+# =====================================================================
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deploiement-eduvox
+  namespace: eduvox
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "services", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-deploie-eduvox
+  namespace: eduvox
+subjects:
+  - kind: ServiceAccount
+    name: jenkins-deployer
+    namespace: hr-platform
+roleRef:
+  kind: Role
+  name: deploiement-eduvox
+  apiGroup: rbac.authorization.k8s.io
