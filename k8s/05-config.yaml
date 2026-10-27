@@ -10,9 +10,9 @@ metadata:
 data:
   DEBUG: "False"
   DJANGO_ENVIRONMENT: "production"
-  ALLOWED_HOSTS: "192.168.255.136,192.168.255.137,localhost"
-  CSRF_TRUSTED_ORIGINS: "https://192.168.255.136:30443,https://192.168.255.137:30443"
-  BASE_URL: "https://192.168.255.136:30443"
+  ALLOWED_HOSTS: "eduvox.test,192.168.255.136,192.168.255.137,localhost"
+  CSRF_TRUSTED_ORIGINS: "https://eduvox.test:30443"
+  BASE_URL: "https://eduvox.test:30443"
   # HTTPS assuré par l'Ingress (certificat dans le Secret eduvox-tls)
   SECURE_SSL_REDIRECT: "True"
   COOKIES_SECURISES: "True"
@@ -36,3 +36,4 @@ data:
   # Fuseau horaire de la Tunisie
   TZ: "Africa/Tunis"
   NIVEAU_LOGS: "INFO"
+  
