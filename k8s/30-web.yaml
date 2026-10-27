@@ -45,7 +45,7 @@ spec:
             - configMapRef: { name: eduvox-config }
             - secretRef:    { name: eduvox-secrets }
           resources:
-            requests: { cpu: 100m, memory: 256Mi }
+            requests: { cpu: 100m, memory: 128Mi }
             limits:   { memory: 1Gi }
       containers:
         - name: web
@@ -59,7 +59,7 @@ spec:
             - containerPort: 8000
           resources:
             # Whisper (questions vocales de l'assistant) et la reconnaissance faciale tournent dans le site
-            requests: { cpu: 250m, memory: 768Mi }
+            requests: { cpu: 200m, memory: 512Mi }
             limits:   { memory: 2Gi }
           # Les en-têtes imitent l'Ingress : nom d'hôte autorisé et HTTPS (sinon redirection)
           startupProbe:
