@@ -1,0 +1,13 @@
+# Fichiers envoyés (photos de profil, cours, audios, livrables EduSprint)
+# ReadWriteMany : le site écrit, le worker Celery lit et écrit, depuis n'importe quel nœud
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fichiers
+  namespace: eduvox
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 5Gi

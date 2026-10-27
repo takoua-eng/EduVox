@@ -1,0 +1,38 @@
+# =====================================================================
+# Réglages non secrets (les mots de passe et clés sont dans le Secret « eduvox-secrets »)
+# Adresse publique : https://192.168.255.136:30443 (Ingress, port HTTPS du cluster)
+# =====================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eduvox-config
+  namespace: eduvox
+data:
+  DEBUG: "False"
+  DJANGO_ENVIRONMENT: "production"
+  ALLOWED_HOSTS: "192.168.255.136,192.168.255.137,localhost"
+  CSRF_TRUSTED_ORIGINS: "https://192.168.255.136:30443,https://192.168.255.137:30443"
+  BASE_URL: "https://192.168.255.136:30443"
+  # HTTPS assuré par l'Ingress (certificat dans le Secret eduvox-tls)
+  SECURE_SSL_REDIRECT: "True"
+  COOKIES_SECURISES: "True"
+  SECURE_HSTS_SECONDS: "3600"
+  SECURE_HSTS_INCLUDE_SUBDOMAINS: "True"
+  # Celery + cache des modèles IA partagé : Redis dans le cluster
+  CELERY_BROKER_URL: "redis://redis:6379/0"
+  CELERY_TASK_ALWAYS_EAGER: "False"
+  CELERY_CONCURRENCY: "2"
+  # Fichiers envoyés servis par Django (volume partagé avec le worker)
+  SERVIR_MEDIAS: "True"
+  EDUSPRINT_STOCKAGE_PRIVE: "/app/stockage_prive/edusprint"
+  # Base de données Neon (PostgreSQL hébergé, commun à l'équipe) : connexion chiffrée
+  DB_PORT: "5432"
+  DB_SSLMODE: "require"
+  # IA
+  WHISPER_MODEL: "openai/whisper-small"
+  FACE_SEUIL: "0.363"
+  FACE_SEUIL_IDENTIFICATION: "0.45"
+  COURS_TAILLE_MAX_MO: "50"
+  # Fuseau horaire de la Tunisie
+  TZ: "Africa/Tunis"
+  NIVEAU_LOGS: "INFO"

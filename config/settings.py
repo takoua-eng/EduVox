@@ -257,11 +257,12 @@ if CELERY_BROKER_URL.startswith("redis://") and not CELERY_TASK_ALWAYS_EAGER:
     _CACHE_MODELES_IA = {"BACKEND": "django.core.cache.backends.redis.RedisCache",
                          "LOCATION": os.environ.get("CACHE_REDIS_URL", CELERY_BROKER_URL)}
 else:
+    _    # MAX_ENTRIES n'existe que pour les caches mémoire / fichier (Redis le refuse : TypeError)
     _CACHE_MODELES_IA = {"BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
-                         "LOCATION": str(BASE_DIR / ".cache_modeles_ia")}
+                         "LOCATION": str(BASE_DIR / ".cache_modeles_ia"), "OPTIONS": {"MAX_ENTRIES": 500}}
 CACHES = {
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
-    "modeles_ia": {**_CACHE_MODELES_IA, "KEY_PREFIX": "eduvox", "TIMEOUT": 24 * 3600, "OPTIONS": {"MAX_ENTRIES": 500}},
+    "modeles_ia": {**_CACHE_MODELES_IA, "KEY_PREFIX": "eduvox", "TIMEOUT": 24 * 3600},
 }
 
 # Sessions : déconnexion automatique après 30 minutes d'inactivité
@@ -302,3 +303,34 @@ if len(sys.argv) > 1 and sys.argv[1] == "test":
     CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"] = "memory://"  # Celery lit d'abord la variable d'environnement
     CELERY_BROKER_TRANSPORT_OPTIONS = {}
     CACHES["modeles_ia"] = {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "modeles_ia"}
+    
+
+# ------------------------------------------------------------------------------
+# Déploiement : Docker, Kubernetes et Jenkins (voir docs/devops.md)
+# ------------------------------------------------------------------------------
+if not DEBUG:
+    # Cookies envoyés uniquement en HTTPS. À laisser à True : la caméra (connexion par visage)
+    # ne fonctionne de toute façon qu'en HTTPS. False seulement pour un test interne en HTTP.
+    SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = _booleen("COOKIES_SECURISES", True)
+
+# Liste de préchargement HSTS des navigateurs : réservée à un vrai nom de domaine public (pas une adresse IP)
+SILENCED_SYSTEM_CHECKS = ["security.W021"]
+
+# Fichiers envoyés (/media/ : photos de profil, cours…) servis par Django quand DEBUG=False,
+# pour un petit déploiement sans serveur Nginx dédié. Accès réservé aux utilisateurs connectés.
+SERVIR_MEDIAS = _booleen("SERVIR_MEDIAS", False)
+
+# Rapports JUnit des tests (lus par Jenkins) : manage.py test --testrunner xmlrunner.extra.djangotestrunner.XMLTestRunner
+TEST_OUTPUT_DIR = os.environ.get("TEST_OUTPUT_DIR", "rapports-tests")
+
+# Journaux sur la sortie standard : lisibles avec « docker logs » et « kubectl logs »
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"simple": {"format": "{asctime} {levelname} {name} : {message}", "style": "{"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "simple"}},
+    "root": {"handlers": ["console"], "level": os.environ.get("NIVEAU_LOGS", "INFO")},
+    "loggers": {"django.request": {"level": "WARNING"}},
+}
+    
+    

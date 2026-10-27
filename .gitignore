@@ -208,3 +208,15 @@ stockage_prive/
 .coverage
 htmlcov/
 test_eduvox.sqlite3
+
+# Déploiement : secrets Kubernetes, certificats, rapports Jenkins
+k8s/secrets.env
+*.pem
+*.key
+*.crt
+rapports/
+rapports-tests/
+.scannerwork/
+coverage.xml
+
+
