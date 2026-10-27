@@ -257,7 +257,7 @@ if CELERY_BROKER_URL.startswith("redis://") and not CELERY_TASK_ALWAYS_EAGER:
     _CACHE_MODELES_IA = {"BACKEND": "django.core.cache.backends.redis.RedisCache",
                          "LOCATION": os.environ.get("CACHE_REDIS_URL", CELERY_BROKER_URL)}
 else:
-    _    # MAX_ENTRIES n'existe que pour les caches mémoire / fichier (Redis le refuse : TypeError)
+    # MAX_ENTRIES n'existe que pour les caches mémoire / fichier (Redis le refuse : TypeError)
     _CACHE_MODELES_IA = {"BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
                          "LOCATION": str(BASE_DIR / ".cache_modeles_ia"), "OPTIONS": {"MAX_ENTRIES": 500}}
 CACHES = {
@@ -303,7 +303,6 @@ if len(sys.argv) > 1 and sys.argv[1] == "test":
     CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"] = "memory://"  # Celery lit d'abord la variable d'environnement
     CELERY_BROKER_TRANSPORT_OPTIONS = {}
     CACHES["modeles_ia"] = {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "modeles_ia"}
-    
 
 # ------------------------------------------------------------------------------
 # Déploiement : Docker, Kubernetes et Jenkins (voir docs/devops.md)
@@ -332,5 +331,3 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": os.environ.get("NIVEAU_LOGS", "INFO")},
     "loggers": {"django.request": {"level": "WARNING"}},
 }
-    
-    
