@@ -21,7 +21,7 @@ data:
   # Celery + cache des modèles IA partagé : Redis dans le cluster
   CELERY_BROKER_URL: "redis://redis:6379/0"
   CELERY_TASK_ALWAYS_EAGER: "False"
-  CELERY_CONCURRENCY: "2"
+  CELERY_CONCURRENCY: "1"
   # Fichiers envoyés servis par Django (volume partagé avec le worker)
   SERVIR_MEDIAS: "True"
   EDUSPRINT_STOCKAGE_PRIVE: "/app/stockage_prive/edusprint"
@@ -36,4 +36,3 @@ data:
   # Fuseau horaire de la Tunisie
   TZ: "Africa/Tunis"
   NIVEAU_LOGS: "INFO"
-  

@@ -10,6 +10,8 @@ metadata:
   namespace: eduvox
 spec:
   replicas: 1
+  strategy:
+  type: Recreate        # libère la mémoire de l'ancien worker avant de lancer le nouveau
   selector:
     matchLabels:
       app: eduvox-worker
@@ -33,8 +35,8 @@ spec:
             - configMapRef: { name: eduvox-config }
             - secretRef:    { name: eduvox-secrets }
           resources:
-            requests: { cpu: 250m, memory: 1Gi }
-            limits:   { memory: 3Gi }
+            requests: { cpu: 200m, memory: 512Mi }
+            limits:   { memory: 256Mi }
           # Le worker répond-il ? (ping Celery)
           livenessProbe:
             exec:
