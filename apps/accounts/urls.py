@@ -4,7 +4,7 @@ from . import views, views_import, views_securite, views_visage
 urlpatterns = [
     path("connexion/", views.ConnexionView.as_view(), name="connexion"),
     path("inscription/", views.InscriptionView.as_view(), name="inscription"),
-    path("deconnexion/", LogoutView.as_view(), name="deconnexion"),
+    path("deconnexion/", views.DeconnexionView.as_view(), name="deconnexion"),
     path("profil/", views.MonProfilView.as_view(), name="mon-profil"),
     path("profil/supprimer/", views.SupprimerMonCompteView.as_view(), name="supprimer-mon-compte"),
     path("roles-permissions/", views.RolesPermissionsView.as_view(), name="roles-permissions"),

@@ -2,12 +2,28 @@
 
 import logging
 
+from django.conf import settings
+
 logger = logging.getLogger(__name__)
+
+
+def lien_absolu(request, chemin):
+    """Lien complet (https://exemple.com/chemin) pour un e-mail.
+
+    Avec la requête : son adresse (build_absolute_uri). Sans requête, ou sans hôte (connexion simulée
+    par client.login / force_login) : settings.BASE_URL, car un lien relatif est inutilisable dans un e-mail.
+    """
+    if request is not None:
+        try:
+            return request.build_absolute_uri(chemin)
+        except KeyError:
+            pass
+    return f"{settings.BASE_URL.rstrip('/')}{chemin}"
 
 
 def racine_site(request):
     """« https://exemple.com » : les tâches construisent les liens sans avoir la requête."""
-    return request.build_absolute_uri("/").rstrip("/")
+    return lien_absolu(request, "/").rstrip("/")
 
 
 def envoyer_en_arriere_plan(tache, *arguments):

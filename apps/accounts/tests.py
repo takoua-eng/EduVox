@@ -1080,13 +1080,17 @@ class EmailsAsynchronesTests(BaseTest):
         from .tasks import email_compte_bloque
 
         with mock.patch("apps.accounts.tasks.send_mail", side_effect=[smtplib.SMTPException("panne"), 1]) as envoi:
-            email_compte_bloque.apply(args=(self.user.pk, "http://testserver/mot-de-passe-oublie/"))
+            email_compte_bloque.apply(args=(self.user.pk, "http://testserver/mot-de-passe-oublie/"), throw=False)
         self.assertEqual(envoi.call_count, 2)
 
     def test_abandon_apres_trois_nouvelles_tentatives(self):
         from .tasks import email_alerte_connexion
 
         entree = JournalConnexion.objects.create(utilisateur=self.user, succes=True)
+        # Les essais imbriqués suivent CELERY_TASK_EAGER_PROPAGATES (True en test) : on regarde ici l'échec final
+        propager = celery_app.conf.CELERY_TASK_EAGER_PROPAGATES
+        celery_app.conf.CELERY_TASK_EAGER_PROPAGATES = False
+        self.addCleanup(setattr, celery_app.conf, "CELERY_TASK_EAGER_PROPAGATES", propager)
         with mock.patch("apps.accounts.tasks.send_mail", side_effect=OSError("réseau")) as envoi:
             resultat = email_alerte_connexion.apply(args=(entree.pk, "http://testserver/profil/connexions/"))
         self.assertEqual(envoi.call_count, 4)
@@ -1109,3 +1113,55 @@ class EmailsAsynchronesTests(BaseTest):
             tache.apply(args=arguments)
         self.assertEqual(len(mail.outbox), 0)
 
+
+
+@override_settings(BASE_URL="https://eduvox.exemple.tn/")
+class LienAbsoluTests(BaseTest):
+    """Les liens des e-mails sont toujours absolus (un lien relatif est inutilisable dans un e-mail)."""
+
+    def test_avec_la_requete(self):
+        from .emails import lien_absolu
+
+        self.assertEqual(lien_absolu(RequestFactory().get("/"), reverse("mes-connexions")),
+                         "http://testserver/profil/connexions/")
+
+    def test_sans_requete_ou_sans_hote_base_url(self):
+        from django.http import HttpRequest
+
+        from .emails import lien_absolu, racine_site
+
+        for requete in (None, HttpRequest()):
+            with self.subTest(requete=requete):
+                self.assertEqual(lien_absolu(requete, reverse("mes-connexions")),
+                                 "https://eduvox.exemple.tn/profil/connexions/")
+        self.assertEqual(racine_site(HttpRequest()), "https://eduvox.exemple.tn")
+
+    def test_alerte_apres_connexion_simulee(self):
+        """force_login (requête sans hôte) + connexion suspecte : l'e-mail contient un lien absolu."""
+        from django.http import HttpRequest
+
+        from .securite import alerter_utilisateur
+
+        user = creer_utilisateur()
+        entree = JournalConnexion.objects.create(utilisateur=user, succes=True, suspect=True)
+        alerter_utilisateur(HttpRequest(), entree)
+        self.assertIn("https://eduvox.exemple.tn/profil/connexions/", mail.outbox[-1].body)
+        
+class DeconnexionTests(TestCase):
+    def setUp(self):
+        self.user = Utilisateur.objects.create_user("deco", "deco@exemple.tn", "MotDePasse2026!x", email_verifie=True)
+
+    def test_get_ne_deconnecte_pas_et_redirige(self):
+        self.client.force_login(self.user)
+        reponse = self.client.get(reverse("deconnexion"))
+        self.assertRedirects(reponse, reverse("index"), fetch_redirect_response=False)
+        self.assertIn("_auth_user_id", self.client.session)   # toujours connecté
+
+    def test_get_anonyme_vers_connexion(self):
+        reponse = self.client.get(reverse("deconnexion"))
+        self.assertRedirects(reponse, reverse("connexion"), fetch_redirect_response=False)
+
+    def test_post_deconnecte(self):
+        self.client.force_login(self.user)
+        self.client.post(reverse("deconnexion"))
+        self.assertNotIn("_auth_user_id", self.client.session)

@@ -10,6 +10,7 @@ from django.urls import reverse
 from . import deux_facteurs
 from web_project import TemplateLayout
 from web_project.template_helpers.theme import TemplateHelper
+from django.contrib.auth.views import LogoutView
 
 from .decorators import RoleRequiredMixin
 from .models import Utilisateur
@@ -467,3 +468,16 @@ class RolesPermissionsView(AdminRequiredMixin, TemplateView):
 def erreur_403(request, exception=None):
     context = layout_sans_menu(None, {})
     return render(request, "accounts/erreur_403.html", context, status=403)
+
+@method_decorator(login_not_required, name="dispatch")
+class DeconnexionView(LogoutView):
+    """Déconnexion en POST uniquement (protection CSRF).
+    Un accès direct par l'adresse (GET) ne déconnecte pas : on redirige proprement au lieu d'une erreur 405."""
+
+    http_method_names = ["get", "post", "options"]
+
+    def get(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            messages.info(request, "Pour vous déconnecter, utilisez le bouton « Déconnexion » du menu de votre profil.")
+            return redirect("index")
+        return redirect("connexion")

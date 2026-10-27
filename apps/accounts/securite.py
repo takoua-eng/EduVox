@@ -6,6 +6,7 @@ import time
 from datetime import timedelta
 
 from django.core.cache import caches
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.timezone import localtime
 
@@ -220,11 +221,11 @@ def enregistrer_connexion(request, utilisateur=None, nom_saisi="", succes=False,
 
 def alerter_utilisateur(request, entree):
     """E-mail d'alerte en cas de connexion inhabituelle (envoyé en arrière-plan)."""
-    from .emails import envoyer_en_arriere_plan
+    from .emails import envoyer_en_arriere_plan, lien_absolu
     from .tasks import email_alerte_connexion
 
     if entree.utilisateur.email:
-        envoyer_en_arriere_plan(email_alerte_connexion, entree.pk, request.build_absolute_uri("/profil/connexions/"))
+        envoyer_en_arriere_plan(email_alerte_connexion, entree.pk, lien_absolu(request, reverse("mes-connexions")))
 
 
 
@@ -277,8 +278,8 @@ def debloquer(utilisateur):
 
 def alerter_blocage(request, utilisateur):
     """E-mail « compte bloqué » (envoyé en arrière-plan)."""
-    from .emails import envoyer_en_arriere_plan
+    from .emails import envoyer_en_arriere_plan, lien_absolu
     from .tasks import email_compte_bloque
 
     if utilisateur.email:
-        envoyer_en_arriere_plan(email_compte_bloque, utilisateur.pk, request.build_absolute_uri("/mot-de-passe-oublie/"))
+        envoyer_en_arriere_plan(email_compte_bloque, utilisateur.pk, lien_absolu(request, reverse("mdp-oublie")))

@@ -1,0 +1,48 @@
+{# Courbes d'activité par jour. Paramètres : activite (statistiques.activite_par_jour), titre. Une seule fois par page. #}
+<div class="card h-100">
+  <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <h2 class="h5 mb-0">{{ titre }}</h2>
+    <small class="text-body-secondary">{{ activite.total }} au total sur {{ activite.jours|length }} jours</small>
+  </div>
+  <div class="card-body">
+    <div id="graphiqueActivite" role="img"
+         aria-label="{{ titre }} : courbes par jour sur {{ activite.jours|length }} jours ({% for s in activite.series %}{{ s.nom }}{% if not forloop.last %}, {% endif %}{% endfor %}). Les valeurs sont dans le tableau « Voir les données »."></div>
+    <details class="mt-3">
+      <summary class="small">Voir les données (tableau)</summary>
+      <div class="table-responsive mt-2">
+        <table class="table table-sm mb-0">
+          <caption class="visually-hidden">{{ titre }}, par jour</caption>
+          <thead>
+            <tr><th scope="col">Jour</th>{% for s in activite.series %}<th scope="col" class="text-end">{{ s.nom }}</th>{% endfor %}</tr>
+          </thead>
+          <tbody>
+            {% for ligne in activite.lignes %}
+            <tr>{% for valeur in ligne %}{% if forloop.first %}<th scope="row" class="fw-normal">{{ valeur }}</th>{% else %}<td class="text-end">{{ valeur }}</td>{% endif %}{% endfor %}</tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+</div>
+{{ activite|json_script:"donnees-activite" }}
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const donnees = JSON.parse(document.getElementById("donnees-activite").textContent);
+    // Palette validée (daltonisme, contraste) ; une couleur fixe par série, dans cet ordre
+    const PALETTE = ["#7C3AED", "#0891B2", "#D97706"];
+    new ApexCharts(document.querySelector("#graphiqueActivite"), {
+      chart: { type: "line", height: 280, toolbar: { show: false }, zoom: { enabled: false }, fontFamily: "inherit" },
+      series: donnees.series.map(function (s) { return { name: s.nom, data: s.valeurs }; }),
+      colors: PALETTE.slice(0, donnees.series.length),
+      stroke: { width: 2, curve: "straight" },
+      markers: { size: 4, strokeWidth: 2, strokeColors: "#ffffff", hover: { size: 6 } },
+      xaxis: { categories: donnees.jours, tickAmount: 7, labels: { rotate: 0 }, axisTicks: { show: false } },
+      yaxis: { min: 0, forceNiceScale: true, decimalsInFloat: 0 },
+      grid: { borderColor: "rgba(0, 0, 0, 0.08)", strokeDashArray: 3 },
+      legend: { position: "top", horizontalAlign: "left" },
+      tooltip: { shared: true, intersect: false },
+      dataLabels: { enabled: false }
+    }).render();
+  });
+</script>

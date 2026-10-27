@@ -1,6 +1,17 @@
 {% extends layout_path %}
+{% load static %}
 
 {% block title %}Tableau de bord - EduVox{% endblock title %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+{% endblock vendor_js %}
 
 {% block content %}
 <!-- Bannière de bienvenue -->
@@ -11,47 +22,109 @@
   </div>
 </div>
 
+{% if stat_corrections_attente or stat_cours_erreur %}
+<div class="alert alert-warning d-flex gap-3 mb-6" role="status">
+  <i class="icon-base ri ri-information-line icon-22px" aria-hidden="true"></i>
+  <div>
+    {% if stat_corrections_attente %}
+      <a href="{% url 'liste-quiz' %}" class="alert-link">{{ stat_corrections_attente }} copie{{ stat_corrections_attente|pluralize }} en attente de correction</a>.
+    {% endif %}
+    {% if stat_cours_erreur %}
+      <a href="{% url 'liste-cours' %}" class="alert-link">{{ stat_cours_erreur }} cours en erreur de traitement IA</a> (transcription ou résumé à relancer).
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- Indicateurs -->
 <div class="row g-6 mb-6">
   <div class="col-sm-6 col-xl-3">
-    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Mes cours</p><p class="h4 mb-0">0</p></div>
+    <a href="{% url 'liste-cours' %}" class="card h-100 text-body"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Mes cours</p><p class="h4 mb-0">{{ stat_cours }}</p>
+        <small class="text-body-secondary">{{ stat_cours_publies }} publié{{ stat_cours_publies|pluralize }}</small></div>
       <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-book-open-line icon-24px" aria-hidden="true"></i></span></div>
-    </div></div>
+    </div></a>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Quiz publiés</p><p class="h4 mb-0">0</p></div>
+    <a href="{% url 'liste-quiz' %}" class="card h-100 text-body"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Quiz publiés</p><p class="h4 mb-0">{{ stat_quiz_publies }}</p>
+        <small class="text-body-secondary">sur {{ stat_quiz }} quiz</small></div>
       <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-question-answer-line icon-24px" aria-hidden="true"></i></span></div>
-    </div></div>
+    </div></a>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Taux de présence</p><p class="h4 mb-0">— %</p></div>
+    <div class="card h-100"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Étudiants actifs</p><p class="h4 mb-0">{{ stat_etudiants_actifs }}</p>
+        <small class="text-body-secondary">sur {{ jours_actifs }} jours (cours ou quiz)</small></div>
       <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-user-follow-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Score moyen</p><p class="h4 mb-0">— %</p></div>
+    <div class="card h-100"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Score moyen</p><p class="h4 mb-0">{% if stat_score_moyen is not None %}{{ stat_score_moyen }} %{% else %}—{% endif %}</p>
+        <small class="text-body-secondary">{% if stat_score_moyen is not None %}copies corrigées{% else %}aucune copie corrigée{% endif %}</small></div>
       <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-star-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
 </div>
 
-<!-- Actions rapides -->
-<div class="card">
-  <div class="card-header"><h2 class="h5 mb-0">Actions rapides</h2></div>
-  <div class="card-body">
-    <div class="row g-4">
-      <div class="col-md-4 d-grid">
-        <a href="#" class="btn btn-primary"><i class="icon-base ri ri-upload-cloud-2-line me-2" aria-hidden="true"></i> Uploader un cours</a>
+<div class="row g-6 mb-6">
+  <div class="col-lg-8">
+    {% include "_graphique_activite.html" with titre="Activité de mes étudiants" %}
+  </div>
+  <!-- Cours les plus consultés -->
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="h5 mb-0">Cours les plus consultés</h2></div>
+      <ul class="list-group list-group-flush">
+        {% for c in cours_populaires %}
+        <li class="list-group-item d-flex justify-content-between align-items-center gap-3">
+          <a href="{% url 'detail-cours' c.pk %}" class="text-truncate">{{ c.titre }}</a>
+          <span class="badge rounded-pill bg-label-primary">{{ c.nb_consultations }}<span class="visually-hidden"> consultation{{ c.nb_consultations|pluralize }}</span></span>
+        </li>
+        {% empty %}
+        <li class="list-group-item text-body-secondary">Aucune consultation pour le moment.</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="row g-6">
+  <!-- Dernières copies -->
+  <div class="col-lg-8">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="h5 mb-0">Dernières copies rendues</h2></div>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th scope="col">Étudiant</th><th scope="col">Quiz</th><th scope="col">Rendu le</th><th scope="col" class="text-end">Résultat</th></tr></thead>
+          <tbody>
+            {% for t in dernieres_tentatives %}
+            <tr>
+              <td>{{ t.etudiant.get_full_name|default:t.etudiant.username }}</td>
+              <td><a href="{% url 'resultats-quiz' t.quiz_id %}">{{ t.quiz.titre }}</a></td>
+              <td>{{ t.date_soumission|date:"d/m/Y H:i" }}</td>
+              <td class="text-end">
+                {% if t.pourcentage is not None and t.statut == "corrigee" %}{{ t.pourcentage }} %
+                {% else %}<span class="badge bg-label-warning">À corriger</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center py-4 text-body-secondary">Aucune copie rendue pour le moment.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-      <div class="col-md-4 d-grid">
-        <a href="#" class="btn btn-outline-primary"><i class="icon-base ri ri-sparkling-line me-2" aria-hidden="true"></i> Générer un quiz</a>
-      </div>
-      <div class="col-md-4 d-grid">
-        <a href="#" class="btn btn-outline-primary"><i class="icon-base ri ri-bar-chart-box-line me-2" aria-hidden="true"></i> Suivi présence et engagement</a>
+    </div>
+  </div>
+  <!-- Actions rapides -->
+  <div class="col-lg-4">
+    <div class="card h-100">
+      <div class="card-header"><h2 class="h5 mb-0">Actions rapides</h2></div>
+      <div class="card-body d-grid gap-3">
+        <a href="{% url 'ajouter-cours' %}" class="btn btn-primary"><i class="icon-base ri ri-upload-cloud-2-line me-2" aria-hidden="true"></i> Ajouter un cours</a>
+        <a href="{% url 'generer-quiz' %}" class="btn btn-outline-primary"><i class="icon-base ri ri-sparkling-line me-2" aria-hidden="true"></i> Générer un quiz avec l'IA</a>
+        <a href="{% url 'statistiques-cours' %}" class="btn btn-outline-primary"><i class="icon-base ri ri-bar-chart-box-line me-2" aria-hidden="true"></i> Statistiques de mes cours</a>
       </div>
     </div>
   </div>
