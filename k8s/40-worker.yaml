@@ -1,0 +1,51 @@
+# =====================================================================
+# Worker Celery : transcription Whisper, résumés Gemini, e-mails,
+# pré-calcul des modèles de détection des connexions suspectes
+# Même image que le site, autre commande
+# =====================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eduvox-worker
+  namespace: eduvox
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eduvox-worker
+  template:
+    metadata:
+      labels:
+        app: eduvox-worker
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      # Laisse le temps de finir la tâche en cours avant l'arrêt
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: worker
+          image: 192.168.255.129:8082/eduvox:latest
+          imagePullPolicy: IfNotPresent
+          args: ["worker"]
+          envFrom:
+            - configMapRef: { name: eduvox-config }
+            - secretRef:    { name: eduvox-secrets }
+          resources:
+            requests: { cpu: 250m, memory: 1Gi }
+            limits:   { memory: 3Gi }
+          # Le worker répond-il ? (ping Celery)
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "celery -A config inspect ping -d celery@$HOSTNAME --timeout 10"]
+            initialDelaySeconds: 60
+            periodSeconds: 120
+            timeoutSeconds: 30
+          volumeMounts:
+            - { name: fichiers, mountPath: /app/media, subPath: media }
+            - { name: fichiers, mountPath: /app/stockage_prive, subPath: stockage_prive }
+      volumes:
+        - name: fichiers
+          persistentVolumeClaim:
+            claimName: fichiers

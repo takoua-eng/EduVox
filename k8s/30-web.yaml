@@ -1,0 +1,92 @@
+# =====================================================================
+# Site EduVox : Django servi par Daphne (HTTP + WebSocket de l'assistant)
+# Les migrations s'exécutent avant le démarrage (initContainer)
+# Une seule réplique : la couche WebSocket est en mémoire (InMemoryChannelLayer)
+# =====================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: eduvox-web
+  namespace: eduvox
+spec:
+  selector:
+    app: eduvox-web
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eduvox-web
+  namespace: eduvox
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate        # une seule réplique et un volume partagé : on remplace l'ancienne version
+  selector:
+    matchLabels:
+      app: eduvox-web
+  template:
+    metadata:
+      labels:
+        app: eduvox-web
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+        - name: migrate
+          image: 192.168.255.129:8082/eduvox:latest
+          imagePullPolicy: IfNotPresent
+          args: ["migrate"]
+          envFrom:
+            - configMapRef: { name: eduvox-config }
+            - secretRef:    { name: eduvox-secrets }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits:   { memory: 1Gi }
+      containers:
+        - name: web
+          image: 192.168.255.129:8082/eduvox:latest
+          imagePullPolicy: IfNotPresent
+          args: ["web"]
+          envFrom:
+            - configMapRef: { name: eduvox-config }
+            - secretRef:    { name: eduvox-secrets }
+          ports:
+            - containerPort: 8000
+          resources:
+            # Whisper (questions vocales de l'assistant) et la reconnaissance faciale tournent dans le site
+            requests: { cpu: 250m, memory: 768Mi }
+            limits:   { memory: 2Gi }
+          # Les en-têtes imitent l'Ingress : nom d'hôte autorisé et HTTPS (sinon redirection)
+          startupProbe:
+            httpGet:
+              path: /sante/
+              port: 8000
+              httpHeaders:
+                - { name: Host, value: "192.168.255.136" }
+                - { name: X-Forwarded-Proto, value: https }
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /sante/
+              port: 8000
+              httpHeaders:
+                - { name: Host, value: "192.168.255.136" }
+                - { name: X-Forwarded-Proto, value: https }
+            periodSeconds: 15
+            timeoutSeconds: 5
+          livenessProbe:
+            tcpSocket: { port: 8000 }
+            periodSeconds: 30
+          volumeMounts:
+            - { name: fichiers, mountPath: /app/media, subPath: media }
+            - { name: fichiers, mountPath: /app/stockage_prive, subPath: stockage_prive }
+      volumes:
+        - name: fichiers
+          persistentVolumeClaim:
+            claimName: fichiers

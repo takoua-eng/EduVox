@@ -1,0 +1,38 @@
+# Jamais dans l'image : secrets, Git, environnements locaux
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+venv/
+.venv/
+**/__pycache__/
+*.pyc
+
+# Généré à la construction (étape Node) ou au démarrage
+src/node_modules/
+src/assets/vendor/
+staticfiles/
+
+# Données locales : fichiers envoyés, livrables, photos de test (données biométriques)
+media/
+stockage_prive/
+ai_services/modeles/
+ai_services/donnees_test/
+.cache_modeles_ia/
+.celery_broker/
+donnees*.json
+db.sqlite3
+
+# Tests et rapports
+.coverage
+htmlcov/
+test_eduvox.sqlite3
+rapports-tests/
+.scannerwork/
+coverage.xml
+
+# Infrastructure (inutile dans l'image)
+k8s/
+Jenkinsfile
+docker-compose.yml

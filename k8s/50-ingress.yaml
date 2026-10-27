@@ -1,0 +1,26 @@
+# =====================================================================
+# Point d'entrée unique en HTTPS : https://192.168.255.136:30443
+# HTTPS est indispensable : le navigateur n'autorise la caméra (connexion par visage)
+# et le micro (assistant vocal) que sur une page sécurisée.
+# =====================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: eduvox
+  namespace: eduvox
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "60m"       # dépôt de cours (50 Mo max)
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"   # WebSocket de l'assistant
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  tls:
+    - secretName: eduvox-tls
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: eduvox-web, port: { number: 8000 } }

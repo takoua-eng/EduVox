@@ -1,0 +1,5 @@
+# Espace de noms dédié : toutes les ressources d'EduVox sont regroupées ici
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eduvox

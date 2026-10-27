@@ -1,0 +1,74 @@
+# =====================================================================
+# EduVox en local avec Docker : site + worker Celery + Redis
+#   docker compose up --build        puis http://localhost:8000
+# La base reste celle du .env (Neon). Pour une base PostgreSQL locale :
+#   docker compose --profile base-locale up --build   (et DB_HOST=postgres dans .env)
+# =====================================================================
+x-eduvox: &eduvox
+  build: .
+  image: eduvox:local
+  env_file: .env
+  environment:
+    # Valeurs propres à Docker (remplacent celles du .env)
+    CELERY_BROKER_URL: redis://redis:6379/0
+    CELERY_TASK_ALWAYS_EAGER: "False"
+    SERVIR_MEDIAS: "True"
+  volumes:
+    - medias:/app/media
+    - stockage_prive:/app/stockage_prive
+  depends_on:
+    redis:
+      condition: service_healthy
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  # Migrations : s'exécute une fois puis s'arrête, avant le site
+  migrate:
+    <<: *eduvox
+    command: ["migrate"]
+    restart: "no"
+
+  web:
+    <<: *eduvox
+    command: ["web"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/sante/', timeout=5)"]
+      interval: 30s
+      start_period: 60s
+    restart: unless-stopped
+
+  worker:
+    <<: *eduvox
+    command: ["worker"]
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+    profiles: ["base-locale"]
+    environment:
+      POSTGRES_DB: ${DB_NAME:-eduvox}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Renseignez DB_PASSWORD dans .env}
+    volumes:
+      - donnees_postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  medias:
+  stockage_prive:
+  donnees_postgres:
