@@ -16,9 +16,11 @@ metadata:
 spec:
   ingressClassName: nginx
   tls:
-    - secretName: eduvox-tls
+    - hosts: ["eduvox.test"]
+      secretName: eduvox-tls
   rules:
-    - http:
+    - host: eduvox.test
+      http:
         paths:
           - path: /
             pathType: Prefix
