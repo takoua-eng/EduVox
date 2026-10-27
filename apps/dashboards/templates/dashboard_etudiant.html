@@ -17,25 +17,25 @@
 <!-- Actions rapides -->
 <div class="row g-6 mb-6">
   <div class="col-sm-6 col-xl-3">
-    <a href="#" class="card h-100 text-body">
+    <a href="{% url 'assistant' %}" class="card h-100 text-body">
       <div class="card-body">
         <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-mic-line icon-24px" aria-hidden="true"></i></span></div>
         <h2 class="h6 mb-1">Poser une question vocale</h2>
-        <small class="text-body-secondary">Parlez, l'IA transcrit et vous explique.</small>
+        <small class="text-body-secondary">{% if stat_sessions_assistant %}{{ stat_sessions_assistant }} conversation{{ stat_sessions_assistant|pluralize }} avec l'assistant{% else %}Parlez, l'IA transcrit et vous explique.{% endif %}</small>
       </div>
     </a>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <a href="#" class="card h-100 text-body">
+    <a href="{% url 'liste-cours' %}" class="card h-100 text-body">
       <div class="card-body">
         <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-book-open-line icon-24px" aria-hidden="true"></i></span></div>
         <h2 class="h6 mb-1">Mes cours</h2>
-        <small class="text-body-secondary">Consultez vos cours et leurs résumés.</small>
+        <small class="text-body-secondary">{% if stat_cours_consultes %}{{ stat_cours_consultes }} cours consulté{{ stat_cours_consultes|pluralize }}{% if stat_favoris %}, {{ stat_favoris }} en favori{{ stat_favoris|pluralize }}{% endif %}{% else %}Consultez vos cours et leurs résumés.{% endif %}</small>
       </div>
     </a>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <a href="#" class="card h-100 text-body">
+    <a href="{% url 'liste-quiz' %}" class="card h-100 text-body">
       <div class="card-body">
         <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-checkbox-circle-line icon-24px" aria-hidden="true"></i></span></div>
         <h2 class="h6 mb-1">Passer un quiz</h2>
@@ -44,11 +44,11 @@
     </a>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <a href="#" class="card h-100 text-body">
+    <a href="{% url 'catalogue-defis' %}" class="card h-100 text-body">
       <div class="card-body">
-        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-user-follow-line icon-24px" aria-hidden="true"></i></span></div>
-        <h2 class="h6 mb-1">Marquer ma présence</h2>
-        <small class="text-body-secondary">Vérification par reconnaissance faciale.</small>
+        <div class="avatar mb-4"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-trophy-line icon-24px" aria-hidden="true"></i></span></div>
+        <h2 class="h6 mb-1">Défis EduSprint</h2>
+        <small class="text-body-secondary">Relevez un défi en équipe.</small>
       </div>
     </a>
   </div>
@@ -60,21 +60,46 @@
     <div class="card h-100">
       <div class="card-header"><h2 class="h5 mb-0">Ma progression</h2></div>
       <div class="card-body">
-        <div class="d-flex justify-content-between mb-1"><span>Score moyen aux quiz</span><span class="fw-medium">— %</span></div>
-        <div class="progress mb-5" style="height: 8px;"><div class="progress-bar bg-success" style="width: 0%"></div></div>
-        <div class="d-flex justify-content-between mb-1"><span>Taux de présence</span><span class="fw-medium">— %</span></div>
-        <div class="progress mb-5" style="height: 8px;"><div class="progress-bar bg-info" style="width: 0%"></div></div>
-        <div class="d-flex justify-content-between"><span>Quiz complétés</span><span class="fw-medium">0</span></div>
+        <div class="d-flex justify-content-between mb-1"><span id="libelle-score">Score moyen aux quiz</span>
+          <span class="fw-medium">{% if stat_score_moyen is not None %}{{ stat_score_moyen }} %{% else %}—{% endif %}</span></div>
+        <div class="progress mb-5" style="height: 8px;" role="progressbar" aria-labelledby="libelle-score"
+             aria-valuenow="{{ stat_score_moyen|default:0 }}" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar bg-success" style="width: {{ stat_score_moyen|default:0 }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between mb-1"><span id="libelle-reussite">Quiz réussis (≥ {{ seuil_reussite }} %)</span>
+          <span class="fw-medium">{% if stat_taux_reussite is not None %}{{ stat_taux_reussite }} %{% else %}—{% endif %}</span></div>
+        <div class="progress mb-5" style="height: 8px;" role="progressbar" aria-labelledby="libelle-reussite"
+             aria-valuenow="{{ stat_taux_reussite|default:0 }}" aria-valuemin="0" aria-valuemax="100">
+          <div class="progress-bar bg-info" style="width: {{ stat_taux_reussite|default:0 }}%"></div>
+        </div>
+        <dl class="row mb-0">
+          <dt class="col-8 fw-normal">Quiz terminés</dt><dd class="col-4 text-end fw-medium mb-2">{{ stat_quiz_termines }}</dd>
+          <dt class="col-8 fw-normal">Quiz réussis</dt><dd class="col-4 text-end fw-medium mb-2">{{ stat_quiz_reussis }}</dd>
+          <dt class="col-8 fw-normal">Cours consultés</dt><dd class="col-4 text-end fw-medium mb-0">{{ stat_cours_consultes }}</dd>
+        </dl>
+        {% if stat_quiz_termines %}<a href="{% url 'mes-tentatives' %}" class="btn btn-sm btn-outline-primary mt-4">Voir mes résultats</a>{% endif %}
       </div>
     </div>
   </div>
   <div class="col-lg-8">
     <div class="card h-100">
       <div class="card-header"><h2 class="h5 mb-0">Activité récente</h2></div>
+      {% if activite_recente %}
+      <ul class="list-group list-group-flush">
+        {% for e in activite_recente %}
+        <li class="list-group-item d-flex align-items-center gap-3">
+          <span class="avatar avatar-sm flex-shrink-0"><span class="avatar-initial rounded bg-label-{{ e.couleur }}"><i class="icon-base ri {{ e.icone }}" aria-hidden="true"></i></span></span>
+          <a href="{{ e.lien }}" class="flex-grow-1 text-truncate">{{ e.texte }}</a>
+          <small class="text-body-secondary text-nowrap"><time datetime="{{ e.date|date:'c' }}">il y a {{ e.date|timesince }}</time></small>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
       <div class="card-body text-center py-8">
         <i class="icon-base ri ri-time-line text-body-secondary mb-3" aria-hidden="true" style="font-size: 2.5rem;"></i>
         <p class="mb-0 text-body-secondary">Aucune activité pour le moment. Commencez par poser une question ou ouvrir un cours !</p>
       </div>
+      {% endif %}
     </div>
   </div>
 </div>

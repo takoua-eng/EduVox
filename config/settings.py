@@ -143,9 +143,7 @@ DATABASES = {
     }
 }
 
-# Tests automatiques : base SQLite temporaire, rapide et isolée (ne touche jamais la base commune Neon)
-if len(sys.argv) > 1 and sys.argv[1] == "test":
-    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "test_eduvox.sqlite3"}}
+# Tests automatiques : voir le bloc « python manage.py test » à la fin du fichier
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -265,8 +263,6 @@ CACHES = {
     "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
     "modeles_ia": {**_CACHE_MODELES_IA, "KEY_PREFIX": "eduvox", "TIMEOUT": 24 * 3600, "OPTIONS": {"MAX_ENTRIES": 500}},
 }
-if len(sys.argv) > 1 and sys.argv[1] == "test":
-    CACHES["modeles_ia"] = {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "modeles_ia"}
 
 # Sessions : déconnexion automatique après 30 minutes d'inactivité
 SESSION_COOKIE_AGE = 30 * 60
@@ -292,3 +288,17 @@ if not DEBUG:
         # Fichiers statiques compressés et servis par WhiteNoise (après python manage.py collectstatic)
         "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
     }
+
+# Tests automatiques (python manage.py test), quel que soit le .env. Ce bloc reste en fin de fichier
+# pour remplacer les valeurs définies plus haut :
+# - base SQLite temporaire, rapide et isolée (ne touche jamais la base commune Neon) ;
+# - tâches Celery exécutées directement, erreurs visibles, broker en mémoire : aucun test ne peut envoyer
+#   de tâche au broker réel (un worker branché sur Neon l'exécuterait sur les vraies données) ;
+# - cache des modèles IA en mémoire.
+if len(sys.argv) > 1 and sys.argv[1] == "test":
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "test_eduvox.sqlite3"}}
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"] = "memory://"  # Celery lit d'abord la variable d'environnement
+    CELERY_BROKER_TRANSPORT_OPTIONS = {}
+    CACHES["modeles_ia"] = {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "modeles_ia"}

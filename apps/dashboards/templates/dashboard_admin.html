@@ -18,10 +18,11 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     new ApexCharts(document.querySelector("#graphiqueRoles"), {
-      chart: { type: "donut", height: 260 },
+      chart: { type: "donut", height: 260, fontFamily: "inherit" },
       labels: ["Étudiants", "Enseignants", "Administrateurs"],
       series: [{{ stat_etudiants }}, {{ stat_enseignants }}, {{ stat_admins }}],
-      colors: ["#06B6D4", "#10B981", "#EF4444"],
+      colors: ["#7C3AED", "#0891B2", "#D97706"],
+      stroke: { width: 2, colors: ["#ffffff"] },
       legend: { position: "bottom" },
       dataLabels: { enabled: false },
       plotOptions: { pie: { donut: { labels: { show: true, total: { show: true, label: "Total" } } } } }
@@ -32,74 +33,111 @@
 
 {% block content %}
 <h1 class="h4 mb-1">Tableau de bord administrateur</h1>
-<p class="mb-6 text-body-secondary">Vue d'ensemble de la plateforme EduVox.</p>
+<p class="mb-6 text-body-secondary">Vue d'ensemble de la plateforme EduVox, calculée en direct.</p>
 
-<!-- Indicateurs -->
+<!-- Utilisateurs -->
 <div class="row g-6 mb-6">
   <div class="col-sm-6 col-xl-3">
-    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
-      <div><p class="mb-1">Utilisateurs</p><p class="h4 mb-0">{{ stat_total }}</p></div>
+    <div class="card h-100"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Utilisateurs</p><p class="h4 mb-0">{{ stat_total }}</p>
+        {% if stat_inactifs %}<small class="text-body-secondary">dont {{ stat_inactifs }} désactivé{{ stat_inactifs|pluralize }}</small>{% endif %}</div>
       <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-group-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+    <div class="card h-100"><div class="card-body d-flex justify-content-between align-items-center">
       <div><p class="mb-1">Étudiants</p><p class="h4 mb-0">{{ stat_etudiants }}</p></div>
       <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-graduation-cap-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+    <div class="card h-100"><div class="card-body d-flex justify-content-between align-items-center">
       <div><p class="mb-1">Enseignants</p><p class="h4 mb-0">{{ stat_enseignants }}</p></div>
       <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-presentation-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
   <div class="col-sm-6 col-xl-3">
-    <div class="card"><div class="card-body d-flex justify-content-between align-items-center">
+    <div class="card h-100"><div class="card-body d-flex justify-content-between align-items-center">
       <div><p class="mb-1">Nouveaux (7 jours)</p><p class="h4 mb-0">{{ stat_nouveaux }}</p></div>
       <div class="avatar"><span class="avatar-initial rounded bg-label-warning"><i class="icon-base ri ri-user-add-line icon-24px" aria-hidden="true"></i></span></div>
     </div></div>
   </div>
 </div>
 
-<div class="row g-6">
+<!-- Contenus et sécurité -->
+<div class="row g-6 mb-6">
+  <div class="col-sm-6 col-xl-3">
+    <a href="{% url 'liste-cours' %}" class="card h-100 text-body"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Cours publiés</p><p class="h4 mb-0">{{ stat_cours_publies }}</p>
+        <small class="text-body-secondary">sur {{ stat_cours }} cours</small></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-primary"><i class="icon-base ri ri-book-open-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></a>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <a href="{% url 'liste-quiz' %}" class="card h-100 text-body"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Quiz publiés</p><p class="h4 mb-0">{{ stat_quiz_publies }}</p>
+        <small class="text-body-secondary">{{ stat_tentatives_semaine }} tentative{{ stat_tentatives_semaine|pluralize }} en 7 jours</small></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-success"><i class="icon-base ri ri-question-answer-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></a>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <a href="{% url 'journal-connexions' %}" class="card h-100 text-body"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Connexions (7 jours)</p><p class="h4 mb-0">{{ stat_connexions_semaine }}</p>
+        <small class="text-body-secondary">{{ stat_echecs_semaine }} échec{{ stat_echecs_semaine|pluralize }}</small></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-info"><i class="icon-base ri ri-login-box-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></a>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <a href="{% url 'journal-connexions' %}?filtre=suspect" class="card h-100 text-body"><div class="card-body d-flex justify-content-between align-items-center">
+      <div><p class="mb-1">Connexions suspectes (7 jours)</p><p class="h4 mb-0">{{ stat_suspectes_semaine }}</p>
+        <small class="text-body-secondary">détectées par l'IA</small></div>
+      <div class="avatar"><span class="avatar-initial rounded bg-label-danger"><i class="icon-base ri ri-alarm-warning-line icon-24px" aria-hidden="true"></i></span></div>
+    </div></a>
+  </div>
+</div>
+
+<div class="row g-6 mb-6">
+  <div class="col-lg-8">
+    {% include "_graphique_activite.html" with titre="Activité de la plateforme" %}
+  </div>
   <!-- Répartition des rôles -->
   <div class="col-lg-4">
     <div class="card h-100">
       <div class="card-header"><h2 class="h5 mb-0">Répartition des rôles</h2></div>
-      <div class="card-body"><div id="graphiqueRoles"></div></div>
+      <div class="card-body">
+        <div id="graphiqueRoles" role="img"
+             aria-label="Répartition des rôles : {{ stat_etudiants }} étudiants, {{ stat_enseignants }} enseignants, {{ stat_admins }} administrateurs."></div>
+      </div>
     </div>
   </div>
+</div>
 
-  <!-- Dernières inscriptions -->
-  <div class="col-lg-8">
-    <div class="card h-100">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h2 class="h5 mb-0">Dernières inscriptions</h2>
-        <a href="{% url 'liste-utilisateurs' %}" class="btn btn-sm btn-outline-primary">Tout voir</a>
-      </div>
-      <div class="table-responsive text-nowrap">
-        <table class="table">
-          <thead><tr><th scope="col">Utilisateur</th><th scope="col">Rôle</th><th scope="col">Inscrit le</th></tr></thead>
-          <tbody>
-            {% for u in derniers_inscrits %}
-            <tr>
-              <td>
-                <strong>{{ u.get_full_name|default:u.username }}</strong><br />
-                <small class="text-body-secondary">{{ u.email }}</small>
-              </td>
-              <td>
-                <span class="badge rounded-pill {% if u.role == 'ADMIN' %}bg-label-danger{% elif u.role == 'ENSEIGNANT' %}bg-label-success{% else %}bg-label-info{% endif %}">{{ u.get_role_display }}</span>
-              </td>
-              <td>{{ u.date_inscription|date:"d/m/Y H:i" }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="text-center">Aucun utilisateur.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
+<!-- Dernières inscriptions -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h2 class="h5 mb-0">Dernières inscriptions</h2>
+    <a href="{% url 'liste-utilisateurs' %}" class="btn btn-sm btn-outline-primary">Tout voir</a>
+  </div>
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead><tr><th scope="col">Utilisateur</th><th scope="col">Rôle</th><th scope="col">Inscrit le</th></tr></thead>
+      <tbody>
+        {% for u in derniers_inscrits %}
+        <tr>
+          <td>
+            <strong>{{ u.get_full_name|default:u.username }}</strong><br />
+            <small class="text-body-secondary">{{ u.email }}</small>
+          </td>
+          <td>
+            <span class="badge rounded-pill {% if u.role == 'ADMIN' %}bg-label-danger{% elif u.role == 'ENSEIGNANT' %}bg-label-success{% else %}bg-label-info{% endif %}">{{ u.get_role_display }}</span>
+          </td>
+          <td>{{ u.date_inscription|date:"d/m/Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3" class="text-center">Aucun utilisateur.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 {% endblock content %}
